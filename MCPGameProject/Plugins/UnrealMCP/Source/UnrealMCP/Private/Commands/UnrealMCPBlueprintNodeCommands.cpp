@@ -30,6 +30,10 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleCommand(const FSt
     {
         return HandleConnectBlueprintNodes(Params);
     }
+    else if (CommandType == TEXT("create_input_mapping"))
+    {
+        return HandleCreateInputMapping(Params);
+    }
     else if (CommandType == TEXT("add_blueprint_get_self_component_reference"))
     {
         return HandleAddBlueprintGetSelfComponentReference(Params);
@@ -142,6 +146,61 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleConnectBlueprintN
     }
 
     return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to connect nodes"));
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleCreateInputMapping(const TSharedPtr<FJsonObject>& Params)
+{
+    // Get required parameters
+    FString ActionName;
+    if (!Params->TryGetStringField(TEXT("action_name"), ActionName))
+    {
+        return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'action_name' parameter"));
+    }
+
+    FString Key;
+    if (!Params->TryGetStringField(TEXT("key"), Key))
+    {
+        return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'key' parameter"));
+    }
+
+    // Get the input settings
+    UInputSettings* InputSettings = GetMutableDefault<UInputSettings>();
+    if (!InputSettings)
+    {
+        return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get input settings"));
+    }
+
+    // Create the input action mapping
+    FInputActionKeyMapping ActionMapping;
+    ActionMapping.ActionName = FName(*ActionName);
+    ActionMapping.Key = FKey(*Key);
+
+    // Add modifiers if provided
+    if (Params->HasField(TEXT("shift")))
+    {
+        ActionMapping.bShift = Params->GetBoolField(TEXT("shift"));
+    }
+    if (Params->HasField(TEXT("ctrl")))
+    {
+        ActionMapping.bCtrl = Params->GetBoolField(TEXT("ctrl"));
+    }
+    if (Params->HasField(TEXT("alt")))
+    {
+        ActionMapping.bAlt = Params->GetBoolField(TEXT("alt"));
+    }
+    if (Params->HasField(TEXT("cmd")))
+    {
+        ActionMapping.bCmd = Params->GetBoolField(TEXT("cmd"));
+    }
+
+    // Add the mapping
+    InputSettings->AddActionMapping(ActionMapping);
+    InputSettings->SaveConfig();
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("action_name"), ActionName);
+    ResultObj->SetStringField(TEXT("key"), Key);
+    return ResultObj;
 }
 
 TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleAddBlueprintGetSelfComponentReference(const TSharedPtr<FJsonObject>& Params)
@@ -478,21 +537,12 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleAddBlueprintFunct
                 UEdGraphPin* ParamPin = FUnrealMCPCommonUtils::FindPin(FunctionNode, ParamName, EGPD_Input);
                 if (ParamPin)
                 {
-                    UE_LOG(LogTemp, Display, TEXT("Found parameter pin '%s' of category '%s'"), 
-                           *ParamName, *ParamPin->PinType.PinCategory.ToString());
-                    UE_LOG(LogTemp, Display, TEXT("  Current default value: '%s'"), *ParamPin->DefaultValue);
-                    if (ParamPin->PinType.PinSubCategoryObject.IsValid())
-                    {
-                        UE_LOG(LogTemp, Display, TEXT("  Pin subcategory: '%s'"), 
-                               *ParamPin->PinType.PinSubCategoryObject->GetName());
-                    }
+                    UE_LOG(LogTemp, Display, TEXT("Setting parameter '%s'"), *ParamName);
                     
                     // Set parameter based on type
                     if (ParamValue->Type == EJson::String)
                     {
                         FString StringVal = ParamValue->AsString();
-                        UE_LOG(LogTemp, Display, TEXT("  Setting string parameter '%s' to: '%s'"), 
-                               *ParamName, *StringVal);
                         
                         // Handle class reference parameters (e.g., ActorClass in GetActorOfClass)
                         if (ParamPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class)
@@ -547,23 +597,16 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleAddBlueprintFunct
                             // Ensure we're using an integer value (no decimal)
                             int32 IntValue = FMath::RoundToInt(ParamValue->AsNumber());
                             ParamPin->DefaultValue = FString::FromInt(IntValue);
-                            UE_LOG(LogTemp, Display, TEXT("  Set integer parameter '%s' to: %d (string: '%s')"), 
-                                   *ParamName, IntValue, *ParamPin->DefaultValue);
+                            UE_LOG(LogTemp, Display, TEXT("Setting integer parameter '%s' to: %d"), *ParamName, IntValue);
                         }
                         else if (ParamPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Float)
                         {
                             // For other numeric types
-                            float FloatValue = ParamValue->AsNumber();
-                            ParamPin->DefaultValue = FString::SanitizeFloat(FloatValue);
-                            UE_LOG(LogTemp, Display, TEXT("  Set float parameter '%s' to: %f (string: '%s')"), 
-                                   *ParamName, FloatValue, *ParamPin->DefaultValue);
+                            ParamPin->DefaultValue = FString::SanitizeFloat(ParamValue->AsNumber());
                         }
                         else if (ParamPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
                         {
-                            bool BoolValue = ParamValue->AsBool();
-                            ParamPin->DefaultValue = BoolValue ? TEXT("true") : TEXT("false");
-                            UE_LOG(LogTemp, Display, TEXT("  Set boolean parameter '%s' to: %s"), 
-                                   *ParamName, *ParamPin->DefaultValue);
+                            ParamPin->DefaultValue = ParamValue->AsBool() ? TEXT("true") : TEXT("false");
                         }
                         else if (ParamPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && ParamPin->PinType.PinSubCategoryObject == TBaseStructure<FVector>::Get())
                         {
@@ -582,10 +625,8 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleAddBlueprintFunct
                                     FString VectorString = FString::Printf(TEXT("(X=%f,Y=%f,Z=%f)"), X, Y, Z);
                                     ParamPin->DefaultValue = VectorString;
                                     
-                                    UE_LOG(LogTemp, Display, TEXT("  Set vector parameter '%s' to: %s"), 
+                                    UE_LOG(LogTemp, Display, TEXT("Setting vector parameter '%s' to: %s"), 
                                            *ParamName, *VectorString);
-                                    UE_LOG(LogTemp, Display, TEXT("  Final pin value: '%s'"), 
-                                           *ParamPin->DefaultValue);
                                 }
                                 else
                                 {
@@ -602,28 +643,20 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleAddBlueprintFunct
                             // Ensure we're using an integer value (no decimal)
                             int32 IntValue = FMath::RoundToInt(ParamValue->AsNumber());
                             ParamPin->DefaultValue = FString::FromInt(IntValue);
-                            UE_LOG(LogTemp, Display, TEXT("  Set integer parameter '%s' to: %d (string: '%s')"), 
-                                   *ParamName, IntValue, *ParamPin->DefaultValue);
+                            UE_LOG(LogTemp, Display, TEXT("Setting integer parameter '%s' to: %d"), *ParamName, IntValue);
                         }
                         else
                         {
                             // For other numeric types
-                            float FloatValue = ParamValue->AsNumber();
-                            ParamPin->DefaultValue = FString::SanitizeFloat(FloatValue);
-                            UE_LOG(LogTemp, Display, TEXT("  Set float parameter '%s' to: %f (string: '%s')"), 
-                                   *ParamName, FloatValue, *ParamPin->DefaultValue);
+                            ParamPin->DefaultValue = FString::SanitizeFloat(ParamValue->AsNumber());
                         }
                     }
                     else if (ParamValue->Type == EJson::Boolean)
                     {
-                        bool BoolValue = ParamValue->AsBool();
-                        ParamPin->DefaultValue = BoolValue ? TEXT("true") : TEXT("false");
-                        UE_LOG(LogTemp, Display, TEXT("  Set boolean parameter '%s' to: %s"), 
-                               *ParamName, *ParamPin->DefaultValue);
+                        ParamPin->DefaultValue = ParamValue->AsBool() ? TEXT("true") : TEXT("false");
                     }
                     else if (ParamValue->Type == EJson::Array)
                     {
-                        UE_LOG(LogTemp, Display, TEXT("  Processing array parameter '%s'"), *ParamName);
                         // Handle array parameters - like Vector parameters
                         const TArray<TSharedPtr<FJsonValue>>* ArrayValue;
                         if (ParamValue->TryGetArray(ArrayValue))
@@ -641,10 +674,8 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleAddBlueprintFunct
                                 FString VectorString = FString::Printf(TEXT("(X=%f,Y=%f,Z=%f)"), X, Y, Z);
                                 ParamPin->DefaultValue = VectorString;
                                 
-                                UE_LOG(LogTemp, Display, TEXT("  Set vector parameter '%s' to: %s"), 
+                                UE_LOG(LogTemp, Display, TEXT("Setting vector parameter '%s' to: %s"), 
                                        *ParamName, *VectorString);
-                                UE_LOG(LogTemp, Display, TEXT("  Final pin value: '%s'"), 
-                                       *ParamPin->DefaultValue);
                             }
                             else
                             {
@@ -755,6 +786,13 @@ TSharedPtr<FJsonObject> FUnrealMCPBlueprintNodeCommands::HandleAddBlueprintVaria
         if (IsExposed)
         {
             NewVar->PropertyFlags |= CPF_Edit;
+        }
+
+        // Set default value if provided
+        if (Params->HasField(TEXT("default_value")))
+        {
+            // Handle default value based on type
+            // This is simplified and would need to be expanded for each type
         }
     }
 

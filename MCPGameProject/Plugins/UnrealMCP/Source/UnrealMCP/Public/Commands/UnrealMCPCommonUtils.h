@@ -52,8 +52,4 @@ public:
                                 UEdGraphNode* TargetNode, const FString& TargetPinName);
     static UEdGraphPin* FindPin(UEdGraphNode* Node, const FString& PinName, EEdGraphPinDirection Direction = EGPD_MAX);
     static UK2Node_Event* FindExistingEventNode(UEdGraph* Graph, const FString& EventName);
-
-    // Property utilities
-    static bool SetObjectProperty(UObject* Object, const FString& PropertyName, 
-                                 const TSharedPtr<FJsonValue>& Value, FString& OutErrorMessage);
 }; 
