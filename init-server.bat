@@ -1,4 +1,4 @@
-@REM cmd /c init2.bat
+@REM cmd /c init-server.bat
 @echo off
 set "SOURCE=E:\UnrealMCP\unreal-mcp-main\unreal-mcp-main\Python"
 set "TARGET=Python"

@@ -1,4 +1,4 @@
-@REM cmd /c init.bat
+@REM cmd /c init-unreal.bat
 @echo off
 set "SRC=E:\CINEVStudio\CINEVStudio\Plugins\UnrealMCP\Source\UnrealMCP"
 set "DST=MCPGameProject\Plugins\UnrealMCP\Source\UnrealMCP"
