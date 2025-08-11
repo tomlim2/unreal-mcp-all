@@ -21,8 +21,9 @@ set "TARGET=Python"
 if not exist "%TARGET%" (
 	mkdir "%TARGET%"
 )
-del /Q "%TARGET%\*"
-copy "%SOURCE%\*" "%TARGET%\" /Y
+del /Q "%TARGET%\*" 2>nul
+for /d %%d in ("%TARGET%\*") do rmdir /s /q "%%d" 2>nul
+robocopy "%SOURCE%" "%TARGET%" /E /XD "Binaries" "Intermediate" "__pycache__" ".venv"
 echo Server import complete.
 goto end
 

@@ -166,13 +166,12 @@ def register_blueprint_tools(mcp: FastMCP):
             logger.error(error_msg)
             return {"success": False, "message": error_msg}
     
-    @mcp.tool()
     def set_component_property(
         ctx: Context,
         blueprint_name: str,
         component_name: str,
         property_name: str,
-        property_value,
+        property_value: Any
     ) -> Dict[str, Any]:
         """Set a property on a component in a Blueprint."""
         from unreal_mcp_server import get_unreal_connection
@@ -288,7 +287,7 @@ def register_blueprint_tools(mcp: FastMCP):
         ctx: Context,
         blueprint_name: str,
         property_name: str,
-        property_value
+        property_value: object
     ) -> Dict[str, Any]:
         """
         Set a property on a Blueprint class default object.
@@ -330,15 +329,15 @@ def register_blueprint_tools(mcp: FastMCP):
             logger.error(error_msg)
             return {"success": False, "message": error_msg}
 
-    # @mcp.tool() commented out, just use set_component_property instead
+    @mcp.tool()
     def set_pawn_properties(
         ctx: Context,
         blueprint_name: str,
         auto_possess_player: str = "",
-        use_controller_rotation_yaw: bool = None,
-        use_controller_rotation_pitch: bool = None,
-        use_controller_rotation_roll: bool = None,
-        can_be_damaged: bool = None
+        use_controller_rotation_yaw: bool | None = None,
+        use_controller_rotation_pitch: bool | None = None,
+        use_controller_rotation_roll: bool | None = None,
+        can_be_damaged: bool | None = None
     ) -> Dict[str, Any]:
         """
         Set common Pawn properties on a Blueprint.
@@ -414,6 +413,57 @@ def register_blueprint_tools(mcp: FastMCP):
             
         except Exception as e:
             error_msg = f"Error setting pawn properties: {e}"
+            logger.error(error_msg)
+            return {"success": False, "message": error_msg}
+
+    @mcp.tool()
+    def spawn_blueprint_actor(
+        ctx: Context,
+        blueprint_name: str,
+        actor_name: str,
+        location: List[float] = [],
+        rotation: List[float] = [],
+        scale: List[float] = []
+    ) -> Dict[str, Any]:
+        """Spawn an actor from a Blueprint."""
+        from unreal_mcp_server import get_unreal_connection
+        
+        try:
+            # Ensure all parameters are properly formatted
+            params = {
+                "blueprint_name": blueprint_name,
+                "actor_name": actor_name,
+                "location": location or [0.0, 0.0, 0.0],
+                "rotation": rotation or [0.0, 0.0, 0.0],
+                "scale": scale or [1.0, 1.0, 1.0]
+            }
+            
+            # Validate location, rotation, and scale formats
+            for param_name in ["location", "rotation", "scale"]:
+                param_value = params[param_name]
+                if not isinstance(param_value, list) or len(param_value) != 3:
+                    logger.error(f"Invalid {param_name} format: {param_value}. Must be a list of 3 float values.")
+                    return {"success": False, "message": f"Invalid {param_name} format. Must be a list of 3 float values."}
+                # Ensure all values are float
+                params[param_name] = [float(val) for val in param_value]
+            
+            unreal = get_unreal_connection()
+            if not unreal:
+                logger.error("Failed to connect to Unreal Engine")
+                return {"success": False, "message": "Failed to connect to Unreal Engine"}
+                
+            logger.info(f"Spawning blueprint actor with params: {params}")
+            response = unreal.send_command("spawn_blueprint_actor", params)
+            
+            if not response:
+                logger.error("No response from Unreal Engine")
+                return {"success": False, "message": "No response from Unreal Engine"}
+            
+            logger.info(f"Spawn blueprint actor response: {response}")
+            return response
+            
+        except Exception as e:
+            error_msg = f"Error spawning blueprint actor: {e}"
             logger.error(error_msg)
             return {"success": False, "message": error_msg}
     
