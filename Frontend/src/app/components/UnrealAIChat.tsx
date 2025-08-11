@@ -74,13 +74,13 @@ export default function UnrealAIChat() {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>🎮 Unreal Engine AI Assistant</h2>
+      <h2 className={styles.title}>Unreal Engine MCP Frontend</h2>
       <p className={styles.subtitle}>
-        Natural language commands for your Unreal Engine project
+        Anthropic claude-3-haiku
       </p>
 
       <div className={styles.examples}>
-        <h3>Try these examples:</h3>
+        <h3>Examples:</h3>
         <div className={styles.exampleButtons}>
           {examplePrompts.map((example, index) => (
             <button
@@ -108,7 +108,7 @@ export default function UnrealAIChat() {
             disabled={loading || !prompt.trim()}
             className={styles.submitButton}
           >
-            {loading ? '🤖 Processing...' : '✨ Execute'}
+            {loading ? 'Processing...' : 'Execute'}
           </button>
         </div>
       </form>
@@ -123,13 +123,13 @@ export default function UnrealAIChat() {
       {response && (
         <div className={styles.response}>
           <div className={styles.explanation}>
-            <h3>🧠 AI Understanding</h3>
+            <h3>LLM Output</h3>
             <p>{response.explanation}</p>
           </div>
 
           {response.commands.length > 0 && (
             <div className={styles.commands}>
-              <h3>🔧 Generated Commands</h3>
+              <h3>Generated Commands</h3>
               {response.commands.map((cmd, index) => (
                 <div key={index} className={styles.command}>
                   <strong>{cmd.type}</strong>
@@ -141,7 +141,7 @@ export default function UnrealAIChat() {
 
           {response.executionResults.length > 0 && (
             <div className={styles.results}>
-              <h3>⚡ Execution Results</h3>
+              <h3>Execution Results</h3>
               {response.executionResults.map((result, index) => (
                 <div
                   key={index}

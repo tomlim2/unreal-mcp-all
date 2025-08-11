@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 // MCP Server URL - adjust if needed
@@ -50,18 +50,18 @@ Return a JSON response with:
 User request: ${prompt}`;
 
     // Get AI response
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt }
-      ],
+    const completion = await anthropic.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 1024,
       temperature: 0.1,
+      messages: [
+        { role: 'user', content: `${systemPrompt}\n\nUser request: ${prompt}` }
+      ],
     });
 
-    const aiResponse = completion.choices[0]?.message?.content;
+    const aiResponse = completion.content[0]?.text;
     if (!aiResponse) {
-      throw new Error('No response from OpenAI');
+      throw new Error('No response from Anthropic');
     }
 
     // Parse AI response
@@ -104,7 +104,7 @@ User request: ${prompt}`;
     });
 
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('Anthropic API error:', error);
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 }

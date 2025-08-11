@@ -6,19 +6,17 @@
 }
 
 .title {
+  color: #fcfcfc;
   font-size: 2rem;
   font-weight: 700;
-  text-align: center;
+  text-align: left;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .subtitle {
-  text-align: center;
-  color: #666;
+  text-align: left;
+  color: #fcfcfc;
   margin-bottom: 2rem;
   font-size: 1.1rem;
 }
@@ -50,6 +48,8 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
+  color: #495057;
+  text-align: left;
   transition: all 0.2s ease;
 }
 
@@ -87,8 +87,8 @@
 
 .submitButton {
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #fcfcfc;
+  color: #525252;
   border: none;
   border-radius: 8px;
   font-size: 1rem;
@@ -135,6 +135,7 @@
 
 .explanation {
   background: #f8f9fa;
+  color: #525252;
 }
 
 .explanation h3 {
@@ -153,6 +154,7 @@
 
 .command {
   background: #fff;
+  color: #525252;
   padding: 1rem;
   border-radius: 6px;
   margin-bottom: 0.5rem;
@@ -206,7 +208,7 @@
 .resultHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: left;
   padding: 0.75rem 1rem;
   background: #f8f9fa;
   border-bottom: 1px solid #dee2e6;
@@ -225,6 +227,7 @@
   padding: 1rem;
   margin: 0;
   background: #f8f9fa;
+  color: #525252;
   font-size: 0.9rem;
   overflow-x: auto;
 }
