@@ -1,0 +1,265 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+.examples {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.examples h3 {
+  margin-bottom: 1rem;
+  color: #495057;
+  font-size: 1rem;
+}
+
+.exampleButtons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.exampleButton {
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.exampleButton:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  transform: translateY(-1px);
+}
+
+.form {
+  margin-bottom: 2rem;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.textarea {
+  flex: 1;
+  padding: 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.submitButton {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.submitButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.response {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.response > div {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.response > div:last-child {
+  border-bottom: none;
+}
+
+.explanation {
+  background: #f8f9fa;
+}
+
+.explanation h3 {
+  margin-bottom: 0.5rem;
+  color: #495057;
+}
+
+.commands {
+  background: #fff3cd;
+}
+
+.commands h3 {
+  margin-bottom: 1rem;
+  color: #856404;
+}
+
+.command {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  border: 1px solid #ffeaa7;
+}
+
+.command:last-child {
+  margin-bottom: 0;
+}
+
+.command strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #856404;
+}
+
+.command pre {
+  background: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.results h3 {
+  margin-bottom: 1rem;
+  color: #495057;
+}
+
+.result {
+  background: #fff;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  border: 1px solid #dee2e6;
+}
+
+.result:last-child {
+  margin-bottom: 0;
+}
+
+.success {
+  border-left: 4px solid #28a745;
+}
+
+.failure {
+  border-left: 4px solid #dc3545;
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.commandName {
+  font-weight: 600;
+  color: #495057;
+}
+
+.status {
+  font-size: 1.2rem;
+}
+
+.resultData {
+  padding: 1rem;
+  margin: 0;
+  background: #f8f9fa;
+  font-size: 0.9rem;
+  overflow-x: auto;
+}
+
+.errorMessage {
+  padding: 1rem;
+  margin: 0;
+  color: #dc3545;
+}
+
+.expected {
+  background: #d1ecf1;
+}
+
+.expected h3 {
+  margin-bottom: 0.5rem;
+  color: #0c5460;
+}
+
+.expected p {
+  margin: 0;
+  color: #0c5460;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .inputGroup {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .exampleButtons {
+    grid-template-columns: 1fr;
+  }
+}
