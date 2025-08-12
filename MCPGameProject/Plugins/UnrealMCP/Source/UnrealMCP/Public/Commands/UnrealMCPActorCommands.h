@@ -26,6 +26,8 @@ private:
     TSharedPtr<FJsonObject> HandleGetActorProperties(const TSharedPtr<FJsonObject>& Params);
     
     // Ultra Dynamic Sky specific commands
+
     TSharedPtr<FJsonObject> HandleGetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleGetUltraDynamicSky(const TSharedPtr<FJsonObject>& Params);
 }; 

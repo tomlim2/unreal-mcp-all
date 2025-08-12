@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const systemPrompt = `You are an AI assistant that translates natural language requests into Unreal Engine commands via MCP protocol.
 
 Available Unreal MCP commands:
+- get_ultra_dynamic_sky: Get Ultra Dynamic Sky actor info and current time of day
 - get_time_of_day: Get current time from Ultra Dynamic Sky
 - set_time_of_day: Set time (0-24 hours), params: {time_of_day: number, sky_name?: string}
 - get_actors_in_level: List all actors in level

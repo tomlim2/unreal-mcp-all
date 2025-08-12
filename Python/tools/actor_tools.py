@@ -289,6 +289,38 @@ def register_actor_tools(mcp: FastMCP):
             return {"success": False, "error": str(e)}
 
     @mcp.tool()
+    def get_ultra_dynamic_sky(ctx: Context) -> Dict[str, Any]:
+        """Get Ultra Dynamic Sky actor information and current time of day.
+        
+        This function retrieves the Ultra Dynamic Sky actor and its time of day value
+        using the direct get_ultra_dynamic_sky command.
+        
+        Args:
+            ctx: The MCP context
+            
+        Returns:
+            Dict containing the sky actor name and time of day value
+        """
+        from unreal_mcp_server import get_unreal_connection
+        
+        try:
+            unreal = get_unreal_connection()
+            response = unreal.send_command("get_ultra_dynamic_sky", {})
+            
+            if not response:
+                logger.warning("No response from Unreal Engine")
+                return {"success": False, "error": "No response from Unreal Engine"}
+            
+            # Log the response for debugging
+            logger.info(f"get_ultra_dynamic_sky response: {response}")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error getting ultra dynamic sky: {e}")
+            return {"success": False, "error": str(e)}
+
+    @mcp.tool()
     def force_sky_update(ctx: Context, sky_name: str = "Ultra_Dynamic_Sky_C_0") -> Dict[str, Any]:
         """Force Ultra Dynamic Sky to update its visual state.
         
