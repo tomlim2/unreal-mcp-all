@@ -114,18 +114,31 @@ User request: ${prompt}`;
 
 async function executeUnrealCommand(command: UnrealCommand) {
   try {
-    // First try to connect to your Python MCP server
-    // The Python server communicates via TCP socket with Unreal Engine
+    // Call the real Python MCP server via HTTP bridge
+    const response = await fetch('http://127.0.0.1:8080', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(command),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
     
-    // For HTTP-based communication with your Python server, you could:
-    // 1. Modify your Python server to also accept HTTP requests
-    // 2. Or use a separate HTTP wrapper around your MCP server
+  } catch (error) {
+    // Fallback to simulated response if HTTP bridge is not available
+    console.warn(`MCP HTTP Bridge not available: ${error}. Using fallback simulation.`);
     
-    // For now, we'll simulate the response format your Python server would return
     const simulatedResponse = {
-      success: true,
-      message: `Command ${command.type} executed`,
-      params: command.params,
+      status: "error",
+      error: `HTTP Bridge unavailable: ${error}`,
+      fallback: true,
       timestamp: new Date().toISOString(),
       // Add typical response format from your Python MCP server
       result: command.type === 'get_actors_in_level' 
@@ -136,26 +149,5 @@ async function executeUnrealCommand(command: UnrealCommand) {
     };
 
     return simulatedResponse;
-
-    /* 
-    TODO: Real implementation options:
-    
-    Option 1 - Direct HTTP to Python server (requires modifying Python server):
-    const response = await fetch('http://localhost:8000/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    });
-    
-    Option 2 - TCP socket connection (more complex but matches your current setup):
-    const net = require('net');
-    const client = new net.Socket();
-    // ... socket communication code
-    
-    Option 3 - Use MCP client libraries to connect to your stdio-based server
-    */
-    
-  } catch (error) {
-    throw new Error(`Failed to execute command: ${error}`);
   }
 }
