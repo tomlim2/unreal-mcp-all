@@ -27,12 +27,22 @@ export async function POST(request: NextRequest) {
 Available Unreal MCP commands:
 - get_ultra_dynamic_sky: Get Ultra Dynamic Sky actor info and current time of day
 - get_time_of_day: Get current time from Ultra Dynamic Sky
-- set_time_of_day: Set time (0-24 hours), params: {time_of_day: number, sky_name?: string}
+- set_time_of_day: Set time in HHMM format (0000-2359), params: {time_of_day: number, sky_name?: string}
 - get_actors_in_level: List all actors in level
 - create_actor: Create new actor, params: {name: string, type: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}
 - delete_actor: Delete actor by name, params: {name: string}
 - set_actor_transform: Move/rotate/scale actor, params: {name: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}
 - get_actor_properties: Get actor properties, params: {name: string}
+
+IMPORTANT - Time Format Conversion Rules:
+When user requests time changes, convert natural language to HHMM format:
+- "sunrise" or "6 AM" → time_of_day: 600
+- "sunset" or "6 PM" → time_of_day: 1800
+- "1 PM" → time_of_day: 1300
+- "23:30" → time_of_day: 2330
+- "12:30 AM" → time_of_day: 30
+- "noon" → time_of_day: 1200
+- "midnight" → time_of_day: 0
 
 Context: ${context || 'User is working with Unreal Engine project'}
 
