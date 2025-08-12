@@ -218,7 +218,8 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
                      CommandType == TEXT("set_actor_transform") ||
                      CommandType == TEXT("get_actor_properties") ||
                      CommandType == TEXT("get_time_of_day") ||
-                     CommandType == TEXT("set_time_of_day"))
+                     CommandType == TEXT("set_time_of_day") ||
+                     CommandType == TEXT("get_ultra_dynamic_sky"))
             {
                 ResultJson = ActorCommands->HandleCommand(CommandType, Params);
             }

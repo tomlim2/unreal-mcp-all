@@ -762,16 +762,16 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSky(const 
 
 	UClass* ActorClass = SkyActor->GetClass();
 	FProperty* TimeOfDayProperty = nullptr;
-	const FString PropertyName = TEXT("Time_Of_Day");
+	const FString PropertyName = TEXT("Time of Day");
 	TimeOfDayProperty = ActorClass->FindPropertyByName(*PropertyName);
 	if (!TimeOfDayProperty)
 	{
 		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Time of Day property not found in %s"), *SkyActor->GetName()));
 	}
 	float TimeOfDayValue = 0.0f;
-	if (FFloatProperty* FloatProp = CastField<FFloatProperty>(TimeOfDayProperty))
+	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(TimeOfDayProperty))
 	{
-		TimeOfDayValue = FloatProp->GetPropertyValue_InContainer(SkyActor);
+		TimeOfDayValue = DoubleProp->GetPropertyValue_InContainer(SkyActor);
 	}
 	else
 	{
