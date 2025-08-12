@@ -536,29 +536,8 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TShare
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 0 and 2400"));
 	}
 
-	// Get world in runtime-compatible way
-	UWorld* World = nullptr;
-	if (GEngine && GEngine->GetWorldContexts().Num() > 0)
-	{
-		World = GEngine->GetWorldContexts()[1].World();
-	}
-
-	if (!IsValid(World))
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get valid world"));
-	}
-
 	// Find the sky actor using runtime-compatible iteration
-	AActor* SkyActor = nullptr;
-	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
-	{
-		AActor* Actor = *ActorItr;
-		if (Actor && Actor->GetName() == SkyName)
-		{
-			SkyActor = Actor;
-			break;
-		}
-	}
+	AActor* SkyActor = GetUltraDynamicSkyActor();
 
 	if (!SkyActor)
 	{
@@ -606,24 +585,9 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TShare
 	// Set the property value - try different property types
 	bool bValueSet = false;
 	
-	if (FFloatProperty* FloatProp = CastField<FFloatProperty>(TimeOfDayProperty))
-	{
-		FloatProp->SetPropertyValue_InContainer(SkyActor, static_cast<float>(TimeOfDayValue));
-		bValueSet = true;
-	}
-	else if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(TimeOfDayProperty))
+	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(TimeOfDayProperty))
 	{
 		DoubleProp->SetPropertyValue_InContainer(SkyActor, static_cast<double>(TimeOfDayValue));
-		bValueSet = true;
-	}
-	else if (FIntProperty* IntProp = CastField<FIntProperty>(TimeOfDayProperty))
-	{
-		IntProp->SetPropertyValue_InContainer(SkyActor, static_cast<int32>(TimeOfDayValue));
-		bValueSet = true;
-	}
-	else if (FByteProperty* ByteProp = CastField<FByteProperty>(TimeOfDayProperty))
-	{
-		ByteProp->SetPropertyValue_InContainer(SkyActor, static_cast<uint8>(TimeOfDayValue));
 		bValueSet = true;
 	}
 	
@@ -733,31 +697,11 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TShare
 
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSky(const TSharedPtr<FJsonObject> &Params)
 {
-	UWorld* World = nullptr;
-	if (GEngine && GEngine->GetWorldContexts().Num() > 0)
-	{
-		World = GEngine->GetWorldContexts()[1].World();
-	}
-	if (!IsValid(World))
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get valid world"));
-	}
-
-	AActor* SkyActor = nullptr;
-	FString SkyClassName = TEXT("Ultra_Dynamic_Sky_C");
-	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
-	{
-		AActor* Actor = *ActorItr;
-		if (Actor && Actor->GetClass()->GetName() == SkyClassName)
-		{
-			SkyActor = Actor;
-			break;
-		}
-	}
+	AActor* SkyActor = GetUltraDynamicSkyActor();
 
 	if (!SkyActor)
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Ultra Dynamic Sky actor not found: %s"), *SkyClassName));
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
 	}
 
 	UClass* ActorClass = SkyActor->GetClass();
@@ -782,3 +726,30 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSky(const 
 	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
 	return ResultObj;
 }
+
+AActor *FUnrealMCPActorCommands::GetUltraDynamicSkyActor()
+{
+	UWorld* World = nullptr;
+	if (GEngine && GEngine->GetWorldContexts().Num() > 0)
+	{
+		World = GEngine->GetWorldContexts()[1].World();
+	}
+	if (!IsValid(World))
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get valid world"));
+		return nullptr;
+	}
+	const FString SkyClassName = TEXT("Ultra_Dynamic_Sky_C");
+	AActor* SkyActor = nullptr;
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (Actor && Actor->GetClass()->GetName() == SkyClassName)
+		{
+			SkyActor = Actor;
+			break;
+		}
+	}
+	return SkyActor;
+}
+

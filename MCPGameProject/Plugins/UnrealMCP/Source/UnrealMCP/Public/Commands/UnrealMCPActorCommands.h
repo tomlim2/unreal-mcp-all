@@ -30,4 +30,6 @@ private:
     TSharedPtr<FJsonObject> HandleGetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleGetUltraDynamicSky(const TSharedPtr<FJsonObject>& Params);
-}; 
+
+	AActor* GetUltraDynamicSkyActor();
+};

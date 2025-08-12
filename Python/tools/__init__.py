@@ -5,9 +5,10 @@ This package contains tools for interacting with Unreal Engine.
 """
 
 from . import actor_tools
+from . import actor_tools_dynamic_sky
 
 # Export modules
-__all__ = ['actor_tools']
+__all__ = ['actor_tools', 'actor_tools_dynamic_sky']
 
 def register_all_tools(mcp_server):
     """

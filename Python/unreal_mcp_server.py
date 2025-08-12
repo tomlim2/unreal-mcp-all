@@ -267,6 +267,7 @@ mcp = FastMCP(
 
 # Import and register tools
 from tools.actor_tools import register_actor_tools
+from tools.actor_tools_dynamic_sky import register_actor_tools as register_dynamic_sky_tools
 from tools.editor_tools import register_editor_tools
 from tools.blueprint_tools import register_blueprint_tools
 from tools.node_tools import register_blueprint_node_tools
@@ -275,6 +276,7 @@ from docs_loader import load_best_practices
 
 # Register tools
 register_actor_tools(mcp)
+register_dynamic_sky_tools(mcp)
 register_editor_tools(mcp)
 register_blueprint_tools(mcp)
 register_blueprint_node_tools(mcp)
