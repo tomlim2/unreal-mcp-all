@@ -1,16 +1,17 @@
 <div align="center">
 
-# Model Context Protocol for Unreal Engine
-<span style="color: #555555">unreal-mcp</span>
+# MegaMelange
+<span style="color: #555555">AI-Powered Unreal Engine Development Suite</span>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.5%2B-orange)](https://www.unrealengine.com)
+[![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.3%2B-orange)](https://www.unrealengine.com)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-yellow)](https://www.python.org)
+[![Next.js](https://img.shields.io/badge/Next.js-15.4%2B-green)](https://nextjs.org)
 [![Status](https://img.shields.io/badge/Status-Experimental-red)](https://github.com/chongdashu/unreal-mcp)
 
 </div>
 
-This project enables AI assistant clients like Cursor, Windsurf and Claude Desktop to control Unreal Engine through natural language using the Model Context Protocol (MCP).
+MegaMelange is a comprehensive AI-powered development suite that enables natural language control of Unreal Engine through multiple interfaces: MCP protocol for AI assistants (Cursor, Windsurf, Claude Desktop), a modern web frontend with OpenAI integration, and extensive Python tooling for automation and testing.
 
 ## ⚠️ Experimental Status
 
@@ -36,115 +37,137 @@ All these capabilities are accessible through natural language commands via AI a
 
 ## 🧩 Components
 
-### Sample Project (MCPGameProject) `MCPGameProject`
-- Based off the Blank Project, but with the UnrealMCP plugin added.
+### Web Frontend `Frontend/`
+- **Next.js 15.4+ Application** with TypeScript and modern React
+- **OpenAI Integration** for natural language to Unreal commands
+- **Real-time Command Interface** with example prompts and immediate execution
+- **Modern UI/UX** with responsive design and intuitive controls
+- **API Bridge** connecting web interface to Python MCP server
 
-### Plugin (UnrealMCP) `MCPGameProject/Plugins/UnrealMCP`
-- Native TCP server for MCP communication
-- Integrates with Unreal Editor subsystems
-- Implements actor manipulation tools
-- Handles command execution and response handling
+### Sample Project (MCPGameProject) `MCPGameProject/`
+- **UE 5.3 Blank Starter Project** with UnrealMCP plugin pre-configured
+- **Complete Build Configuration** with Visual Studio project files
+- **Plugin Integration** ready for immediate development and testing
 
-### Python MCP Server `Python/unreal_mcp_server.py`
-- Implemented in `unreal_mcp_server.py`
-- Manages TCP socket connections to the C++ plugin (port 55557)
-- Handles command serialization and response parsing
-- Provides error handling and connection management
-- Loads and registers tool modules from the `tools` directory
-- Uses the FastMCP library to implement the Model Context Protocol
+### C++ Plugin (UnrealMCP) `MCPGameProject/Plugins/UnrealMCP/`
+- **Native TCP Server** for MCP communication on port 55557
+- **Unreal Editor Integration** with subsystem connectivity
+- **Comprehensive Actor Tools** for creation, manipulation, and querying
+- **Blueprint Management** with component handling and compilation
+- **Command Execution Engine** with response handling and error management
+
+### Python MCP Server `Python/`
+- **FastMCP Implementation** providing Model Context Protocol server
+- **TCP Socket Management** connecting to C++ plugin
+- **Modular Tool System** with categorized command modules
+- **Extensive Test Suite** with organized testing scripts
+- **Development Tools** for automation and validation
 
 ## 📂 Directory Structure
 
-- **MCPGameProject/** - Example Unreal project
+- **Frontend/** - Next.js web application
+  - **src/app/** - React components and pages
+  - **src/app/api/** - API routes for OpenAI integration
+  - **src/app/components/** - Unreal AI chat interface
+  - **package.json** - Node.js dependencies and scripts
+
+- **MCPGameProject/** - UE 5.3 sample project
   - **Plugins/UnrealMCP/** - C++ plugin source
-    - **Source/UnrealMCP/** - Plugin source code
+    - **Source/UnrealMCP/** - Plugin source code with commands
     - **UnrealMCP.uplugin** - Plugin definition
+  - **Source/** - Project source files
+  - **Config/** - Unreal Engine configuration files
 
-- **Python/** - Python server and tools
-  - **tools/** - Tool modules for actor, editor, and blueprint operations
-  - **scripts/** - Example scripts and demos
+- **Python/** - MCP server and automation tools
+  - **tools/** - Modular tool system (actor, blueprint, editor, NLP)
+  - **scripts/** - Organized test scripts by category
+  - **docs/** - Python-specific documentation
+  - **unreal_mcp_server.py** - Main MCP server implementation
 
-- **Docs/** - Comprehensive documentation
-  - See [Docs/README.md](Docs/README.md) for documentation index
+- **tests/** - Integration and connection tests
 
 ## 🚀 Quick Start Guide
 
-### Prerequisites
-- Unreal Engine 5.5+
-- Python 3.12+
-- MCP Client (e.g., Claude Desktop, Cursor, Windsurf)
+Choose your preferred interface for controlling Unreal Engine with AI:
 
-### Sample project
+### Option A: Web Frontend (Recommended for beginners)
 
-For getting started quickly, feel free to use the starter project in `MCPGameProject`. This is a UE 5.5 Blank Starter Project with the `UnrealMCP.uplugin` already configured. 
+1. **Prerequisites**
+   - Node.js 18+ and npm
+   - OpenAI API key
+   - Unreal Engine 5.3+
 
-1. **Prepare the project**
-   - Right-click your .uproject file
-   - Generate Visual Studio project files
-2. **Build the project (including the plugin)**
-   - Open solution (`.sln`)
-   - Choose `Development Editor` as your target.
-   - Build
+2. **Setup Frontend**
+   ```bash
+   cd Frontend
+   npm install
+   cp .env.example .env.local  # Add your OPENAI_API_KEY
+   npm run dev
+   ```
 
-### Plugin
-Otherwise, if you want to use the plugin in your existing project:
+3. **Setup Unreal Project**
+   - Open `MCPGameProject/MCPGameProject.uproject`
+   - Build the project (includes UnrealMCP plugin)
+   - Start playing with natural language commands at http://localhost:3000
 
-1. **Copy the plugin to your project**
+### Option B: MCP Protocol (For AI assistants)
+
+1. **Prerequisites**
+   - Python 3.12+ and `uv`
+   - MCP Client (Claude Desktop, Cursor, Windsurf)
+   - Unreal Engine 5.3+
+
+2. **Setup Python Server**
+   ```bash
+   cd Python
+   uv venv && source .venv/bin/activate
+   uv pip install -e .
+   ```
+
+3. **Setup Unreal Project**
+   - Open `MCPGameProject/MCPGameProject.uproject`
+   - Right-click .uproject file → Generate VS project files
+   - Build in Development Editor configuration
+
+4. **Configure MCP Client**
+   ```json
+   {
+     "mcpServers": {
+       "unrealMCP": {
+         "command": "uv",
+         "args": [
+           "--directory", "/path/to/MegaMelange/Python",
+           "run", "unreal_mcp_server.py"
+         ]
+       }
+     }
+   }
+   ```
+
+### Option C: Plugin Integration (For existing projects)
+
+1. **Copy Plugin**
    - Copy `MCPGameProject/Plugins/UnrealMCP` to your project's Plugins folder
 
-2. **Enable the plugin**
-   - Edit > Plugins
-   - Find "UnrealMCP" in Editor category
-   - Enable the plugin
-   - Restart editor when prompted
+2. **Enable Plugin**
+   - Edit > Plugins > Find "UnrealMCP" > Enable > Restart Editor
 
-3. **Build the plugin**
-   - Right-click your .uproject file
-   - Generate Visual Studio project files
-   - Open solution (`.sln)
-   - Build with your target platform and output settings
+3. **Build Plugin**
+   - Generate VS project files and build
 
-### Python Server Setup
+### Testing Your Setup
 
-See [Python/README.md](Python/README.md) for detailed Python setup instructions, including:
-- Setting up your Python environment
-- Running the MCP server
-- Using direct or server-based connections
+Try these example commands:
+- Web Frontend: "Set the time to sunrise" or "Create a cube at 0,0,100"
+- MCP Protocol: Ask your AI assistant to "list all actors in the Unreal level"
 
-### Configuring your MCP Client
+### Configuration Locations
 
-Use the following JSON for your mcp configuration based on your MCP client.
-
-```json
-{
-  "mcpServers": {
-    "unrealMCP": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "<path/to/the/folder/PYTHON>",
-        "run",
-        "unreal_mcp_server.py"
-      ]
-    }
-  }
-}
-```
-
-An example is found in `mcp.json`
-
-### MCP Configuration Locations
-
-Depending on which MCP client you're using, the configuration file location will differ:
-
-| MCP Client | Configuration File Location | Notes |
-|------------|------------------------------|-------|
-| Claude Desktop | `~/.config/claude-desktop/mcp.json` | On Windows: `%USERPROFILE%\.config\claude-desktop\mcp.json` |
-| Cursor | `.cursor/mcp.json` | Located in your project root directory |
-| Windsurf | `~/.config/windsurf/mcp.json` | On Windows: `%USERPROFILE%\.config\windsurf\mcp.json` |
-
-Each client uses the same JSON format as shown in the example above. 
-Simply place the configuration in the appropriate location for your MCP client.
+| MCP Client | Configuration File |
+|------------|-------------------|
+| Claude Desktop | `~/.config/claude-desktop/mcp.json` |
+| Cursor | `.cursor/mcp.json` (project root) |
+| Windsurf | `~/.config/windsurf/mcp.json` |
 
 
 ## License
