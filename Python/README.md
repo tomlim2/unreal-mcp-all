@@ -38,22 +38,18 @@ scripts/
 └── tests/          # 기타 통합 테스트
 ```
 
-### 테스트 관리자 사용법
+### 테스트 관리 사용법
 
-통합 테스트 관리자(`test_manager.py`)를 사용하여 테스트를 쉽게 관리할 수 있습니다:
+테스트는 `scripts` 폴더에 카테고리별로 정리되어 있으며, Python으로 직접 실행할 수 있습니다:
 
 ```bash
-# 모든 카테고리와 테스트 목록 표시
-python test_manager.py list
-
-# 특정 카테고리의 테스트 목록 표시
-python test_manager.py list actors
-
 # 특정 테스트 실행
-python test_manager.py run actors/test_get_actors.py
+cd scripts/actors
+python test_get_actors.py
 
-# 카테고리의 모든 테스트 실행
-python test_manager.py run-category sky
+# 카테고리별 테스트 실행
+cd scripts/sky  
+python test_time_of_day.py
 ```
 
 ### MCP 서버를 통한 테스트 도구
