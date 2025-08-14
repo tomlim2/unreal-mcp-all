@@ -51,19 +51,11 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCommand(const FString& Co
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetActorsInLevel(const TSharedPtr<FJsonObject>& Params)
 {
 	// Get the world - runtime compatible way
-	UWorld* World = nullptr;
-	
-	// Try to get world from GEngine if available
-	if (GEngine && GEngine->GetWorldContexts().Num() > 0)
-	{
-		World = GEngine->GetWorldContexts()[1].World();
-	}
-	
+	UWorld* World = GetCurrentWorld();
 	if (!World)
 	{
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
 	}
-	
 	TArray<AActor*> AllActors;
 	// Use runtime-compatible actor iteration
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -729,11 +721,7 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSky(const 
 
 AActor *FUnrealMCPActorCommands::GetUltraDynamicSkyActor()
 {
-	UWorld* World = nullptr;
-	if (GEngine && GEngine->GetWorldContexts().Num() > 0)
-	{
-		World = GEngine->GetWorldContexts()[1].World();
-	}
+	UWorld* World = GetCurrentWorld();
 	if (!IsValid(World))
 	{
 		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get valid world"));
@@ -753,3 +741,34 @@ AActor *FUnrealMCPActorCommands::GetUltraDynamicSkyActor()
 	return SkyActor;
 }
 
+UWorld* FUnrealMCPActorCommands::GetCurrentWorld()
+{
+	UWorld* World = nullptr;
+	if (GEngine && GEngine->GetWorldContexts().Num() > 0)
+	{
+		int32 CurrentWorldIndex = 0;
+		int32 WorldCount = GEngine->GetWorldContexts().Num();
+		for (int32 i = 0; i < WorldCount; ++i)
+		{
+			const FWorldContext& WorldContext = GEngine->GetWorldContexts()[i];
+			UWorld* TestWorld = WorldContext.World();
+			
+			// Skip invalid worlds
+			if (!TestWorld || !IsValid(TestWorld))
+			{
+				continue;
+			}
+			
+			// Find world with most actors (prefer game worlds over editor worlds)
+			int32 TestActorCount = TestWorld->GetActorCount();
+			UWorld* CurrentWorld = GEngine->GetWorldContexts()[CurrentWorldIndex].World();
+			
+			if (CurrentWorld && TestActorCount > CurrentWorld->GetActorCount())
+			{
+				CurrentWorldIndex = i;
+			}
+		}
+		World = GEngine->GetWorldContexts()[CurrentWorldIndex].World();
+	}
+	return World;
+}

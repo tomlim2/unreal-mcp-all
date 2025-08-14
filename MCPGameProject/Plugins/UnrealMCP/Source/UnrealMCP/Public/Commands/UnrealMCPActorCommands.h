@@ -32,4 +32,5 @@ private:
 	TSharedPtr<FJsonObject> HandleGetUltraDynamicSky(const TSharedPtr<FJsonObject>& Params);
 
 	AActor* GetUltraDynamicSkyActor();
+	UWorld* GetCurrentWorld();
 };

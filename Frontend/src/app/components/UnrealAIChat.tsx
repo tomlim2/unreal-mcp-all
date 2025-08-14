@@ -20,7 +20,7 @@ interface AIResponse {
   executionResults: CommandResult[];
 }
 
-export default function UnrealAIChat() {
+export default function UnrealLlmChat() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AIResponse | null>(null);
@@ -78,22 +78,6 @@ export default function UnrealAIChat() {
       <p className={styles.subtitle}>
         Anthropic claude-3-haiku
       </p>
-
-      <div className={styles.examples}>
-        <h3>Examples:</h3>
-        <div className={styles.exampleButtons}>
-          {examplePrompts.map((example, index) => (
-            <button
-              key={index}
-              onClick={() => handleExamplePrompt(example)}
-              className={styles.exampleButton}
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.inputGroup}>
           <textarea
@@ -112,7 +96,20 @@ export default function UnrealAIChat() {
           </button>
         </div>
       </form>
-
+	  <div className={styles.examples}>
+        <h3>Examples:</h3>
+        <div className={styles.exampleButtons}>
+          {examplePrompts.map((example, index) => (
+            <button
+              key={index}
+              onClick={() => handleExamplePrompt(example)}
+              className={styles.exampleButton}
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+      </div>
       {error && (
         <div className={styles.error}>
           <h3>❌ Error</h3>
