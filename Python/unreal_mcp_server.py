@@ -272,6 +272,7 @@ from tools.editor_tools import register_editor_tools
 from tools.blueprint_tools import register_blueprint_tools
 from tools.node_tools import register_blueprint_node_tools
 from tools.test_tools import register_test_tools
+from tools.nlp_tools import register_nlp_tools
 from docs_loader import load_best_practices
 
 # Register tools
@@ -281,6 +282,7 @@ register_editor_tools(mcp)
 register_blueprint_tools(mcp)
 register_blueprint_node_tools(mcp)
 register_test_tools(mcp)
+register_nlp_tools(mcp)
 
 @mcp.prompt()
 def unreal_best_practices():

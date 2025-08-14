@@ -76,7 +76,7 @@ export default function UnrealLlmChat() {
     <div className={styles.container}>
       <h2 className={styles.title}>Unreal Engine MCP Frontend</h2>
       <p className={styles.subtitle}>
-        Anthropic claude-3-haiku
+        Powered by Python MCP Server with Claude-3-Haiku
       </p>
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.inputGroup}>

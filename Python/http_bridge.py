@@ -54,12 +54,42 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 self._send_error(f"Invalid JSON: {e}")
                 return
             
-            # Extract command and params
+            # Check if this is a natural language request
+            if 'prompt' in request_data:
+                # Handle natural language processing
+                logger.info("Processing natural language request")
+                try:
+                    from tools.nlp_tools import _process_natural_language_impl, ANTHROPIC_AVAILABLE
+                    logger.info(f"Import successful. ANTHROPIC_AVAILABLE = {ANTHROPIC_AVAILABLE}")
+                    
+                    user_input = request_data.get('prompt', '')
+                    context = request_data.get('context', 'User is working with Unreal Engine project')
+                    
+                    if not user_input:
+                        self._send_error("Missing 'prompt' field")
+                        return
+                    
+                    # Process natural language using the implementation function
+                    logger.info(f"Calling NLP function with input: {user_input[:50]}...")
+                    result = _process_natural_language_impl(user_input, context)
+                    logger.info(f"NLP response: {result}")
+                    
+                    # Send response back to frontend
+                    response_json = json.dumps(result)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error in NLP processing: {e}")
+                    self._send_error(f"NLP processing error: {e}")
+                    return
+            
+            # Handle direct command execution (legacy support)
             command_type = request_data.get('type')
             params = request_data.get('params', {})
             
             if not command_type:
-                self._send_error("Missing 'type' field")
+                self._send_error("Missing 'type' or 'prompt' field")
                 return
             
             # Execute command via Unreal connection
