@@ -11,13 +11,15 @@ interface CommandResult {
 }
 
 interface AIResponse {
-  explanation: string;
-  commands: Array<{
+  explanation?: string;
+  commands?: Array<{
     type: string;
     params: Record<string, any>;
   }>;
-  expectedResult: string;
-  executionResults: CommandResult[];
+  expectedResult?: string;
+  executionResults?: CommandResult[];
+  error?: string;
+  fallback?: boolean;
 }
 
 export default function UnrealLlmChat() {
@@ -119,12 +121,24 @@ export default function UnrealLlmChat() {
 
       {response && (
         <div className={styles.response}>
-          <div className={styles.explanation}>
-            <h3>LLM Output</h3>
-            <p>{response.explanation}</p>
-          </div>
+          {response.error && (
+            <div className={styles.error}>
+              <h3>❌ Server Error</h3>
+              <p>{response.error}</p>
+              {response.fallback && (
+                <p><em>This is a fallback response - check if all services are running.</em></p>
+              )}
+            </div>
+          )}
+          
+          {response.explanation && (
+            <div className={styles.explanation}>
+              <h3>LLM Output</h3>
+              <p>{response.explanation}</p>
+            </div>
+          )}
 
-          {response.commands.length > 0 && (
+          {response.commands && response.commands.length > 0 && (
             <div className={styles.commands}>
               <h3>Generated Commands</h3>
               {response.commands.map((cmd, index) => (
@@ -136,7 +150,7 @@ export default function UnrealLlmChat() {
             </div>
           )}
 
-          {response.executionResults.length > 0 && (
+          {response.executionResults && response.executionResults.length > 0 && (
             <div className={styles.results}>
               <h3>Execution Results</h3>
               {response.executionResults.map((result, index) => (
@@ -164,10 +178,12 @@ export default function UnrealLlmChat() {
             </div>
           )}
 
-          <div className={styles.expected}>
-            <h3>🎯 Expected Result</h3>
-            <p>{response.expectedResult}</p>
-          </div>
+          {response.expectedResult && (
+            <div className={styles.expected}>
+              <h3>🎯 Expected Result</h3>
+              <p>{response.expectedResult}</p>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -59,7 +59,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 # Handle natural language processing
                 logger.info("Processing natural language request")
                 try:
-                    from tools.nlp_tools import _process_natural_language_impl, ANTHROPIC_AVAILABLE
+                    from tools.ai.nlp import _process_natural_language_impl, ANTHROPIC_AVAILABLE
                     logger.info(f"Import successful. ANTHROPIC_AVAILABLE = {ANTHROPIC_AVAILABLE}")
                     
                     user_input = request_data.get('prompt', '')

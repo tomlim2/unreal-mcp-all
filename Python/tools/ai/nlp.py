@@ -12,6 +12,18 @@ import sys
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    # Load .env file from the Python directory
+    dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
+    load_dotenv(dotenv_path)
+    print(f"✅ Loaded .env file from: {dotenv_path}")
+except ImportError:
+    print("⚠️ python-dotenv not installed, .env file will not be loaded")
+except Exception as e:
+    print(f"⚠️ Failed to load .env file: {e}")
+
 # Try to import anthropic at module level to debug the issue
 try:
     import anthropic
@@ -46,21 +58,8 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                 "executionResults": []
             }
         
-        # Get API key from environment or .env file
+        # Get API key from environment (now loaded from .env file)
         api_key = os.getenv('ANTHROPIC_API_KEY')
-        
-        # Fallback: try to read from .env file
-        if not api_key:
-            try:
-                env_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-                if os.path.exists(env_file):
-                    with open(env_file, 'r') as f:
-                        for line in f:
-                            if line.strip().startswith('ANTHROPIC_API_KEY='):
-                                api_key = line.strip().split('=', 1)[1]
-                                break
-            except Exception as e:
-                logger.warning(f"Could not read .env file: {e}")
         
         if not api_key or api_key == 'your-api-key-here':
             return {

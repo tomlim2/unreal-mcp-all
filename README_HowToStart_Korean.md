@@ -21,7 +21,7 @@ npm --version       # 8.0.0 이상
 uv --version        # 0.1.0 이상
 ```
 
-## 🎯 3단계 빠른 시작
+## 🎯 4단계 빠른 시작
 
 ### 1단계: 언리얼 엔진 프로젝트 열기
 1. **언리얼 엔진 5.3+** 프로젝트 열기 
@@ -48,15 +48,36 @@ uv venv
 uv pip install -e .
 
 # 5️⃣ 서버 시작 (이 명령어가 성공하면 2단계 완료!)
-python unreal_mcp_server.py
+.venv\Scripts\python.exe unreal_mcp_server.py
 ```
 
 ✅ **성공 메시지**: `Starting MCP server with stdio transport` 가 보이면 성공!
 
 ---
 
-### 3단계: 웹 프론트엔드 실행  
+### 3단계: HTTP 브리지 실행 (웹 인터페이스용 - 필수!)
 > 📂 **두 번째 터미널** 창에서 실행 (첫 번째 터미널은 그대로 둡니다)
+
+> ⚠️ **중요**: 이 단계를 빼먹으면 웹사이트에서 "MCP Bridge error" 가 나타납니다!
+
+```bash
+# 1️⃣ Python 폴더로 이동  
+cd Python
+
+# 2️⃣ 가상환경 활성화 (Windows)
+.venv\Scripts\activate
+# Mac/Linux인 경우: source .venv/bin/activate
+
+# 3️⃣ HTTP 브리지 서버 시작
+.venv\Scripts\python.exe http_bridge.py
+```
+
+✅ **성공 메시지**: `MCP HTTP Bridge started on http://127.0.0.1:8080` 이 보이면 성공!
+
+---
+
+### 4단계: 웹 프론트엔드 실행  
+> 📂 **세 번째 터미널** 창에서 실행 (앞의 두 터미널은 그대로 둡니다)
 
 ```bash
 # 1️⃣ Frontend 폴더로 이동
@@ -77,12 +98,14 @@ npm run dev
 
 모든 단계가 성공했다면:
 - ✅ 언리얼 엔진이 열려있음
-- ✅ Python 서버가 실행중 (첫 번째 터미널)  
+- ✅ Python MCP 서버가 실행중 (첫 번째 터미널)  
+- ✅ HTTP 브리지가 실행중 (두 번째 터미널)
+- ✅ 웹 프론트엔드가 실행중 (세 번째 터미널)
 - ✅ 웹 브라우저에 채팅 인터페이스가 보임
 
 이제 **"큐브 하나 만들어줘"** 같은 자연어 명령을 입력해보세요!
 
-## 🔧 문제해결 가이드 (학생들이 자주 하는 실수들)
+## 🔧 문제해결 가이드
 
 ### 😵 "Python 서버가 안 켜져요!"
 
@@ -128,6 +151,15 @@ npm run dev -- --port 3001
 **문제 3: "Cannot GET /" 에러**
 - 브라우저에서 `http://localhost:3000` 정확히 입력했는지 확인
 - `https://`가 아니라 `http://`임에 주의
+
+**문제 4: "MCP Bridge error: fetch failed" 에러**
+```bash
+# 해결방법: HTTP 브리지가 실행되지 않음
+cd Python
+.venv\Scripts\activate
+.venv\Scripts\python.exe http_bridge.py
+# 8080 포트에서 HTTP 브리지가 실행되어야 함
+```
 
 ---
 

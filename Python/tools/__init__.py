@@ -1,14 +1,21 @@
 """
 Tools module for Unreal MCP server.
 
-This package contains tools for interacting with Unreal Engine.
+This package contains tools organized by functionality:
+- unreal/: Tools for Unreal Engine bridge communication
+- ai/: Tools for AI/NLP processing  
+- testing/: Tools for development and testing
 """
 
-from . import actor_tools
-from . import actor_tools_dynamic_sky
-
-# Export modules
-__all__ = ['actor_tools', 'actor_tools_dynamic_sky']
+# Import organized tool modules
+from .unreal import (
+    register_actor_tools, 
+    register_blueprint_tools,
+    register_blueprint_node_tools,
+    register_editor_tools
+)
+from .ai import register_nlp_tools
+from .testing import register_test_tools
 
 def register_all_tools(mcp_server):
     """
@@ -17,11 +24,14 @@ def register_all_tools(mcp_server):
     Args:
         mcp_server: The MCP server instance to register tools with
     """
-    # Register actor tools
-    actor_tools.register_actor_tools(mcp_server)
-    actor_tools_dynamic_sky.register_actor_tools(mcp_server)
+    # Register Unreal Engine bridge tools
+    register_actor_tools(mcp_server)
+    register_blueprint_tools(mcp_server) 
+    register_blueprint_node_tools(mcp_server)
+    register_editor_tools(mcp_server)
     
-    # Register other tool modules as they are added
-    # register_material_tools(mcp_server)
-    # register_blueprint_tools(mcp_server)
-    # etc. 
+    # Register AI/NLP tools
+    register_nlp_tools(mcp_server)
+    
+    # Register testing tools
+    register_test_tools(mcp_server) 
