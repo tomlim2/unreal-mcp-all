@@ -1,14 +1,14 @@
 # Unreal MCP Frontend
 
-A Next.js frontend for the Unreal Engine MCP (Model Context Protocol) server, featuring OpenAI integration for natural language commands.
+A Next.js frontend for the Unreal Engine MCP (Model Context Protocol) server, featuring AI-powered natural language commands via MCP bridge.
 
 ## Features
 
-- 🤖 **OpenAI Integration**: Convert natural language to Unreal Engine commands
+- 🤖 **MCP Integration**: Convert natural language to Unreal Engine commands via Python MCP server
 - 🎮 **Unreal Engine Control**: Interface with dynamic sky, actors, blueprints
 - ⚡ **Real-time Commands**: Execute commands and see results immediately
 - 🎨 **Modern UI**: Clean, responsive interface with example prompts
-- 🔧 **MCP Protocol**: Connects to your Python MCP server
+- 🔧 **HTTP Bridge**: Connects to your Python MCP HTTP bridge server
 
 ## Setup
 
@@ -17,11 +17,11 @@ A Next.js frontend for the Unreal Engine MCP (Model Context Protocol) server, fe
    npm install
    ```
 
-2. **Configure OpenAI API**:
+2. **Start Python MCP HTTP Bridge** (required):
+   Make sure the HTTP bridge is running on port 8080:
    ```bash
-   cp .env.example .env.local
-   # Edit .env.local and add your OpenAI API key
-   OPENAI_API_KEY=your-openai-api-key-here
+   cd ../Python
+   python http_bridge.py
    ```
 
 3. **Start development server**:
@@ -75,5 +75,5 @@ Use official MCP client libraries to connect via stdio protocol.
 ## Architecture
 
 ```
-Browser → Next.js Frontend → OpenAI API → Command Generation → Python MCP Server → Unreal Engine
+Browser → Next.js Frontend → HTTP Bridge (Port 8080) → Python MCP Server → Unreal Engine (Port 55557)
 ```

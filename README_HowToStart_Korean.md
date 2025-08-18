@@ -1,211 +1,221 @@
-# MegaMelange 시작 가이드
+# 🚀 MegaMelange 시작 가이드
 
-이 가이드는 MegaMelange AI 기반 언리얼 엔진 개발 도구의 Python MCP 서버와 Next.js 프론트엔드를 시작하는 방법을 안내합니다.
+MegaMelange는 AI로 언리얼 엔진을 제어할 수 있는 도구입니다. 이 가이드를 따라하면 **웹 브라우저에서 자연어로 언리얼 엔진을 조작**할 수 있습니다.
 
-## 사전 요구사항
+## 📋 시작하기 전 확인사항
 
-- **Python 3.10+** 설치
-- **Node.js 18+** 및 npm 설치
-- Python용 **uv** 패키지 매니저 (`pip install uv`)
-- **언리얼 엔진 5.3+** 및 UnrealMCP 플러그인이 활성화된 프로젝트
+> ⚠️ **중요**: 아래 모든 항목이 설치되어 있어야 합니다!
 
-## 빠른 시작 명령어
+- [ ] **Python 3.10 이상** - [python.org](https://python.org)에서 다운로드
+- [ ] **Node.js 18 이상** - [nodejs.org](https://nodejs.org)에서 다운로드  
+- [ ] **uv 패키지 매니저** - 터미널에서 `pip install uv` 실행
+- [ ] **언리얼 엔진 5.3 이상** - Epic Games Launcher에서 설치
+- [ ] **UnrealMCP 플러그인**이 활성화된 언리얼 프로젝트
 
-### 1. Python MCP 서버 설정
+### 설치 확인 방법
+```bash
+# 각각 실행해서 버전이 나오는지 확인
+python --version    # Python 3.10.0 이상
+node --version      # v18.0.0 이상  
+npm --version       # 8.0.0 이상
+uv --version        # 0.1.0 이상
+```
+
+## 🎯 3단계 빠른 시작
+
+### 1단계: 언리얼 엔진 프로젝트 열기
+1. **언리얼 엔진 5.3+** 프로젝트 열기 
+2. **편집 → 플러그인 → UnrealMCP** 플러그인이 **체크되어 있는지** 확인
+3. 프로젝트를 **열어둔 상태로** 다음 단계 진행
+
+---
+
+### 2단계: Python MCP 서버 실행
+> 📂 **첫 번째 터미널** 창에서 실행
 
 ```bash
-# Python 디렉토리로 이동
+# 1️⃣ Python 폴더로 이동
 cd Python
 
-# 가상환경 생성 및 활성화
+# 2️⃣ 가상환경 생성
 uv venv
-# Windows에서:
-.venv\Scripts\activate
-# Unix/Mac에서:
-source .venv/bin/activate
 
-# 개발 모드로 종속성 설치
+# 3️⃣ 가상환경 활성화 (Windows)
+.venv\Scripts\activate
+# Mac/Linux인 경우: source .venv/bin/activate
+
+# 4️⃣ 필요한 라이브러리 설치
 uv pip install -e .
 
-# MCP 서버 시작
+# 5️⃣ 서버 시작 (이 명령어가 성공하면 2단계 완료!)
 python unreal_mcp_server.py
 ```
 
-### 2. 프론트엔드 설정
+✅ **성공 메시지**: `Starting MCP server with stdio transport` 가 보이면 성공!
+
+---
+
+### 3단계: 웹 프론트엔드 실행  
+> 📂 **두 번째 터미널** 창에서 실행 (첫 번째 터미널은 그대로 둡니다)
 
 ```bash
-# Frontend 디렉토리로 이동
+# 1️⃣ Frontend 폴더로 이동
 cd Frontend
 
-# 종속성 설치
+# 2️⃣ Node.js 패키지 설치
 npm install
 
-# 개발 서버 시작
+# 3️⃣ 개발 서버 시작
 npm run dev
 ```
 
-### 3. 선택사항: HTTP 브리지
+✅ **성공 확인**: 브라우저에서 `http://localhost:3000` 접속해서 채팅창이 보이면 완료!
 
-추가 API 접근을 위해 HTTP 브리지가 필요한 경우:
+---
 
+## 🎉 축하합니다! 설정 완료
+
+모든 단계가 성공했다면:
+- ✅ 언리얼 엔진이 열려있음
+- ✅ Python 서버가 실행중 (첫 번째 터미널)  
+- ✅ 웹 브라우저에 채팅 인터페이스가 보임
+
+이제 **"큐브 하나 만들어줘"** 같은 자연어 명령을 입력해보세요!
+
+## 🔧 문제해결 가이드 (학생들이 자주 하는 실수들)
+
+### 😵 "Python 서버가 안 켜져요!"
+
+**문제 1: `python: command not found`**
 ```bash
-# Python 디렉토리에서 (별도 터미널)
-cd Python
-.venv\Scripts\python.exe http_bridge.py
+# 해결방법: Python이 제대로 설치되었는지 확인
+python --version
+# 안 되면 python3 시도
+python3 --version
 ```
 
-## 상세 시작 프로세스
-
-### Python MCP 서버
-
-Python MCP 서버는 언리얼 엔진 통신을 위한 Model Context Protocol 인터페이스를 제공합니다.
-
-1. **환경 설정**
-   ```bash
-   cd Python
-   uv venv                    # .venv 디렉토리 생성
-   ```
-
-1.5. **환경 구성**
-   `.env` 파일 생성:
-   ```
-   ANTHROPIC_API_KEY=your_openai_api_key_here
-   ```
-
-2. **패키지 설치**
-   ```bash
-   uv pip install -e .       # FastMCP, Pydantic 등 모든 종속성 설치
-   ```
-
-3. **서버 시작**
-   ```bash
-   python unreal_mcp_server.py
-   ```
-   
-   서버는 다음과 같은 작업을 수행합니다:
-   - MCP 연결 대기
-   - 포트 55557에서 언리얼 엔진과 TCP 연결 설정
-   - 모든 도구 모듈 등록 (액터, 블루프린트, 에디터, 노드 도구)
-
-### Next.js 프론트엔드
-
-프론트엔드는 언리얼 엔진의 자연어 제어를 위한 웹 인터페이스를 제공합니다.
-
-1. **설정**
-   ```bash
-   cd Frontend
-   npm install               # Next.js 15.4+, React 19, TypeScript 설치
-   ```
-
-2. **개발 서버 시작**
-   ```bash
-   npm run dev              # http://localhost:3000에서 시작
-   ```
-
-## 서버 상태 확인
-
-### Python 서버 실행 확인
+**문제 2: `uv: command not found`**
 ```bash
-# 포트 55557 사용 확인
-netstat -ano | findstr :55557
+# 해결방법: uv 설치
+pip install uv
+# 또는
+pip3 install uv
+```
 
-# Python 프로세스 확인
+**문제 3: 포트 55557이 이미 사용중**
+```bash
+# Windows에서 기존 Python 프로세스 모두 종료
 tasklist | findstr python
+taskkill /F /IM python.exe
 ```
 
-### 프론트엔드 상태 확인
-- 브라우저에서 `http://localhost:3000` 열기
-- MegaMelange 채팅 인터페이스가 보여야 함
+---
 
-## 문제 해결
+### 😵 "웹사이트가 안 열려요!"
 
-### Python 서버 문제
+**문제 1: `npm: command not found`**
+- Node.js가 제대로 설치되지 않음
+- [nodejs.org](https://nodejs.org)에서 다시 설치
 
-**포트 55557이 이미 사용 중:**
+**문제 2: 포트 3000이 사용중**
 ```bash
-# 기존 프로세스 종료
-powershell "Get-Process python | Stop-Process -Force"
+# 다른 포트로 실행
+npm run dev -- --port 3001
+# 그리고 http://localhost:3001 접속
+# 그리고 언리얼 WB_Webinterface의 Web Browser 컴포넌트 Initial URL 변수 http://localhost:3001로 변경
 ```
 
-**FastMCP 초기화 오류:**
-- 최신 버전 사용 확인: `uv pip install --upgrade fastmcp`
-- FastMCP 생성자에 지원되지 않는 매개변수가 전달되지 않는지 확인
+**문제 3: "Cannot GET /" 에러**
+- 브라우저에서 `http://localhost:3000` 정확히 입력했는지 확인
+- `https://`가 아니라 `http://`임에 주의
 
-**언리얼 엔진 연결 실패:**
-- 언리얼 엔진 프로젝트가 열려있는지 확인
-- UnrealMCP 플러그인이 프로젝트에서 활성화되어 있는지 확인
-- 방화벽이 포트 55557을 차단하지 않는지 확인
+---
 
-### 프론트엔드 문제
+### 😵 "언리얼 엔진과 연결이 안 되요!"
 
-**포트 3000이 이미 사용 중:**
+**가장 흔한 실수들:**
+1. **언리얼 엔진 프로젝트를 안 열고 시작** → 먼저 프로젝트를 열어야 함
+2. **UnrealMCP 플러그인 비활성화** → 편집→플러그인→UnrealMCP 체크 확인  
+3. **방화벽 차단** → Windows 방화벽에서 Python 허용
+
+**연결 상태 확인 방법:**
 ```bash
-npm run dev -- --port 3001  # 다른 포트 사용
+# 포트 55557이 열려있는지 확인
+netstat -ano | findstr :55557
 ```
 
-**OpenAI API 오류:**
-- `.env.local`에 `OPENAI_API_KEY`가 설정되어 있는지 확인
-- API 키에 충분한 크레딧이 있는지 확인
+---
 
-**빌드 오류:**
+## 📚 심화
+
+### 🤖 AI 명령어 예시들
+웹 브라우저 채팅창에서 이런 명령들을 시도해보세요:
+
+```
+조명과 환경:
+- "하늘을 저녁노을로 바꿔줘"
+- "포인트 라이트를 추가해줘"
+- "낮 시간을 오후 3시로 설정해줘"
+```
+
+### 🔍 시스템 구조 이해하기
+
+이 프로젝트는 **3개의 프로그램**이 함께 작동합니다:
+
+1. **언리얼 엔진** (포트 55557) - 실제 3D 작업을 하는 프로그램
+2. **Python MCP 서버** - AI 명령을 언리얼 엔진이 이해할 수 있게 번역
+3. **Next.js 웹 프론트엔드** (포트 3000) - 사용자가 명령을 입력하는 웹사이트
+
+### 📁 프로젝트 구조
+```
+unreal-mcp/
+├── Python/           # MCP 서버 코드
+├── Frontend/         # 웹 인터페이스
+├── MCPGameProject/   # 언리얼 엔진 프로젝트
+└── README_HowToStart_Korean.md  # 이 파일
+```
+
+---
+
+## 🛑 작업 종료하기
+
+### 정상적으로 종료하기
+1. **웹 브라우저** 탭 닫기
+2. **두 번째 터미널** (Frontend): `Ctrl + C` 누르기  
+3. **첫 번째 터미널** (Python): `Ctrl + C` 누르기
+4. **언리얼 엔진** 프로젝트 닫기
+
+### 강제로 모든 프로세스 종료 (문제가 생겼을 때)
 ```bash
-npm run build              # TypeScript/빌드 문제 확인
-npm run lint               # 린팅 문제 확인
+# 모든 Python과 Node 프로세스를 한번에 종료
+taskkill /F /IM python.exe
+taskkill /F /IM node.exe
 ```
 
-## 프로덕션 배포
+---
 
-### Python 서버
+## 💡 팁
+
+### 자주 하는 실수 Top 5:
+1. **언리얼 엔진을 안 열고 시작** (가장 많음)
+2. **터미널을 하나만 사용해서 명령어 충돌**
+3. **가상환경 활성화를 깜빡함** 
+4. **http://를 https://로 잘못 입력**
+5. **방화벽으로 인한 포트 차단**
+
+### 빠른 상태 점검 명령어:
 ```bash
-# 프로덕션 종속성 설치
-uv pip install --no-dev
+# 모든 필요한 프로세스가 실행중인지 확인
+tasklist | findstr "python.exe node.exe UnrealEditor.exe"
 
-# 프로덕션 설정으로 실행
-python unreal_mcp_server.py --production
+# 모든 필요한 포트가 열려있는지 확인  
+netstat -ano | findstr "55557 3000"
 ```
 
-### 프론트엔드
-```bash
-# 프로덕션용 빌드
-npm run build
+---
 
-# 프로덕션 서버 시작
-npm run start
-```
+## 📞 도움이 더 필요하다면
 
-## 개발 워크플로우
-
-1. **언리얼 엔진 시작** - 프로젝트와 UnrealMCP 플러그인 활성화
-2. **Python MCP 서버 시작** - 하나의 터미널에서
-3. **프론트엔드 시작** - 다른 터미널에서
-4. **선택사항: HTTP 브리지 시작** - 필요시 세 번째 터미널에서
-5. `http://localhost:3000`에서 웹 인터페이스 접속
-
-## 사용 가능한 도구 카테고리
-
-MCP 서버는 카테고리별로 구성된 도구들을 제공합니다:
-
-- **액터 도구**: 언리얼 엔진에서 액터 생성, 조작, 쿼리
-- **블루프린트 도구**: 블루프린트 생성, 컴포넌트 추가, 블루프린트 컴파일
-- **노드 도구**: 블루프린트 노드 그래프 및 연결 조작
-- **에디터 도구**: 뷰포트, 카메라, 에디터 설정 제어
-- **다이나믹 스카이 도구**: 하늘과 조명 시스템을 위한 전문 도구
-
-## 로그 및 디버깅
-
-- **Python 서버 로그**: `Python/unreal_mcp.log` 확인
-- **프론트엔드 로그**: 브라우저 콘솔 및 터미널 출력 확인
-- **언리얼 엔진 로그**: UE 에디터의 Output Log 창 확인
-
-## 서비스 중지
-
-모든 서비스를 깔끔하게 종료하려면:
-
-```bash
-# 모든 Python 프로세스 종료
-powershell "Get-Process python | Stop-Process -Force"
-
-# 프론트엔드 중지 (터미널에서 Ctrl+C)
-# 또는 Node 프로세스 종료
-powershell "Get-Process node | Stop-Process -Force"
-```
+- **GitHub Issues**: 버그 리포트 및 기능 요청
+- **프로젝트 문서**: `CLAUDE.md` 파일 참조  
+- **로그 파일**: `Python/unreal_mcp.log` 에러 메시지 확인

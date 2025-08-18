@@ -35,7 +35,7 @@ export default function UnrealLlmChat() {
     setResponse(null);
 
     try {
-      const res = await fetch('/api/openai', {
+      const res = await fetch('/api/mcp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
