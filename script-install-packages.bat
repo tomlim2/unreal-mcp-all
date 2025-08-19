@@ -98,7 +98,13 @@ if %errorlevel% neq 0 (
 echo ✅ 가상환경 생성 완료
 
 echo 📥 Python 패키지 설치 중...
-.venv\Scripts\activate && uv pip install -e .
+call .venv\Scripts\activate.bat
+if %errorlevel% neq 0 (
+    echo ❌ 가상환경 활성화 실패
+    pause
+    exit /b 1
+)
+uv pip install -e .
 if %errorlevel% neq 0 (
     echo ❌ Python 패키지 설치 실패
     pause
@@ -140,24 +146,6 @@ if %errorlevel% neq 0 (
 echo ✅ Node.js 패키지 설치 완료
 
 cd ..
-echo.
-
-REM 언리얼 엔진 프로젝트 확인
-echo 🎮 3/3: 언리얼 엔진 프로젝트 확인...
-echo =====================================
-
-if exist "MCPGameProject\MCPGameProject.uproject" (
-    echo ✅ 언리얼 엔진 프로젝트 파일 확인됨
-    echo.
-    echo 📋 다음 단계:
-    echo    1. MCPGameProject\MCPGameProject.uproject 파일을 더블클릭
-    echo    2. 편집 → 플러그인 → UnrealMCP 플러그인 활성화 확인
-    echo    3. 프로젝트를 열어둔 상태로 유지
-) else (
-    echo ⚠️  언리얼 엔진 프로젝트 파일을 찾을 수 없습니다.
-    echo    MCPGameProject 폴더와 .uproject 파일이 있는지 확인해주세요.
-)
-
 echo.
 echo 🎉 의존성 설치 완료!
 echo ==================
