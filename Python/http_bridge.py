@@ -6,6 +6,7 @@ Provides HTTP endpoint for frontend to communicate with MCP server
 
 import json
 import logging
+import os
 import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -159,7 +160,8 @@ class MCPHttpBridge:
 
 if __name__ == "__main__":
     # Start the bridge
-    bridge = MCPHttpBridge(port=8080)
+    bridge_port = int(os.getenv("HTTP_BRIDGE_PORT", "8080"))
+    bridge = MCPHttpBridge(port=bridge_port)
     
     if bridge.start():
         logger.info("HTTP Bridge running. Press Ctrl+C to stop.")

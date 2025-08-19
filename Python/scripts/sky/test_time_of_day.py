@@ -12,7 +12,7 @@ import time
 def send_command(command_type, params=None):
     """Send a command to Unreal Engine and return the response."""
     HOST = "127.0.0.1"
-    PORT = 55557
+    PORT = 55558
     
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,4 +1,18 @@
 @echo off
+
+REM Load environment variables from .env file if it exists
+if exist ".env" (
+    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+        if not "%%a"=="" if not "%%b"=="" (
+            set "%%a=%%b"
+        )
+    )
+)
+
+REM Set default ports if not already set
+if not defined UNREAL_TCP_PORT set UNREAL_TCP_PORT=55557
+if not defined HTTP_BRIDGE_PORT set HTTP_BRIDGE_PORT=8080
+if not defined FRONTEND_PORT set FRONTEND_PORT=3000
 echo 🛑 MegaMelange 서비스 중지 스크립트
 echo ===================================
 echo.
@@ -33,25 +47,25 @@ REM 포트 상태 확인
 echo 📊 포트 상태 확인:
 echo.
 
-netstat -ano | findstr :55557 >nul
+netstat -ano | findstr :%UNREAL_TCP_PORT% >nul
 if %errorlevel% == 0 (
-    echo ❌ 포트 55557 (Unreal Engine): 아직 사용 중
+    echo ❌ 포트 %UNREAL_TCP_PORT% (Unreal Engine): 아직 사용 중
 ) else (
-    echo ✅ 포트 55557 (Unreal Engine): 해제됨
+    echo ✅ 포트 %UNREAL_TCP_PORT% (Unreal Engine): 해제됨
 )
 
-netstat -ano | findstr :8080 >nul
+netstat -ano | findstr :%HTTP_BRIDGE_PORT% >nul
 if %errorlevel% == 0 (
-    echo ❌ 포트 8080 (HTTP Bridge): 아직 사용 중
+    echo ❌ 포트 %HTTP_BRIDGE_PORT% (HTTP Bridge): 아직 사용 중
 ) else (
-    echo ✅ 포트 8080 (HTTP Bridge): 해제됨
+    echo ✅ 포트 %HTTP_BRIDGE_PORT% (HTTP Bridge): 해제됨
 )
 
-netstat -ano | findstr :3000 >nul
+netstat -ano | findstr :%FRONTEND_PORT% >nul
 if %errorlevel% == 0 (
-    echo ❌ 포트 3000 (Frontend): 아직 사용 중
+    echo ❌ 포트 %FRONTEND_PORT% (Frontend): 아직 사용 중
 ) else (
-    echo ✅ 포트 3000 (Frontend): 해제됨
+    echo ✅ 포트 %FRONTEND_PORT% (Frontend): 해제됨
 )
 
 echo.

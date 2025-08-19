@@ -1,11 +1,27 @@
 @echo off
+
+REM Load environment variables from .env file if it exists
+if exist ".env" (
+    echo 📄 Loading environment variables from .env file...
+    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+        if not "%%a"=="" if not "%%b"=="" (
+            set "%%a=%%b"
+        )
+    )
+)
+
+REM Set default ports if not already set
+if not defined UNREAL_TCP_PORT set UNREAL_TCP_PORT=55557
+if not defined HTTP_BRIDGE_PORT set HTTP_BRIDGE_PORT=8080
+if not defined FRONTEND_PORT set FRONTEND_PORT=3000
+
 echo 🚀 MegaMelange 포트 초기화 스크립트
 echo ====================================
 echo.
 echo 이 스크립트는 다음 서비스들을 자동으로 시작합니다:
-echo - Python MCP 서버 (포트 55557과 연결)
-echo - HTTP 브리지 (포트 8080)
-echo - Next.js 프론트엔드 (포트 3000)
+echo - Python MCP 서버 (포트 %UNREAL_TCP_PORT%과 연결)
+echo - HTTP 브리지 (포트 %HTTP_BRIDGE_PORT%)
+echo - Next.js 프론트엔드 (포트 %FRONTEND_PORT%)
 echo.
 echo ⚠️  시작하기 전에 언리얼 엔진 프로젝트가 열려있는지 확인하세요!
 echo.
@@ -54,17 +70,17 @@ timeout /t 3 >nul
 
 REM 3. Next.js 프론트엔드 시작
 echo 🌐 3/3: Next.js 프론트엔드 시작 중...
-start "Next.js 프론트엔드" cmd /k "cd Frontend && echo 🌐 Next.js 프론트엔드 시작 중... && npm run dev"
+start "Next.js 프론트엔드" cmd /k "cd Frontend && echo 🌐 Next.js 프론트엔드 시작 중... && npm run dev -- --port %FRONTEND_PORT%"
 
 echo.
 echo 🎉 모든 서비스 시작 완료!
 echo.
 echo 📋 실행 중인 서비스:
-echo    🐍 Python MCP 서버 (첫 번째 창)
-echo    🌉 HTTP 브리지 (두 번째 창) 
-echo    🌐 Next.js 프론트엔드 (세 번째 창)
+echo    🐍 Python MCP 서버 (첫 번째 창) - 포트 %UNREAL_TCP_PORT%
+echo    🌉 HTTP 브리지 (두 번째 창) - 포트 %HTTP_BRIDGE_PORT%
+echo    🌐 Next.js 프론트엔드 (세 번째 창) - 포트 %FRONTEND_PORT%
 echo.
-echo 🌍 웹 인터페이스: http://localhost:3000
+echo 🌍 웹 인터페이스: http://localhost:%FRONTEND_PORT%
 echo.
 echo ⏹️  모든 서비스를 중지하려면 stop-ports.bat를 실행하세요.
 echo.
