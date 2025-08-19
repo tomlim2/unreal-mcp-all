@@ -400,113 +400,34 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetActorProperties(const 
 
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
 {
-	// Get sky actor name (default to Ultra_Dynamic_Sky_C_0)
-	FString SkyName = TEXT("Ultra_Dynamic_Sky_C_0");
-	Params->TryGetStringField(TEXT("sky_name"), SkyName);
-
-	// Get world in runtime-compatible way
-	UWorld* World = nullptr;
-	if (GEngine && GEngine->GetWorldContexts().Num() > 0)
-	{
-		World = GEngine->GetWorldContexts()[1].World();
-	}
-
-	if (!IsValid(World))
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get valid world"));
-	}
-
-	// Find the sky actor using runtime-compatible iteration
-	AActor* SkyActor = nullptr;
-	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
-	{
-		AActor* Actor = *ActorItr;
-		if (Actor && Actor->GetName() == SkyName)
-		{
-			SkyActor = Actor;
-			break;
-		}
-	}
-
+	static const FName PropertyName = TEXT("Time of Day");
+	
+	AActor* SkyActor = GetUltraDynamicSkyActor();
 	if (!SkyActor)
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Ultra Dynamic Sky actor not found: %s"), *SkyName));
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
 	}
 
-	// Get the Time of Day property - try multiple possible property names and types
 	UClass* ActorClass = SkyActor->GetClass();
-	FProperty* TimeOfDayProperty = nullptr;
-	
-	// Try different possible property names
-	TArray<FString> PossibleNames = {
-		TEXT("Time of Day"),
-		TEXT("TimeOfDay"), 
-		TEXT("Time_of_Day"),
-		TEXT("CurrentTime"),
-		TEXT("SunAngle"),
-		TEXT("Hour")
-	};
-	
-	for (const FString& PropertyName : PossibleNames)
-	{
-		TimeOfDayProperty = ActorClass->FindPropertyByName(*PropertyName);
-		if (TimeOfDayProperty)
-		{
-			break;
-		}
-	}
-	
+	FProperty* TimeOfDayProperty = ActorClass->FindPropertyByName(PropertyName);
 	if (!TimeOfDayProperty)
 	{
-		// List all properties for debugging
-		FString PropertyList;
-		for (TFieldIterator<FProperty> PropIt(ActorClass); PropIt; ++PropIt)
-		{
-			FProperty* Property = *PropIt;
-			PropertyList += FString::Printf(TEXT("%s (%s), "), *Property->GetName(), *Property->GetClass()->GetName());
-		}
-		
-		return FUnrealMCPCommonUtils::CreateErrorResponse(
-			FString::Printf(TEXT("Time of Day property not found. Available properties: %s"), *PropertyList)
-		);
+		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Time of Day property not found in %s"), *SkyActor->GetName()));
 	}
 
-	// Get the property value - try different property types
-	float TimeOfDayValue = 0.0f;
-	bool bFoundValue = false;
-	
-	if (FFloatProperty* FloatProp = CastField<FFloatProperty>(TimeOfDayProperty))
+	double TimeOfDayValue = 0.0;
+	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(TimeOfDayProperty))
 	{
-		TimeOfDayValue = FloatProp->GetPropertyValue_InContainer(SkyActor);
-		bFoundValue = true;
+		TimeOfDayValue = DoubleProp->GetPropertyValue_InContainer(SkyActor);
 	}
-	else if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(TimeOfDayProperty))
+	else
 	{
-		TimeOfDayValue = static_cast<float>(DoubleProp->GetPropertyValue_InContainer(SkyActor));
-		bFoundValue = true;
-	}
-	else if (FIntProperty* IntProp = CastField<FIntProperty>(TimeOfDayProperty))
-	{
-		TimeOfDayValue = static_cast<float>(IntProp->GetPropertyValue_InContainer(SkyActor));
-		bFoundValue = true;
-	}
-	else if (FByteProperty* ByteProp = CastField<FByteProperty>(TimeOfDayProperty))
-	{
-		TimeOfDayValue = static_cast<float>(ByteProp->GetPropertyValue_InContainer(SkyActor));
-		bFoundValue = true;
-	}
-	
-	if (!bFoundValue)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(
-			FString::Printf(TEXT("Time of Day property '%s' is of unsupported type: %s"), 
-				*TimeOfDayProperty->GetName(), *TimeOfDayProperty->GetClass()->GetName())
-		);
+		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Time of Day property '%s' is not a double"), *TimeOfDayProperty->GetName()));
 	}
 
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
 	ResultObj->SetNumberField(TEXT("time_of_day"), TimeOfDayValue);
-	ResultObj->SetStringField(TEXT("sky_name"), SkyName);
+	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
 	ResultObj->SetStringField(TEXT("property_name"), TimeOfDayProperty->GetName());
 	ResultObj->SetStringField(TEXT("property_type"), TimeOfDayProperty->GetClass()->GetName());
 	
@@ -515,6 +436,7 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetTimeOfDay(const TShare
 
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
 {
+	static const FName PropertyName = TEXT("Time of Day");
 	double TimeOfDayValue;
 	if (!Params->TryGetNumberField(TEXT("time_of_day"), TimeOfDayValue))
 	{
@@ -525,7 +447,7 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TShare
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 0 and 2400"));
 	}
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	UpdateUdsDoubleProperty(TEXT("Time of Day"), TimeOfDayValue, ResultObj);
+	UpdateUdsDoubleProperty(PropertyName, TimeOfDayValue, ResultObj);
 	return ResultObj;
 }
 
@@ -617,6 +539,7 @@ UWorld* FUnrealMCPActorCommands::GetCurrentWorld()
 
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params)
 {
+	FName PropertyName = TEXT("ColorTemperature");
 	double ColorTemperatureValue;
 	if (!Params->TryGetNumberField(TEXT("color_temperature"), ColorTemperatureValue))
 	{
@@ -627,7 +550,7 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 1500 and 15000"));
 	}
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	UpdateUdsDoubleProperty(TEXT("ColorTemperature"), ColorTemperatureValue, ResultObj);
+	UpdateUdsDoubleProperty(PropertyName, ColorTemperatureValue, ResultObj);
 	return ResultObj;
 }
 
