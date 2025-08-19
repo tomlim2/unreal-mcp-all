@@ -627,7 +627,7 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 1500 and 15000"));
 	}
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	UpdateUdsDoubleProperty(TEXT("Time of Day"), ColorTemperatureValue, ResultObj);
+	UpdateUdsDoubleProperty(TEXT("ColorTemperature"), ColorTemperatureValue, ResultObj);
 	return ResultObj;
 }
 
