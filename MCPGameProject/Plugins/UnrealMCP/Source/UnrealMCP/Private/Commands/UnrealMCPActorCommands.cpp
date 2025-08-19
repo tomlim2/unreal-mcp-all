@@ -44,6 +44,10 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCommand(const FString& Co
 	{
 		return HandleGetUltraDynamicSky(Params);
 	}
+	else if (CommandType == TEXT("set_color_temperature"))
+	{
+		return HandleSetColorTemperature(Params);
+	}
 	
 	return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown actor command: %s"), *CommandType));
 }
@@ -511,179 +515,17 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetTimeOfDay(const TShare
 
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
 {
-	// Get sky actor name (default to Ultra_Dynamic_Sky_C_0)
-	FString SkyName = TEXT("Ultra_Dynamic_Sky_C_0");
-	Params->TryGetStringField(TEXT("sky_name"), SkyName);
-
-	// Get time of day value
 	double TimeOfDayValue;
 	if (!Params->TryGetNumberField(TEXT("time_of_day"), TimeOfDayValue))
 	{
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'time_of_day' parameter"));
 	}
-
-	// Validate time range (0-24)
 	if (TimeOfDayValue < 0.0 || TimeOfDayValue > 2400.0)
 	{
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 0 and 2400"));
 	}
-
-	// Find the sky actor using runtime-compatible iteration
-	AActor* SkyActor = GetUltraDynamicSkyActor();
-
-	if (!SkyActor)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Ultra Dynamic Sky actor not found: %s"), *SkyName));
-	}
-
-	// Get the Time of Day property - try multiple possible property names and types
-	UClass* ActorClass = SkyActor->GetClass();
-	FProperty* TimeOfDayProperty = nullptr;
-	
-	// Try different possible property names
-	TArray<FString> PossibleNames = {
-		TEXT("Time of Day"),
-		TEXT("TimeOfDay"), 
-		TEXT("Time_of_Day"),
-		TEXT("CurrentTime"),
-		TEXT("SunAngle"),
-		TEXT("Hour")
-	};
-	
-	for (const FString& PropertyName : PossibleNames)
-	{
-		TimeOfDayProperty = ActorClass->FindPropertyByName(*PropertyName);
-		if (TimeOfDayProperty)
-		{
-			break;
-		}
-	}
-	
-	if (!TimeOfDayProperty)
-	{
-		// List all properties for debugging
-		FString PropertyList;
-		for (TFieldIterator<FProperty> PropIt(ActorClass); PropIt; ++PropIt)
-		{
-			FProperty* Property = *PropIt;
-			PropertyList += FString::Printf(TEXT("%s (%s), "), *Property->GetName(), *Property->GetClass()->GetName());
-		}
-		
-		return FUnrealMCPCommonUtils::CreateErrorResponse(
-			FString::Printf(TEXT("Time of Day property not found. Available properties: %s"), *PropertyList)
-		);
-	}
-
-	// Set the property value - try different property types
-	bool bValueSet = false;
-	
-	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(TimeOfDayProperty))
-	{
-		DoubleProp->SetPropertyValue_InContainer(SkyActor, static_cast<double>(TimeOfDayValue));
-		bValueSet = true;
-	}
-	
-	if (!bValueSet)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(
-			FString::Printf(TEXT("Time of Day property '%s' is of unsupported type: %s"), 
-				*TimeOfDayProperty->GetName(), *TimeOfDayProperty->GetClass()->GetName())
-		);
-	}
-
-	// Call Blueprint's update functions to refresh the sky
-	// Ultra Dynamic Sky typically has these functions: UpdateSunAndMoon, RecalculateVariables, etc.
-	UFunction* UpdateFunction = nullptr;
-	// Try to find common Ultra Dynamic Sky update functions
-	TArray<FString> UpdateFunctionNames = {
-		TEXT("Update Sun and Moon"),
-		TEXT("UpdateSunAndMoon"),
-		TEXT("Update Sky"),
-		TEXT("UpdateSky"),
-		TEXT("Recalculate Variables"),
-		TEXT("RecalculateVariables"),
-		TEXT("Construction Script"),
-		TEXT("ConstructionScript"),
-		TEXT("Update Sun Angle"),
-		TEXT("UpdateSunAngle")
-	};
-	
-	for (const FString& FunctionName : UpdateFunctionNames)
-	{
-		UpdateFunction = SkyActor->FindFunction(*FunctionName);
-		if (UpdateFunction)
-		{
-			// Call the update function
-			SkyActor->ProcessEvent(UpdateFunction, nullptr);
-			UE_LOG(LogTemp, Log, TEXT("Called update function: %s"), *FunctionName);
-			break;
-		}
-	}
-	
-	// If no specific update function found, try to call ReceiveBeginPlay or similar
-	if (!UpdateFunction)
-	{
-		UpdateFunction = SkyActor->FindFunction(TEXT("ReceiveBeginPlay"));
-		if (UpdateFunction)
-		{
-			SkyActor->ProcessEvent(UpdateFunction, nullptr);
-			UE_LOG(LogTemp, Log, TEXT("Called ReceiveBeginPlay to refresh sky"));
-		}
-	}
-	
-	// Also try to mark the actor for reconstruction/update
-	if (SkyActor->IsA<AActor>())
-	{
-		SkyActor->RerunConstructionScripts();
-		UE_LOG(LogTemp, Log, TEXT("Reran construction scripts for sky actor"));
-	}
-	
-	// Force update all components
-	TArray<UActorComponent*> Components;
-	SkyActor->GetComponents<UActorComponent>(Components);
-	for (UActorComponent* Component : Components)
-	{
-		if (Component)
-		{
-			Component->MarkRenderStateDirty();
-			if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
-			{
-				SceneComp->MarkRenderTransformDirty();
-			}
-		}
-	}
-	
-	// Try to call Tick function to force immediate update
-	UFunction* TickFunction = SkyActor->FindFunction(TEXT("ReceiveTick"));
-	if (TickFunction)
-	{
-		// Create tick parameters
-		struct FTickParams
-		{
-			float DeltaSeconds;
-		};
-		FTickParams TickParams;
-		TickParams.DeltaSeconds = 0.0f;
-		
-		SkyActor->ProcessEvent(TickFunction, &TickParams);
-		UE_LOG(LogTemp, Log, TEXT("Called ReceiveTick to force sky update"));
-	}
-	
-	// Mark the world as needing lighting rebuild
-	if (UWorld* SkyWorld = SkyActor->GetWorld())
-	{
-		SkyWorld->MarkPackageDirty();
-	}
-
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	ResultObj->SetNumberField(TEXT("time_of_day"), TimeOfDayValue);
-	ResultObj->SetStringField(TEXT("sky_name"), SkyName);
-	ResultObj->SetStringField(TEXT("property_name"), TimeOfDayProperty->GetName());
-	ResultObj->SetStringField(TEXT("property_type"), TimeOfDayProperty->GetClass()->GetName());
-	ResultObj->SetBoolField(TEXT("success"), true);
-	ResultObj->SetBoolField(TEXT("update_functions_called"), UpdateFunction != nullptr);
-	ResultObj->SetStringField(TEXT("message"), TEXT("Time of day set and sky update functions called"));
-	
+	UpdateUdsDoubleProperty(TEXT("Time of Day"), TimeOfDayValue, ResultObj);
 	return ResultObj;
 }
 
@@ -771,4 +613,53 @@ UWorld* FUnrealMCPActorCommands::GetCurrentWorld()
 		World = GEngine->GetWorldContexts()[CurrentWorldIndex].World();
 	}
 	return World;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params)
+{
+	double ColorTemperatureValue;
+	if (!Params->TryGetNumberField(TEXT("color_temperature"), ColorTemperatureValue))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'color_temperature' parameter"));
+	}
+	if (ColorTemperatureValue < 1500.0 || ColorTemperatureValue > 15000.0)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 1500 and 15000"));
+	}
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	UpdateUdsDoubleProperty(TEXT("Time of Day"), ColorTemperatureValue, ResultObj);
+	return ResultObj;
+}
+
+void FUnrealMCPActorCommands::UpdateUdsDoubleProperty(const FName &PropertyName, float NewValue, TSharedPtr<FJsonObject>& ResultObj)
+{
+	AActor* Actor = GetUltraDynamicSkyActor();
+	if (!Actor)
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
+		return;
+	}
+	UClass* ActorClass = Actor->GetClass();
+	FProperty* Property = ActorClass->FindPropertyByName(PropertyName);
+	if (!Property)
+	{
+		return;
+	}
+
+	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(Property))
+	{
+		DoubleProp->SetPropertyValue_InContainer(Actor, NewValue);
+	}
+
+	if (Actor->IsA<AActor>())
+	{
+		Actor->RerunConstructionScripts();
+	}
+
+	ResultObj->SetNumberField(TEXT("time_of_day"), NewValue);
+	ResultObj->SetStringField(TEXT("sky_name"), Actor->GetName());
+	ResultObj->SetStringField(TEXT("property_name"), Property->GetName());
+	ResultObj->SetStringField(TEXT("property_type"), Property->GetClass()->GetName());
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("message"), TEXT("Time of day set and sky update functions called"));
 }

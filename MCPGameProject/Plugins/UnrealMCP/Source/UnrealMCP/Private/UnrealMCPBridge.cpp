@@ -59,7 +59,7 @@
 
 // Default settings
 #define MCP_SERVER_HOST "127.0.0.1"
-#define MCP_SERVER_PORT 55557
+#define MCP_SERVER_PORT 55558
 
 // Initialize subsystem
 void UUnrealMCPBridge::Initialize(FSubsystemCollectionBase& Collection)
@@ -219,7 +219,8 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
                      CommandType == TEXT("get_actor_properties") ||
                      CommandType == TEXT("get_time_of_day") ||
                      CommandType == TEXT("set_time_of_day") ||
-                     CommandType == TEXT("get_ultra_dynamic_sky"))
+                     CommandType == TEXT("get_ultra_dynamic_sky") ||
+					 CommandType == TEXT("set_color_temperature"))
             {
                 ResultJson = ActorCommands->HandleCommand(CommandType, Params);
             }
