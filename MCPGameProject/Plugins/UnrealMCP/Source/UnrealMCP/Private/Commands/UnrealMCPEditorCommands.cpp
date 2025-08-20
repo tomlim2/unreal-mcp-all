@@ -40,7 +40,6 @@ TSharedPtr<FJsonObject> FUnrealMCPEditorCommands::HandleFocusViewport(const TSha
             return ResultObj;
         }
     }
-    
     return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to focus viewport"));
 }
 

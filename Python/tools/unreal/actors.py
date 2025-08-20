@@ -330,7 +330,9 @@ def register_actor_tools(mcp: FastMCP):
                 # Natural language description - need to get current temperature first
                 current_response = unreal.send_command("get_ultra_dynamic_sky", {})
                 current_temp = 6500.0
-                if current_response and "color_temperature" in current_response:
+                if current_response and "result" in current_response and "color_temperature" in current_response["result"]:
+                    current_temp = float(current_response["result"]["color_temperature"])
+                elif current_response and "color_temperature" in current_response:
                     current_temp = float(current_response["color_temperature"])
                 
                 # Parse natural language description
@@ -347,7 +349,9 @@ def register_actor_tools(mcp: FastMCP):
                 elif "very cold" in desc_lower or "extremely cold" in desc_lower:
                     final_temp = 10000.0  # Very cold blue
                 elif "cold" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
-                    final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler
+                    final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler  
+                elif "cooler" in desc_lower or "more cool" in desc_lower:
+                    final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler by +1000K
                 elif "cold" in desc_lower or "cool" in desc_lower:
                     final_temp = 8000.0  # Standard cool white
                 elif "daylight" in desc_lower or "neutral" in desc_lower:

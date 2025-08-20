@@ -88,7 +88,8 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
         )
         
         ai_response = response.content[0].text
-        logger.info(f"AI response: {ai_response}")
+        logger.info(f"AI response for '{user_input}': {ai_response}")
+        print(f"DEBUG: AI response for '{user_input}': {ai_response}")
         
         # Parse AI response
         try:
@@ -107,6 +108,8 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
         if parsed_response.get("commands") and isinstance(parsed_response["commands"], list):
             for command in parsed_response["commands"]:
                 try:
+                    logger.info(f"Executing command from NLP: {command}")
+                    print(f"DEBUG: Executing command from NLP: {command}")
                     result = execute_command_direct(command)
                     execution_results.append({
                         "command": command.get("type", "unknown"),
@@ -163,7 +166,7 @@ Available Unreal MCP commands:
 - get_ultra_dynamic_sky: Get Ultra Dynamic Sky actor info and current time of day
 - get_time_of_day: Get current time from Ultra Dynamic Sky
 - set_time_of_day: Set time in HHMM format (0000-2359), params: {{time_of_day: number, sky_name?: string}}
-- set_color_temperature: Set lighting color temperature in Kelvin (1500-15000), params: {{color_temperature: number}}
+- set_color_temperature: Set lighting color temperature in Kelvin (1500-15000), params: {{color_temperature: number}} OR {{description: string}}
 - get_actors_in_level: List all actors in level
 - create_actor: Create new actor, params: {{name: string, type: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}}
 - delete_actor: Delete actor by name, params: {{name: string}}
@@ -181,18 +184,21 @@ When user requests time changes, convert natural language to HHMM format:
 - "midnight" → time_of_day: 0
 
 IMPORTANT - Color Temperature Conversion Rules:
-When user requests color/lighting changes (NOT time-related), use color temperature commands:
-- "make it warm" or "warm light" → set_color_temperature with description: "warm"
-- "make it cold" or "cold light" → set_color_temperature with description: "cold" 
-- "warmer" or "more warm" → set_color_temperature with description: "warmer"
-- "cooler" or "more cool" → set_color_temperature with description: "cooler"
-- "sunset lighting" → set_color_temperature with description: "sunset"
-- "daylight" → set_color_temperature with description: "daylight"
-- Specific Kelvin values → set_color_temperature with color_temperature: number
+When user requests color/lighting changes (NOT time-related), use set_color_temperature command:
+- For descriptive terms, use description parameter: {{description: "term"}}
+- "make it warm" or "warm light" → set_color_temperature with {{description: "warm"}}
+- "make it cold" or "cold light" → set_color_temperature with {{description: "cold"}} 
+- "warmer" or "more warm" → set_color_temperature with {{description: "warmer"}}
+- "cooler" or "more cool" → set_color_temperature with {{description: "cooler"}}
+- "sunset lighting" → set_color_temperature with {{description: "sunset"}}
+- "daylight" → set_color_temperature with {{description: "daylight"}}
+- For numeric values, use color_temperature parameter: {{color_temperature: number}}
+- "3200K" or "3200 Kelvin" → set_color_temperature with {{color_temperature: 3200}}
 
 DISAMBIGUATION: 
 - If user mentions "cold evening" or "cold morning" → use set_time_of_day for time of day
-- If user mentions "cold light" or "make it cold" → use set_color_temperature for lighting color
+- If user mentions "cold light", "make it cold", "cooler", "warmer" → use set_color_temperature for lighting color
+- "cooler" ALWAYS means lighting color temperature, never time of day
 
 Context: {context}
 
@@ -213,7 +219,8 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     command_type = command.get("type")
     params = command.get("params", {})
     
-    logger.info(f"Executing command: {command_type} with params: {params}")
+    logger.info(f"execute_command_direct: Processing {command_type} with params: {params}")
+    print(f"DEBUG: execute_command_direct called with {command_type}, params: {params}")
     
     # Import tools to get access to connection
     from unreal_mcp_server import get_unreal_connection
@@ -223,7 +230,59 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     if not unreal:
         raise Exception("Could not connect to Unreal Engine")
     
-    # Execute the command normally (set_color_temperature now handles both numeric and description inputs)
+    # Handle set_color_temperature specially to support both numeric and description inputs
+    if command_type == "set_color_temperature":
+        color_temp = params.get("color_temperature")
+        description = params.get("description")
+        
+        print(f"DEBUG: set_color_temperature - color_temp={color_temp}, description={description}")
+        
+        # Check if we have a description parameter (correct usage)
+        if description and isinstance(description, str):
+            # Use the description parameter
+            color_temp = description
+            print(f"DEBUG: Using description parameter: {description}")
+        
+        # If it's a string (description), process it
+        if isinstance(color_temp, str):
+            # Get current temperature
+            current_response = unreal.send_command("get_ultra_dynamic_sky", {})
+            current_temp = 6500.0
+            if current_response and "result" in current_response and "color_temperature" in current_response["result"]:
+                current_temp = float(current_response["result"]["color_temperature"])
+            elif current_response and "color_temperature" in current_response:
+                current_temp = float(current_response["color_temperature"])
+            
+            # Parse description
+            desc_lower = color_temp.lower().strip()
+            final_temp = None
+            
+            if "very warm" in desc_lower or "extremely warm" in desc_lower:
+                final_temp = 2700.0  # Very warm candle light
+            elif "warm" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
+                final_temp = max(1500.0, current_temp - 1000.0)  # Make warmer
+            elif "warm" in desc_lower:
+                final_temp = 3200.0  # Standard warm white
+            elif "very cold" in desc_lower or "extremely cold" in desc_lower:
+                final_temp = 10000.0  # Very cold blue
+            elif "cold" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
+                final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler  
+            elif "cooler" in desc_lower or "more cool" in desc_lower:
+                final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler by +1000K
+            elif "cold" in desc_lower or "cool" in desc_lower:
+                final_temp = 8000.0  # Standard cool white
+            elif "daylight" in desc_lower or "neutral" in desc_lower:
+                final_temp = 6500.0  # Standard daylight
+            elif "sunset" in desc_lower or "golden" in desc_lower:
+                final_temp = 2200.0  # Sunset/golden hour
+            elif "noon" in desc_lower or "bright" in desc_lower:
+                final_temp = 5600.0  # Noon daylight
+            else:
+                raise Exception(f"Could not interpret color description: '{color_temp}'. Try 'warm', 'cold', 'warmer', 'cooler', 'daylight', 'sunset', etc.")
+            
+            # Update params with numeric value
+            params = {"color_temperature": final_temp}
+    
     response = unreal.send_command(command_type, params)
         
     if response and response.get("status") == "error":
