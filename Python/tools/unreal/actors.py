@@ -7,6 +7,7 @@ This module provides tools for creating, manipulating, and inspecting actors in 
 import logging
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
+from ..utils.temperature_utils import map_temperature_description
 
 # Get logger
 logger = logging.getLogger("UnrealMCP")
@@ -338,30 +339,11 @@ def register_actor_tools(mcp: FastMCP):
                 # Parse natural language description
                 desc_lower = description.lower().strip()
                 
-                # Determine new temperature based on description
-                # Note: Lower Kelvin = warmer (more red/orange), Higher Kelvin = cooler (more blue/white)
-                if "very warm" in desc_lower or "extremely warm" in desc_lower:
-                    final_temp = 2700.0  # Very warm candle light
-                elif "warm" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
-                    final_temp = max(1500.0, current_temp - 1000.0)  # Make warmer
-                elif "warm" in desc_lower:
-                    final_temp = 3200.0  # Standard warm white
-                elif "very cold" in desc_lower or "extremely cold" in desc_lower:
-                    final_temp = 10000.0  # Very cold blue
-                elif "cold" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
-                    final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler  
-                elif "cooler" in desc_lower or "more cool" in desc_lower:
-                    final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler by +1000K
-                elif "cold" in desc_lower or "cool" in desc_lower:
-                    final_temp = 8000.0  # Standard cool white
-                elif "daylight" in desc_lower or "neutral" in desc_lower:
-                    final_temp = 6500.0  # Standard daylight
-                elif "sunset" in desc_lower or "golden" in desc_lower:
-                    final_temp = 2200.0  # Sunset/golden hour
-                elif "noon" in desc_lower or "bright" in desc_lower:
-                    final_temp = 5600.0  # Noon daylight
-                else:
-                    return {"success": False, "error": f"Could not interpret color description: '{description}'. Try 'warm', 'cold', 'warmer', 'cooler', 'daylight', 'sunset', etc."}
+                # Use shared temperature mapping function
+                try:
+                    final_temp = map_temperature_description(description, current_temp)
+                except ValueError as e:
+                    return {"success": False, "error": str(e)}
                 
                 # Create interpretation info
                 interpretation_info = {

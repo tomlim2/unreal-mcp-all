@@ -11,6 +11,7 @@ import os
 import sys
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
+from ..utils.temperature_utils import map_temperature_description
 
 # Load environment variables from .env file
 try:
@@ -253,32 +254,11 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
             elif current_response and "color_temperature" in current_response:
                 current_temp = float(current_response["color_temperature"])
             
-            # Parse description
-            desc_lower = color_temp.lower().strip()
-            final_temp = None
-            
-            if "very warm" in desc_lower or "extremely warm" in desc_lower:
-                final_temp = 2700.0  # Very warm candle light
-            elif "warm" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
-                final_temp = max(1500.0, current_temp - 1000.0)  # Make warmer
-            elif "warm" in desc_lower:
-                final_temp = 3200.0  # Standard warm white
-            elif "very cold" in desc_lower or "extremely cold" in desc_lower:
-                final_temp = 10000.0  # Very cold blue
-            elif "cold" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
-                final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler  
-            elif "cooler" in desc_lower or "more cool" in desc_lower:
-                final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler by +1000K
-            elif "cold" in desc_lower or "cool" in desc_lower:
-                final_temp = 8000.0  # Standard cool white
-            elif "daylight" in desc_lower or "neutral" in desc_lower:
-                final_temp = 6500.0  # Standard daylight
-            elif "sunset" in desc_lower or "golden" in desc_lower:
-                final_temp = 2200.0  # Sunset/golden hour
-            elif "noon" in desc_lower or "bright" in desc_lower:
-                final_temp = 5600.0  # Noon daylight
-            else:
-                raise Exception(f"Could not interpret color description: '{color_temp}'. Try 'warm', 'cold', 'warmer', 'cooler', 'daylight', 'sunset', etc.")
+            # Use shared temperature mapping function
+            try:
+                final_temp = map_temperature_description(color_temp, current_temp)
+            except ValueError as e:
+                raise Exception(str(e))
             
             # Update params with numeric value
             params = {"color_temperature": final_temp}
