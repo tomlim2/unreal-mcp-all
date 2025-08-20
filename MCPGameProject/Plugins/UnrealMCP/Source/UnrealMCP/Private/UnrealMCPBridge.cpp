@@ -59,7 +59,7 @@
 
 // Default settings
 #define MCP_SERVER_HOST "127.0.0.1"
-#define MCP_SERVER_PORT 55558
+#define MCP_SERVER_PORT 55557
 
 // Initialize subsystem
 void UUnrealMCPBridge::Initialize(FSubsystemCollectionBase& Collection)

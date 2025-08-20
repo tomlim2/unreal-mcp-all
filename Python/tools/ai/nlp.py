@@ -163,6 +163,7 @@ Available Unreal MCP commands:
 - get_ultra_dynamic_sky: Get Ultra Dynamic Sky actor info and current time of day
 - get_time_of_day: Get current time from Ultra Dynamic Sky
 - set_time_of_day: Set time in HHMM format (0000-2359), params: {{time_of_day: number, sky_name?: string}}
+- set_color_temperature: Set lighting color temperature in Kelvin (1500-15000), params: {{color_temperature: number}}
 - get_actors_in_level: List all actors in level
 - create_actor: Create new actor, params: {{name: string, type: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}}
 - delete_actor: Delete actor by name, params: {{name: string}}
@@ -178,6 +179,20 @@ When user requests time changes, convert natural language to HHMM format:
 - "12:30 AM" → time_of_day: 30
 - "noon" → time_of_day: 1200
 - "midnight" → time_of_day: 0
+
+IMPORTANT - Color Temperature Conversion Rules:
+When user requests color/lighting changes (NOT time-related), use color temperature commands:
+- "make it warm" or "warm light" → set_color_temperature with description: "warm"
+- "make it cold" or "cold light" → set_color_temperature with description: "cold" 
+- "warmer" or "more warm" → set_color_temperature with description: "warmer"
+- "cooler" or "more cool" → set_color_temperature with description: "cooler"
+- "sunset lighting" → set_color_temperature with description: "sunset"
+- "daylight" → set_color_temperature with description: "daylight"
+- Specific Kelvin values → set_color_temperature with color_temperature: number
+
+DISAMBIGUATION: 
+- If user mentions "cold evening" or "cold morning" → use set_time_of_day for time of day
+- If user mentions "cold light" or "make it cold" → use set_color_temperature for lighting color
 
 Context: {context}
 
@@ -208,9 +223,9 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     if not unreal:
         raise Exception("Could not connect to Unreal Engine")
     
-    # Execute the command
+    # Execute the command normally (set_color_temperature now handles both numeric and description inputs)
     response = unreal.send_command(command_type, params)
-    
+        
     if response and response.get("status") == "error":
         raise Exception(response.get("error", "Unknown Unreal error"))
     
@@ -300,6 +315,17 @@ def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
             return response
         else:
             raise Exception("name parameter is required")
+            
+    elif command_type == "set_color_temperature":
+        color_temperature = params.get("color_temperature")
+        if color_temperature is not None:
+            response = unreal.send_command("set_color_temperature", {
+                "color_temperature": color_temperature
+            })
+            return response
+        else:
+            raise Exception("color_temperature parameter is required")
+            
             
     else:
         raise Exception(f"Unknown command type: {command_type}")

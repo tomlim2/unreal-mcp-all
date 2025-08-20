@@ -290,6 +290,101 @@ def register_actor_tools(mcp: FastMCP):
             return {"success": False, "error": str(e)}
 
     @mcp.tool()
+    def set_color_temperature(ctx: Context, color_temperature: float = None, description: str = None) -> Dict[str, Any]:
+        """Set or adjust the color temperature in Ultra Dynamic Sky.
+        
+        Args:
+            ctx: The MCP context
+            color_temperature: Exact color temperature value in Kelvin (1500-15000)
+            description: Natural language description (e.g., "warm", "cold", "warmer", "cooler", "very warm", "sunset", "daylight")
+            
+        Returns:
+            Dict containing the result of the operation
+            
+        Examples:
+            set_color_temperature(color_temperature=3200)  # Set to 3200K
+            set_color_temperature(description="warm")      # Set to warm lighting
+            set_color_temperature(description="warmer")    # Make current lighting warmer
+        """
+        from unreal_mcp_server import get_unreal_connection
+        
+        try:
+            # Must provide either color_temperature or description
+            if color_temperature is None and description is None:
+                return {"success": False, "error": "Must provide either color_temperature (numeric) or description (text)"}
+            
+            if color_temperature is not None and description is not None:
+                return {"success": False, "error": "Provide either color_temperature OR description, not both"}
+            
+            unreal = get_unreal_connection()
+            final_temp = None
+            interpretation_info = None
+            
+            if color_temperature is not None:
+                # Direct numeric temperature
+                if color_temperature < 1500 or color_temperature > 15000:
+                    return {"success": False, "error": "Color temperature must be between 1500 and 15000 Kelvin"}
+                final_temp = color_temperature
+                
+            else:
+                # Natural language description - need to get current temperature first
+                current_response = unreal.send_command("get_ultra_dynamic_sky", {})
+                current_temp = 6500.0
+                if current_response and "color_temperature" in current_response:
+                    current_temp = float(current_response["color_temperature"])
+                
+                # Parse natural language description
+                desc_lower = description.lower().strip()
+                
+                # Determine new temperature based on description
+                # Note: Lower Kelvin = warmer (more red/orange), Higher Kelvin = cooler (more blue/white)
+                if "very warm" in desc_lower or "extremely warm" in desc_lower:
+                    final_temp = 2700.0  # Very warm candle light
+                elif "warm" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
+                    final_temp = max(1500.0, current_temp - 1000.0)  # Make warmer
+                elif "warm" in desc_lower:
+                    final_temp = 3200.0  # Standard warm white
+                elif "very cold" in desc_lower or "extremely cold" in desc_lower:
+                    final_temp = 10000.0  # Very cold blue
+                elif "cold" in desc_lower and ("more" in desc_lower or "er" in desc_lower):
+                    final_temp = min(15000.0, current_temp + 1000.0)  # Make cooler
+                elif "cold" in desc_lower or "cool" in desc_lower:
+                    final_temp = 8000.0  # Standard cool white
+                elif "daylight" in desc_lower or "neutral" in desc_lower:
+                    final_temp = 6500.0  # Standard daylight
+                elif "sunset" in desc_lower or "golden" in desc_lower:
+                    final_temp = 2200.0  # Sunset/golden hour
+                elif "noon" in desc_lower or "bright" in desc_lower:
+                    final_temp = 5600.0  # Noon daylight
+                else:
+                    return {"success": False, "error": f"Could not interpret color description: '{description}'. Try 'warm', 'cold', 'warmer', 'cooler', 'daylight', 'sunset', etc."}
+                
+                # Create interpretation info
+                interpretation_info = {
+                    "description": description,
+                    "previous_temp": current_temp,
+                    "new_temp": final_temp,
+                    "change": "warmer" if final_temp < current_temp else "cooler" if final_temp > current_temp else "unchanged"
+                }
+            
+            # Set the temperature
+            response = unreal.send_command("set_color_temperature", {"color_temperature": final_temp})
+            
+            if not response:
+                logger.warning("No response from Unreal Engine")
+                return {"success": False, "error": "No response from Unreal Engine"}
+            
+            # Add interpretation info to response if using natural language
+            if interpretation_info and isinstance(response, dict):
+                response["interpretation"] = interpretation_info
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error setting color temperature: {e}")
+            return {"success": False, "error": str(e)}
+
+    @mcp.tool()
     def debug_sky_properties(ctx: Context, sky_name: str = "Ultra_Dynamic_Sky_C_0") -> Dict[str, Any]:
         """Debug function to list all properties of Ultra Dynamic Sky actor.
         

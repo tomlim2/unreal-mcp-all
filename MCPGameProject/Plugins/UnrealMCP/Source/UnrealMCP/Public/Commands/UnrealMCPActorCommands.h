@@ -29,10 +29,12 @@ private:
 
     TSharedPtr<FJsonObject> HandleGetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
-	TSharedPtr<FJsonObject> HandleGetUltraDynamicSky(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleGetColorTemperature(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleGetUltraDynamicSky(const TSharedPtr<FJsonObject>& Params);
 
 	AActor* GetUltraDynamicSkyActor();
 	UWorld* GetCurrentWorld();
 	void UpdateUdsDoubleProperty(const FName& PropertyName, float NewValue, TSharedPtr<FJsonObject>& ResultObj);
+	void GetUdsDoubleProperty(const FName& PropertyName, TSharedPtr<FJsonObject>& ResultObj);
 };

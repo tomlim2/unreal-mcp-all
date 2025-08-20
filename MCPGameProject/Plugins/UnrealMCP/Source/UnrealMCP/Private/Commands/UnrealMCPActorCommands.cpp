@@ -398,59 +398,6 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetActorProperties(const 
 	return FUnrealMCPCommonUtils::ActorToJsonObject(TargetActor, true);
 }
 
-TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
-{
-	static const FName PropertyName = TEXT("Time of Day");
-	
-	AActor* SkyActor = GetUltraDynamicSkyActor();
-	if (!SkyActor)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
-	}
-
-	UClass* ActorClass = SkyActor->GetClass();
-	FProperty* TimeOfDayProperty = ActorClass->FindPropertyByName(PropertyName);
-	if (!TimeOfDayProperty)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Time of Day property not found in %s"), *SkyActor->GetName()));
-	}
-
-	double TimeOfDayValue = 0.0;
-	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(TimeOfDayProperty))
-	{
-		TimeOfDayValue = DoubleProp->GetPropertyValue_InContainer(SkyActor);
-	}
-	else
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Time of Day property '%s' is not a double"), *TimeOfDayProperty->GetName()));
-	}
-
-	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	ResultObj->SetNumberField(TEXT("time_of_day"), TimeOfDayValue);
-	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
-	ResultObj->SetStringField(TEXT("property_name"), TimeOfDayProperty->GetName());
-	ResultObj->SetStringField(TEXT("property_type"), TimeOfDayProperty->GetClass()->GetName());
-	
-	return ResultObj;
-}
-
-TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
-{
-	static const FName PropertyName = TEXT("Time of Day");
-	double TimeOfDayValue;
-	if (!Params->TryGetNumberField(TEXT("time_of_day"), TimeOfDayValue))
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'time_of_day' parameter"));
-	}
-	if (TimeOfDayValue < 0.0 || TimeOfDayValue > 2400.0)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 0 and 2400"));
-	}
-	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	UpdateUdsDoubleProperty(PropertyName, TimeOfDayValue, ResultObj);
-	return ResultObj;
-}
-
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSky(const TSharedPtr<FJsonObject> &Params)
 {
 	AActor* SkyActor = GetUltraDynamicSkyActor();
@@ -480,6 +427,39 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSky(const 
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
 	ResultObj->SetNumberField(TEXT("time_of_day"), TimeOfDayValue);
 	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
+{
+	static const FName PropertyName = TEXT("Time of Day");
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	GetUdsDoubleProperty(PropertyName, ResultObj);
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
+{
+	static const FName PropertyName = TEXT("Time of Day");
+	double TimeOfDayValue;
+	if (!Params->TryGetNumberField(TEXT("time_of_day"), TimeOfDayValue))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'time_of_day' parameter"));
+	}
+	if (TimeOfDayValue < 0.0 || TimeOfDayValue > 2400.0)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 0 and 2400"));
+	}
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	UpdateUdsDoubleProperty(PropertyName, TimeOfDayValue, ResultObj);
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetColorTemperature(const TSharedPtr<FJsonObject>& Params)
+{
+	static const FName PropertyName = TEXT("ColorTemperature");
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	GetUdsDoubleProperty(PropertyName, ResultObj);
 	return ResultObj;
 }
 
@@ -547,14 +527,14 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const
 	}
 	if (ColorTemperatureValue < 1500.0 || ColorTemperatureValue > 15000.0)
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 1500 and 15000"));
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Color temperature must be between 1500 and 15000"));
 	}
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
 	UpdateUdsDoubleProperty(PropertyName, ColorTemperatureValue, ResultObj);
 	return ResultObj;
 }
 
-void FUnrealMCPActorCommands::UpdateUdsDoubleProperty(const FName &PropertyName, float NewValue, TSharedPtr<FJsonObject>& ResultObj)
+void FUnrealMCPActorCommands::UpdateUdsDoubleProperty(const FName& PropertyName, float NewValue, TSharedPtr<FJsonObject>& ResultObj)
 {
 	AActor* Actor = GetUltraDynamicSkyActor();
 	if (!Actor)
@@ -579,10 +559,48 @@ void FUnrealMCPActorCommands::UpdateUdsDoubleProperty(const FName &PropertyName,
 		Actor->RerunConstructionScripts();
 	}
 
-	ResultObj->SetNumberField(TEXT("time_of_day"), NewValue);
 	ResultObj->SetStringField(TEXT("sky_name"), Actor->GetName());
 	ResultObj->SetStringField(TEXT("property_name"), Property->GetName());
 	ResultObj->SetStringField(TEXT("property_type"), Property->GetClass()->GetName());
+	ResultObj->SetNumberField(TEXT("value"), NewValue);
 	ResultObj->SetBoolField(TEXT("success"), true);
 	ResultObj->SetStringField(TEXT("message"), TEXT("Time of day set and sky update functions called"));
+}
+
+void FUnrealMCPActorCommands::GetUdsDoubleProperty(const FName& PropertyName, TSharedPtr<FJsonObject>& ResultObj)
+{
+	AActor* SkyActor = GetUltraDynamicSkyActor();
+	if (!SkyActor)
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
+		return;
+	}
+	UClass* ActorClass = SkyActor->GetClass();
+	if (!ActorClass)
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get actor class"));
+		return;
+	}
+	FProperty* UdsProperty = ActorClass->FindPropertyByName(PropertyName);
+	if (!UdsProperty)
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property not found in %s"), *SkyActor->GetName()));
+		return;
+	}
+	float DoubleValue = 0.0f;
+	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(UdsProperty))
+	{
+		DoubleValue = DoubleProp->GetPropertyValue_InContainer(SkyActor);
+	}
+	else
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property '%s' is not a float"), *UdsProperty->GetName()));
+		return;
+	}
+	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
+	ResultObj->SetStringField(TEXT("property_name"), PropertyName.ToString());
+	ResultObj->SetStringField(TEXT("property_type"), UdsProperty->GetClass()->GetName());
+	ResultObj->SetNumberField(TEXT("value"), DoubleValue);
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("message"), TEXT("Retrieved property value successfully"));
 }
