@@ -45,10 +45,26 @@ if not exist "Frontend" (
 echo 📂 작업 디렉토리 확인: OK
 echo.
 
-REM 기존 프로세스 정리
+REM 기존 프로세스 정리 (포트 기반)
 echo 🧹 기존 프로세스 정리 중...
-taskkill /F /IM python.exe >nul 2>&1
-taskkill /F /IM node.exe >nul 2>&1
+netstat -ano | findstr ":%UNREAL_TCP_PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%UNREAL_TCP_PORT% " ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%p >nul 2>&1
+    )
+)
+netstat -ano | findstr ":%HTTP_BRIDGE_PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%HTTP_BRIDGE_PORT% " ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%p >nul 2>&1
+    )
+)
+netstat -ano | findstr ":%FRONTEND_PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%FRONTEND_PORT% " ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%p >nul 2>&1
+    )
+)
 timeout /t 2 >nul
 
 echo ✅ 프로세스 정리 완료

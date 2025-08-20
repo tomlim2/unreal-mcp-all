@@ -16,29 +16,45 @@ if not defined FRONTEND_PORT set FRONTEND_PORT=3000
 echo 🛑 MegaMelange 서비스 중지 스크립트
 echo ===================================
 echo.
-echo 모든 Python 및 Node.js 프로세스를 중지합니다...
+echo 설정된 포트에서 실행 중인 서비스들을 중지합니다...
 echo.
 
-REM Python 프로세스 중지
-echo 🐍 Python 프로세스 중지 중...
-tasklist | findstr python.exe >nul
-if %errorlevel% == 0 (
-    taskkill /F /IM python.exe
-    echo ✅ Python 프로세스 중지됨
+REM 포트 기반 프로세스 중지
+echo 🐍 MCP 서버 프로세스 중지 중... (포트 %UNREAL_TCP_PORT%)
+netstat -ano | findstr ":%UNREAL_TCP_PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%UNREAL_TCP_PORT% " ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%p >nul 2>&1
+    )
+    echo ✅ MCP 서버 프로세스 중지됨
 ) else (
-    echo ℹ️  실행 중인 Python 프로세스가 없습니다
+    echo ℹ️  포트 %UNREAL_TCP_PORT%에서 실행 중인 프로세스가 없습니다
 )
 
 echo.
 
-REM Node.js 프로세스 중지
-echo 🌐 Node.js 프로세스 중지 중...
-tasklist | findstr node.exe >nul
-if %errorlevel% == 0 (
-    taskkill /F /IM node.exe
-    echo ✅ Node.js 프로세스 중지됨
+echo 🌉 HTTP 브리지 프로세스 중지 중... (포트 %HTTP_BRIDGE_PORT%)
+netstat -ano | findstr ":%HTTP_BRIDGE_PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%HTTP_BRIDGE_PORT% " ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%p >nul 2>&1
+    )
+    echo ✅ HTTP 브리지 프로세스 중지됨
 ) else (
-    echo ℹ️  실행 중인 Node.js 프로세스가 없습니다
+    echo ℹ️  포트 %HTTP_BRIDGE_PORT%에서 실행 중인 프로세스가 없습니다
+)
+
+echo.
+
+echo 🌐 프론트엔드 프로세스 중지 중... (포트 %FRONTEND_PORT%)
+netstat -ano | findstr ":%FRONTEND_PORT% " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%FRONTEND_PORT% " ^| findstr "LISTENING"') do (
+        taskkill /F /PID %%p >nul 2>&1
+    )
+    echo ✅ 프론트엔드 프로세스 중지됨
+) else (
+    echo ℹ️  포트 %FRONTEND_PORT%에서 실행 중인 프로세스가 없습니다
 )
 
 echo.
