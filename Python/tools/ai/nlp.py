@@ -173,7 +173,6 @@ Available Unreal MCP commands:
 - delete_actor: Delete actor by name, params: {{name: string}}
 - set_actor_transform: Move/rotate/scale actor, params: {{name: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}}
 - get_actor_properties: Get actor properties, params: {{name: string}}
-- trigger_custom_event: Trigger custom Blueprint event on actor, params: {{actor_name: string, event_name: string, event_params?: object}}
 - set_cesium_latitude_longitude: Set Cesium map coordinates, params: {{latitude: number, longitude: number, actor_name?: string}}
 - get_cesium_properties: Get Cesium actor properties and location info, params: {{actor_name?: string}}
 
@@ -380,21 +379,6 @@ def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
             return response
         else:
             raise Exception("color_temperature parameter is required")
-            
-    elif command_type == "trigger_custom_event":
-        actor_name = params.get("actor_name")
-        event_name = params.get("event_name") 
-        event_params = params.get("event_params", {})
-        
-        if actor_name and event_name:
-            response = unreal.send_command("trigger_custom_event", {
-                "actor_name": actor_name,
-                "event_name": event_name,
-                "event_params": event_params
-            })
-            return response
-        else:
-            raise Exception("actor_name and event_name parameters are required")
             
     elif command_type == "set_cesium_latitude_longitude":
         latitude = params.get("latitude")

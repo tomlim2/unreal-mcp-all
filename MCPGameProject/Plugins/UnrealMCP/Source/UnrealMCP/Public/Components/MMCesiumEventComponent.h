@@ -22,9 +22,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MegaMelange")
 	void TriggerSetLatitudeAndLongitude(double Latitude, double Longitude);
 
-	UFUNCTION(BlueprintCallable, Category = "MegaMelange")
-	void TriggerCustomEvent(const FString& EventName, const FString& JsonParams);
-
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

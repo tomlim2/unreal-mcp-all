@@ -23,9 +23,6 @@ private:
     TSharedPtr<FJsonObject> HandleSetActorTransform(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleGetActorProperties(const TSharedPtr<FJsonObject>& Params);
 
-    // MegaMelange specific commands
-    TSharedPtr<FJsonObject> HandleTriggerCustomEvent(const TSharedPtr<FJsonObject>& Params);
-
     // Ultra Dynamic Sky specific commands
     TSharedPtr<FJsonObject> HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params);
