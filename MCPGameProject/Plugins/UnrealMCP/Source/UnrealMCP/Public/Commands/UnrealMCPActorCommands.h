@@ -31,6 +31,10 @@ private:
 	TSharedPtr<FJsonObject> HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleGetUltraDynamicSkyProperties(const TSharedPtr<FJsonObject>& Params);
 
+    // Cesium specific commands
+    TSharedPtr<FJsonObject> HandleSetCesiumLatitudeLongitude(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleGetCesiumProperties(const TSharedPtr<FJsonObject>& Params);
+
 	AActor* GetUltraDynamicSkyActor();
 	UWorld* GetCurrentWorld();
 	void UpdateUdsDoubleProperty(const FName& PropertyName, float NewValue, TSharedPtr<FJsonObject>& ResultObj);

@@ -174,6 +174,8 @@ Available Unreal MCP commands:
 - set_actor_transform: Move/rotate/scale actor, params: {{name: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}}
 - get_actor_properties: Get actor properties, params: {{name: string}}
 - trigger_custom_event: Trigger custom Blueprint event on actor, params: {{actor_name: string, event_name: string, event_params?: object}}
+- set_cesium_latitude_longitude: Set Cesium map coordinates, params: {{latitude: number, longitude: number, actor_name?: string}}
+- get_cesium_properties: Get Cesium actor properties and location info, params: {{actor_name?: string}}
 
 IMPORTANT - Time Format Conversion Rules:
 When user requests time changes, convert natural language to HHMM format:
@@ -203,10 +205,10 @@ DISAMBIGUATION:
 - "cooler" ALWAYS means lighting color temperature, never time of day
 
 IMPORTANT - Cesium Geospatial Commands:
-For map/location movement requests, use trigger_custom_event for Cesium:
-- "Move map to [location]" → trigger_custom_event with actor_name: "CesiumActor_Main", event_name: "EventSetLatitudeAndLogitude"
-- "Set Cesium location to [city]" → Convert city to coordinates, use trigger_custom_event
-- Include latitude/longitude in event_params: {{latitude: number, longitude: number}}
+For map/location movement requests, use set_cesium_latitude_longitude for Cesium:
+- "Move map to [location]" → set_cesium_latitude_longitude with {{latitude: number, longitude: number, actor_name?: string}}
+- "Set Cesium location to [city]" → Convert city to coordinates, use set_cesium_latitude_longitude
+- "Get Cesium properties" → use get_cesium_properties
 
 Common coordinates:
 - San Francisco: latitude: 37.7749, longitude: -122.4194
@@ -393,6 +395,28 @@ def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
             return response
         else:
             raise Exception("actor_name and event_name parameters are required")
+            
+    elif command_type == "set_cesium_latitude_longitude":
+        latitude = params.get("latitude")
+        longitude = params.get("longitude") 
+        actor_name = params.get("actor_name", "CesiumActor_Main")
+        
+        if latitude is not None and longitude is not None:
+            response = unreal.send_command("set_cesium_latitude_longitude", {
+                "latitude": latitude,
+                "longitude": longitude,
+                "actor_name": actor_name
+            })
+            return response
+        else:
+            raise Exception("latitude and longitude parameters are required")
+            
+    elif command_type == "get_cesium_properties":
+        actor_name = params.get("actor_name", "CesiumActor_Main")
+        response = unreal.send_command("get_cesium_properties", {
+            "actor_name": actor_name
+        })
+        return response
             
     else:
         raise Exception(f"Unknown command type: {command_type}")
