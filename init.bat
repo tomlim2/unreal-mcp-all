@@ -35,10 +35,19 @@ goto end
 echo Importing Bridge...
 set "SRC=E:\CINEVStudio\CINEVStudio\Plugins\UnrealMCP\Source\UnrealMCP"
 set "DST=MCPGameProject\Plugins\UnrealMCP\Source\UnrealMCP"
-if not exist "%DST%" (
-	mkdir "%DST%"
+
+REM Remove the entire UnrealMCP Source directory first
+if exist "%DST%" (
+	echo Removing existing UnrealMCP Source directory...
+	rmdir /s /q "%DST%"
 )
-del /Q "%DST%\*"
+
+REM Create fresh directory structure
+if not exist "MCPGameProject\Plugins\UnrealMCP\Source" (
+	mkdir "MCPGameProject\Plugins\UnrealMCP\Source"
+)
+mkdir "%DST%"
+
 robocopy "%SRC%" "%DST%" /E /XD "Binaries" "Intermediate"
 echo Bridge import complete.
 goto end

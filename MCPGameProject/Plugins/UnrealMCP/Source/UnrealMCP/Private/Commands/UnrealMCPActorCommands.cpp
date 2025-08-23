@@ -1,8 +1,6 @@
 #include "Commands/UnrealMCPActorCommands.h"
 #include "Commands/UnrealMCPCommonUtils.h"
 #include "GameFramework/Actor.h"
-#include "Components/MMCesiumEventComponent.h"
-#include "Blueprints/MMCommandSenderBlueprint.h"
 
 FUnrealMCPActorCommands::FUnrealMCPActorCommands()
 {
@@ -615,6 +613,7 @@ float FUnrealMCPActorCommands::GetUdsDoublePropertyValue(AActor* SkyActor,const 
 	return DoubleValue;
 }
 
+//todo
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetCesiumLatitudeLongitude(const TSharedPtr<FJsonObject>& Params)
 {
 	// Get required parameters
@@ -651,57 +650,9 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetCesiumLatitudeLongitud
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
 	}
 
-	// Find Cesium actor with MMCesiumEventComponent
-	UMMCesiumEventComponent* TargetComponent = nullptr;
-	AActor* TargetActor = nullptr;
-	bool bFoundBlueprintActor = false;
-	
-	// First pass: Look for MMCommandSenderBlueprint actors
-	for (TActorIterator<AMMCommandSenderBlueprint> BlueprintItr(World); BlueprintItr; ++BlueprintItr)
-	{
-		AMMCommandSenderBlueprint* Actor = *BlueprintItr;
-		if (Actor && IsValid(Actor) && Actor->GetName() == ActorName)
-		{
-			if (Actor->CesiumEventComponent && IsValid(Actor->CesiumEventComponent))
-			{
-				TargetComponent = Actor->CesiumEventComponent;
-				TargetActor = Actor;
-				bFoundBlueprintActor = true;
-				break;
-			}
-		}
-	}
-	
-	// Second pass: Fallback to generic actors with MMCesiumEventComponent
-	if (!TargetComponent)
-	{
-		for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
-		{
-			AActor* Actor = *ActorItr;
-			if (Actor && IsValid(Actor) && Actor->GetName() == ActorName)
-			{
-				TargetComponent = Actor->FindComponentByClass<UMMCesiumEventComponent>();
-				if (TargetComponent)
-				{
-					TargetActor = Actor;
-					break;
-				}
-			}
-		}
-	}
-
-	if (!TargetComponent || !TargetActor)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Cesium actor '%s' with MMCesiumEventComponent not found"), *ActorName));
-	}
-
-	// Trigger the coordinate update directly
-	TargetComponent->TriggerSetLatitudeAndLongitude(Latitude, Longitude);
-
 	// Create success response
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
 	ResultObj->SetStringField(TEXT("actor_name"), ActorName);
-	ResultObj->SetStringField(TEXT("actor_type"), bFoundBlueprintActor ? TEXT("MMCommandSenderBlueprint") : TEXT("Generic Actor"));
 	ResultObj->SetNumberField(TEXT("latitude"), Latitude);
 	ResultObj->SetNumberField(TEXT("longitude"), Longitude);
 	ResultObj->SetBoolField(TEXT("success"), true);
@@ -710,6 +661,7 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetCesiumLatitudeLongitud
 	return ResultObj;
 }
 
+//todo
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetCesiumProperties(const TSharedPtr<FJsonObject>& Params)
 {
 	// Get optional actor name parameter (defaults to CesiumActor_Main)
@@ -723,75 +675,6 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetCesiumProperties(const
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
 	}
 
-	// Find Cesium actor with MMCesiumEventComponent
-	UMMCesiumEventComponent* TargetComponent = nullptr;
-	AActor* TargetActor = nullptr;
-	bool bFoundBlueprintActor = false;
-	
-	// First pass: Look for MMCommandSenderBlueprint actors
-	for (TActorIterator<AMMCommandSenderBlueprint> BlueprintItr(World); BlueprintItr; ++BlueprintItr)
-	{
-		AMMCommandSenderBlueprint* Actor = *BlueprintItr;
-		if (Actor && IsValid(Actor) && Actor->GetName() == ActorName)
-		{
-			if (Actor->CesiumEventComponent && IsValid(Actor->CesiumEventComponent))
-			{
-				TargetComponent = Actor->CesiumEventComponent;
-				TargetActor = Actor;
-				bFoundBlueprintActor = true;
-				break;
-			}
-		}
-	}
-	
-	// Second pass: Fallback to generic actors with MMCesiumEventComponent
-	if (!TargetComponent)
-	{
-		for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
-		{
-			AActor* Actor = *ActorItr;
-			if (Actor && IsValid(Actor) && Actor->GetName() == ActorName)
-			{
-				TargetComponent = Actor->FindComponentByClass<UMMCesiumEventComponent>();
-				if (TargetComponent)
-				{
-					TargetActor = Actor;
-					break;
-				}
-			}
-		}
-	}
 
-	if (!TargetComponent || !TargetActor)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Cesium actor '%s' with MMCesiumEventComponent not found"), *ActorName));
-	}
-
-	// Create response with Cesium actor properties
-	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	ResultObj->SetStringField(TEXT("actor_name"), TargetActor->GetName());
-	ResultObj->SetStringField(TEXT("actor_type"), bFoundBlueprintActor ? TEXT("MMCommandSenderBlueprint") : TEXT("Generic Actor"));
-	ResultObj->SetStringField(TEXT("actor_class"), TargetActor->GetClass()->GetName());
-	ResultObj->SetBoolField(TEXT("has_cesium_component"), true);
-	ResultObj->SetStringField(TEXT("component_class"), TargetComponent->GetClass()->GetName());
-	
-	// Add transform information
-	FTransform ActorTransform = TargetActor->GetTransform();
-	FVector Location = ActorTransform.GetLocation();
-	FRotator Rotation = ActorTransform.Rotator();
-	FVector Scale = ActorTransform.GetScale3D();
-	
-	TSharedPtr<FJsonObject> TransformObj = MakeShared<FJsonObject>();
-	TransformObj->SetNumberField(TEXT("x"), Location.X);
-	TransformObj->SetNumberField(TEXT("y"), Location.Y);
-	TransformObj->SetNumberField(TEXT("z"), Location.Z);
-	ResultObj->SetObjectField(TEXT("location"), TransformObj);
-	
-	TSharedPtr<FJsonObject> RotationObj = MakeShared<FJsonObject>();
-	RotationObj->SetNumberField(TEXT("pitch"), Rotation.Pitch);
-	RotationObj->SetNumberField(TEXT("yaw"), Rotation.Yaw);
-	RotationObj->SetNumberField(TEXT("roll"), Rotation.Roll);
-	ResultObj->SetObjectField(TEXT("rotation"), RotationObj);
-
-	return ResultObj;
+	return TSharedPtr<FJsonObject>();
 }
