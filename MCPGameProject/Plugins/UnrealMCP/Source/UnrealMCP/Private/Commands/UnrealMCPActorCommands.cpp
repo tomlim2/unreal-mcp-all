@@ -1,7 +1,7 @@
 #include "Commands/UnrealMCPActorCommands.h"
 #include "Commands/UnrealMCPCommonUtils.h"
 #include "GameFramework/Actor.h"
-#include "MMCesiumEventComponent.h"
+#include "Components/MMCesiumEventComponent.h"
 
 FUnrealMCPActorCommands::FUnrealMCPActorCommands()
 {
