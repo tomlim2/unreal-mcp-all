@@ -173,6 +173,7 @@ Available Unreal MCP commands:
 - delete_actor: Delete actor by name, params: {{name: string}}
 - set_actor_transform: Move/rotate/scale actor, params: {{name: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}}
 - get_actor_properties: Get actor properties, params: {{name: string}}
+- trigger_custom_event: Trigger custom Blueprint event on actor, params: {{actor_name: string, event_name: string, event_params?: object}}
 
 IMPORTANT - Time Format Conversion Rules:
 When user requests time changes, convert natural language to HHMM format:
@@ -200,6 +201,19 @@ DISAMBIGUATION:
 - If user mentions "cold evening" or "cold morning" → use set_time_of_day for time of day
 - If user mentions "cold light", "make it cold", "cooler", "warmer" → use set_color_temperature for lighting color
 - "cooler" ALWAYS means lighting color temperature, never time of day
+
+IMPORTANT - Cesium Geospatial Commands:
+For map/location movement requests, use trigger_custom_event for Cesium:
+- "Move map to [location]" → trigger_custom_event with actor_name: "CesiumActor_Main", event_name: "EventSetLatitudeAndLogitude"
+- "Set Cesium location to [city]" → Convert city to coordinates, use trigger_custom_event
+- Include latitude/longitude in event_params: {{latitude: number, longitude: number}}
+
+Common coordinates:
+- San Francisco: latitude: 37.7749, longitude: -122.4194
+- New York City: latitude: 40.7128, longitude: -74.0060  
+- Tokyo: latitude: 35.6804, longitude: 139.6917
+- London: latitude: 51.5074, longitude: -0.1278
+- Paris: latitude: 48.8566, longitude: 2.3522
 
 Context: {context}
 
@@ -365,6 +379,20 @@ def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
         else:
             raise Exception("color_temperature parameter is required")
             
+    elif command_type == "trigger_custom_event":
+        actor_name = params.get("actor_name")
+        event_name = params.get("event_name") 
+        event_params = params.get("event_params", {})
+        
+        if actor_name and event_name:
+            response = unreal.send_command("trigger_custom_event", {
+                "actor_name": actor_name,
+                "event_name": event_name,
+                "event_params": event_params
+            })
+            return response
+        else:
+            raise Exception("actor_name and event_name parameters are required")
             
     else:
         raise Exception(f"Unknown command type: {command_type}")

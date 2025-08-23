@@ -71,7 +71,10 @@ export default function UnrealLlmChat() {
     "Show me all actors in the current level",
     "Set the sky to sunset time",
     "Delete the actor named 'TestCube'",
-    "Move the camera to position 500,0,200"
+    "Move the camera to position 500,0,200",
+    "Move the Cesium map to San Francisco coordinates latitude 37.7749 longitude -122.4194",
+    "Set the Cesium location to New York City coordinates",
+    "Move the map to Tokyo Japan coordinates"
   ];
 
   return (
@@ -85,7 +88,18 @@ export default function UnrealLlmChat() {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe what you want to do in Unreal Engine..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!loading && prompt.trim()) {
+                  const form = e.currentTarget.form;
+                  if (form) {
+                    form.requestSubmit();
+                  }
+                }
+              }
+            }}
+            placeholder="Describe what you want to do in Unreal Engine... (Press Enter to execute, Shift+Enter for new line)"
             className={styles.textarea}
             rows={3}
           />

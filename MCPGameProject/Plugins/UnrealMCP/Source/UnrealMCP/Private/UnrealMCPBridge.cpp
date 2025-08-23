@@ -220,7 +220,8 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
                      CommandType == TEXT("get_time_of_day") ||
                      CommandType == TEXT("set_time_of_day") ||
                      CommandType == TEXT("get_ultra_dynamic_sky") ||
-					 CommandType == TEXT("set_color_temperature"))
+					 CommandType == TEXT("set_color_temperature") ||
+					 CommandType == TEXT("trigger_custom_event"))
             {
                 ResultJson = ActorCommands->HandleCommand(CommandType, Params);
             }

@@ -1,6 +1,7 @@
 #include "Commands/UnrealMCPActorCommands.h"
 #include "Commands/UnrealMCPCommonUtils.h"
 #include "GameFramework/Actor.h"
+#include "MMCesiumEventComponent.h"
 
 FUnrealMCPActorCommands::FUnrealMCPActorCommands()
 {
@@ -43,6 +44,10 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCommand(const FString& Co
 	else if (CommandType == TEXT("set_color_temperature"))
 	{
 		return HandleSetColorTemperature(Params);
+	}
+	else if (CommandType == TEXT("trigger_custom_event"))
+	{
+		return HandleTriggerCustomEvent(Params);
 	}
 	
 	return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown actor command: %s"), *CommandType));
@@ -603,4 +608,84 @@ float FUnrealMCPActorCommands::GetUdsDoublePropertyValue(AActor* SkyActor,const 
 		return 0.0f;
 	}
 	return DoubleValue;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleTriggerCustomEvent(const TSharedPtr<FJsonObject>& Params)
+{
+	// Get required parameters
+	FString ActorName;
+	if (!Params->TryGetStringField(TEXT("actor_name"), ActorName))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'actor_name' parameter"));
+	}
+
+	FString EventName;
+	if (!Params->TryGetStringField(TEXT("event_name"), EventName))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'event_name' parameter"));
+	}
+
+	// Get optional event parameters
+	FString EventParams = TEXT("{}");
+	if (Params->HasField(TEXT("event_params")))
+	{
+		const TSharedPtr<FJsonObject>* EventParamsObj;
+		if (Params->TryGetObjectField(TEXT("event_params"), EventParamsObj))
+		{
+			// Convert JSON object to string
+			FString EventParamsString;
+			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&EventParamsString);
+			FJsonSerializer::Serialize(EventParamsObj->ToSharedRef(), Writer);
+			EventParams = EventParamsString;
+		}
+		else
+		{
+			// Try to get as string directly
+			Params->TryGetStringField(TEXT("event_params"), EventParams);
+		}
+	}
+
+	// Get the world
+	UWorld* World = GetCurrentWorld();
+	if (!World)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
+	}
+
+	// Find actors with MMCesiumEventComponent by name
+	UMMCesiumEventComponent* TargetComponent = nullptr;
+	AActor* TargetActor = nullptr;
+	
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (Actor && IsValid(Actor) && Actor->GetName() == ActorName)
+		{
+			// Look for MMCesiumEventComponent on this actor
+			TargetComponent = Actor->FindComponentByClass<UMMCesiumEventComponent>();
+			if (TargetComponent)
+			{
+				TargetActor = Actor;
+				break;
+			}
+		}
+	}
+
+	if (!TargetComponent || !TargetActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Actor with MMCesiumEventComponent not found: %s"), *ActorName));
+	}
+
+	// Trigger the custom event on the component
+	TargetComponent->TriggerCustomEvent(EventName, EventParams);
+
+	// Create success response
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetStringField(TEXT("actor_name"), ActorName);
+	ResultObj->SetStringField(TEXT("event_name"), EventName);
+	ResultObj->SetStringField(TEXT("event_params"), EventParams);
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Custom event '%s' triggered on actor '%s'"), *EventName, *ActorName));
+
+	return ResultObj;
 }
