@@ -2,6 +2,7 @@
 #include "Commands/UnrealMCPCommonUtils.h"
 #include "GameFramework/Actor.h"
 #include "Components/MMCesiumEventComponent.h"
+#include "Blueprints/MMCommandSenderBlueprint.h"
 
 FUnrealMCPActorCommands::FUnrealMCPActorCommands()
 {
@@ -652,40 +653,79 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleTriggerCustomEvent(const 
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
 	}
 
-	// Find actors with MMCesiumEventComponent by name
+	// Find actors with MMCesiumEventComponent by name - prioritize MMCommandSenderBlueprint
 	UMMCesiumEventComponent* TargetComponent = nullptr;
 	AActor* TargetActor = nullptr;
+	AMMCommandSenderBlueprint* BlueprintActor = nullptr;
+	bool bFoundBlueprintActor = false;
 	
-	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	// First pass: Look for MMCommandSenderBlueprint actors
+	for (TActorIterator<AMMCommandSenderBlueprint> BlueprintItr(World); BlueprintItr; ++BlueprintItr)
 	{
-		AActor* Actor = *ActorItr;
+		AMMCommandSenderBlueprint* Actor = *BlueprintItr;
 		if (Actor && IsValid(Actor) && Actor->GetName() == ActorName)
 		{
-			// Look for MMCesiumEventComponent on this actor
-			TargetComponent = Actor->FindComponentByClass<UMMCesiumEventComponent>();
-			if (TargetComponent)
+			// Check if it has the CesiumEventComponent
+			if (Actor->CesiumEventComponent && IsValid(Actor->CesiumEventComponent))
 			{
+				TargetComponent = Actor->CesiumEventComponent;
 				TargetActor = Actor;
+				BlueprintActor = Actor;
+				bFoundBlueprintActor = true;
+				UE_LOG(LogTemp, Display, TEXT("Found MMCommandSenderBlueprint actor: %s"), *ActorName);
 				break;
+			}
+		}
+	}
+	
+	// Second pass: Fallback to generic actors with MMCesiumEventComponent if Blueprint not found
+	if (!TargetComponent)
+	{
+		UE_LOG(LogTemp, Display, TEXT("MMCommandSenderBlueprint not found, searching generic actors for: %s"), *ActorName);
+		
+		for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+		{
+			AActor* Actor = *ActorItr;
+			if (Actor && IsValid(Actor) && Actor->GetName() == ActorName)
+			{
+				// Look for MMCesiumEventComponent on this actor
+				TargetComponent = Actor->FindComponentByClass<UMMCesiumEventComponent>();
+				if (TargetComponent)
+				{
+					TargetActor = Actor;
+					UE_LOG(LogTemp, Display, TEXT("Found generic actor with MMCesiumEventComponent: %s"), *ActorName);
+					break;
+				}
 			}
 		}
 	}
 
 	if (!TargetComponent || !TargetActor)
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Actor with MMCesiumEventComponent not found: %s"), *ActorName));
+		FString ErrorMsg = FString::Printf(TEXT("Actor with MMCesiumEventComponent not found: %s. Searched %s actors."), 
+			*ActorName, 
+			bFoundBlueprintActor ? TEXT("MMCommandSenderBlueprint and generic") : TEXT("generic"));
+		return FUnrealMCPCommonUtils::CreateErrorResponse(ErrorMsg);
 	}
 
 	// Trigger the custom event on the component
 	TargetComponent->TriggerCustomEvent(EventName, EventParams);
 
-	// Create success response
+	// Create success response with enhanced information
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
 	ResultObj->SetStringField(TEXT("actor_name"), ActorName);
+	ResultObj->SetStringField(TEXT("actor_type"), bFoundBlueprintActor ? TEXT("MMCommandSenderBlueprint") : TEXT("Generic Actor"));
+	ResultObj->SetStringField(TEXT("actor_class"), TargetActor->GetClass()->GetName());
 	ResultObj->SetStringField(TEXT("event_name"), EventName);
 	ResultObj->SetStringField(TEXT("event_params"), EventParams);
 	ResultObj->SetBoolField(TEXT("success"), true);
-	ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Custom event '%s' triggered on actor '%s'"), *EventName, *ActorName));
+	ResultObj->SetNumberField(TEXT("actors_found"), 1);
+	
+	FString Message = FString::Printf(TEXT("Custom event '%s' triggered on %s '%s'"), 
+		*EventName, 
+		bFoundBlueprintActor ? TEXT("MMCommandSenderBlueprint") : TEXT("actor"), 
+		*ActorName);
+	ResultObj->SetStringField(TEXT("message"), Message);
 
 	return ResultObj;
 }
