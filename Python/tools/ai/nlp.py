@@ -9,7 +9,6 @@ import logging
 import json
 import os
 import sys
-import random
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
 from ..utils.temperature_utils import map_temperature_description
@@ -39,40 +38,6 @@ except ImportError as e:
 # Get logger
 logger = logging.getLogger("UnrealMCP")
 
-def fix_javascript_in_response(parsed_response: Dict[str, Any], user_input: str) -> Dict[str, Any]:
-    """Fix JavaScript code in AI responses by replacing with actual random values."""
-    if "random" in user_input.lower() and "commands" in parsed_response:
-        for command in parsed_response["commands"]:
-            if command.get("type") == "create_mm_control_light" and "params" in command:
-                params = command["params"]
-                
-                # Fix light name
-                if "light_name" in params and isinstance(params["light_name"], str):
-                    if "Math.random()" in str(params["light_name"]) or "+" in str(params["light_name"]):
-                        params["light_name"] = f"mm_light_{random.randint(10000, 99999)}"
-                
-                # Fix location
-                if "location" in params and isinstance(params["location"], dict):
-                    loc = params["location"]
-                    for axis in ["x", "y", "z"]:
-                        if axis in loc and not isinstance(loc[axis], (int, float)):
-                            if axis == "z":
-                                loc[axis] = random.randint(0, 1000)
-                            else:
-                                loc[axis] = random.randint(-1000, 1000)
-                
-                # Fix intensity
-                if "intensity" in params and not isinstance(params["intensity"], (int, float)):
-                    params["intensity"] = random.randint(500, 10000)
-                
-                # Fix color
-                if "color" in params and isinstance(params["color"], dict):
-                    color = params["color"]
-                    for channel in ["r", "g", "b"]:
-                        if channel in color and not isinstance(color[channel], (int, float)):
-                            color[channel] = random.randint(0, 255)
-    
-    return parsed_response
 
 def _process_natural_language_impl(user_input: str, context: str = None) -> Dict[str, Any]:
     """
@@ -131,12 +96,6 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
         # Parse AI response
         try:
             parsed_response = json.loads(ai_response)
-            
-            # Check for invalid JavaScript code in the response
-            if "Math.random()" in ai_response or "Math.floor(" in ai_response or '+ ' in ai_response:
-                logger.warning("AI generated JavaScript code instead of literal values, fixing...")
-                parsed_response = fix_javascript_in_response(parsed_response, user_input)
-                
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse AI response as JSON: {e}")
             # If AI didn't return valid JSON, create a structured response
