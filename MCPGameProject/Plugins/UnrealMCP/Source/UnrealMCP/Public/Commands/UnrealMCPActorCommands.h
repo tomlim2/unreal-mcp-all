@@ -41,8 +41,8 @@ private:
     TSharedPtr<FJsonObject> HandleSetCesiumLatitudeLongitude(const TSharedPtr<FJsonObject>& Params);
 
 	// Add Light Commands Create Read Update Delete
-	TSharedPtr<FJsonObject> HandleCreateMMLight(const TSharedPtr<FJsonObject>& Params);
-	TSharedPtr<FJsonObject> HandleGetMMLights(const TSharedPtr<FJsonObject>& Params);
-	TSharedPtr<FJsonObject> HandleUpdateMMLight(const TSharedPtr<FJsonObject>& Params);
-	TSharedPtr<FJsonObject> HandleDeleteMMLight(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleCreateMMControlLight(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleGetMMControlLights(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleUpdateMMControlLight(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleDeleteMMControlLight(const TSharedPtr<FJsonObject>& Params);
 };

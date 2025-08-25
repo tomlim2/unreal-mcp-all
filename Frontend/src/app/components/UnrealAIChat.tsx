@@ -74,7 +74,12 @@ export default function UnrealLlmChat() {
     "Move the camera to position 500,0,200",
     "Set to San Francisco",
     "Set the New York City",
-    "Move the map to Tokyo Japan"
+    "Move the map to Tokyo Japan",
+    "Create a bright white light at position 0,0,200",
+    "Create a warm orange light named MainLight",
+    "Show me all MM control lights",
+    "Make MainLight red and move it to 100,100,150",
+    "Delete the light named MainLight"
   ];
 
   return (

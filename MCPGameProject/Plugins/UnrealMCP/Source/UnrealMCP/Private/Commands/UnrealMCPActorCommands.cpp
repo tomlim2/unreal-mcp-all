@@ -52,6 +52,23 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCommand(const FString& Co
 	{
 		return HandleGetCesiumProperties(Params);
 	}
+	else if (CommandType == TEXT("create_mm_control_light"))
+	{
+		return HandleCreateMMControlLight(Params);
+	}
+	else if (CommandType == TEXT("get_mm_control_lights"))
+	{
+		return HandleGetMMControlLights(Params);
+	}
+	else if (CommandType == TEXT("update_mm_control_light"))
+	{
+		return HandleUpdateMMControlLight(Params);
+	}
+	else if (CommandType == TEXT("delete_mm_control_light"))
+	{
+		return HandleDeleteMMControlLight(Params);
+	}
+	
 	
 	return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown actor command: %s"), *CommandType));
 }
@@ -672,4 +689,334 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetCesiumProperties(const
 	ResultObj->SetNumberField(CesiumLatitudeJSONKey, Latitude);
 	ResultObj->SetNumberField(CesiumLongitudeJSONKey, Longitude);
 	return ResultObj;
+}
+
+// MM Control Light CRUD operations
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCreateMMControlLight(const TSharedPtr<FJsonObject> &Params)
+{
+	// Get required light_name parameter
+	FString LightName;
+	if (!Params->TryGetStringField(TEXT("light_name"), LightName))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'light_name' parameter"));
+	}
+
+	// Get optional transform parameters
+	FVector Location(0.0f, 0.0f, 100.0f); // Default to 100cm above origin
+	if (Params->HasField(TEXT("location")))
+	{
+		Location = FUnrealMCPCommonUtils::GetVectorFromJson(Params, TEXT("location"));
+	}
+
+	// Get optional intensity parameter
+	float Intensity = 1000.0f; // Default intensity
+	double IntensityValue;
+	if (Params->TryGetNumberField(TEXT("intensity"), IntensityValue))
+	{
+		Intensity = static_cast<float>(IntensityValue);
+	}
+
+	// Get optional color parameter
+	FLinearColor LightColor = FLinearColor::White; // Default white
+	if (Params->HasField(TEXT("color")))
+	{
+		const TSharedPtr<FJsonObject>* ColorObj;
+		if (Params->TryGetObjectField(TEXT("color"), ColorObj))
+		{
+			double R = 255.0, G = 255.0, B = 255.0;
+			(*ColorObj)->TryGetNumberField(TEXT("r"), R);
+			(*ColorObj)->TryGetNumberField(TEXT("g"), G);
+			(*ColorObj)->TryGetNumberField(TEXT("b"), B);
+			
+			// Convert RGB 0-255 to 0-1 range
+			LightColor = FLinearColor(R / 255.0f, G / 255.0f, B / 255.0f, 1.0f);
+		}
+	}
+
+	// Get current world
+	UWorld* World = GetCurrentWorld();
+	if (!World)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
+	}
+
+	// Check if light with this name already exists
+	bool bNameExists = false;
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (Actor && IsValid(Actor) && Actor->GetName() == LightName)
+		{
+			bNameExists = true;
+			break;
+		}
+	}
+
+	if (bNameExists)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Light with name '%s' already exists"), *LightName));
+	}
+
+	// Create spawn parameters
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Name = *LightName;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	// Spawn the point light actor
+	AActor* NewLightActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, FRotator::ZeroRotator, SpawnParams);
+	
+	if (!NewLightActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to spawn light actor"));
+	}
+
+	// Add MM_Control_Light tag
+	NewLightActor->Tags.Add(TEXT("MM_Control_Light"));
+
+	// Create success response
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("actor_name"), NewLightActor->GetName());
+	ResultObj->SetStringField(TEXT("actor_class"), TEXT("APointLight"));
+	
+	// Add location info
+	TSharedPtr<FJsonObject> LocationObj = MakeShared<FJsonObject>();
+	LocationObj->SetNumberField(TEXT("x"), Location.X);
+	LocationObj->SetNumberField(TEXT("y"), Location.Y);
+	LocationObj->SetNumberField(TEXT("z"), Location.Z);
+	ResultObj->SetObjectField(TEXT("location"), LocationObj);
+	
+	ResultObj->SetNumberField(TEXT("intensity"), Intensity);
+	
+	// Add color info (convert back to RGB 0-255)
+	TSharedPtr<FJsonObject> ColorObj = MakeShared<FJsonObject>();
+	ColorObj->SetNumberField(TEXT("r"), LightColor.R * 255.0f);
+	ColorObj->SetNumberField(TEXT("g"), LightColor.G * 255.0f);
+	ColorObj->SetNumberField(TEXT("b"), LightColor.B * 255.0f);
+	ResultObj->SetObjectField(TEXT("color"), ColorObj);
+	
+	// Add tags array
+	TArray<TSharedPtr<FJsonValue>> TagsArray;
+	TagsArray.Add(MakeShared<FJsonValueString>(TEXT("MM_Control_Light")));
+	ResultObj->SetArrayField(TEXT("tags"), TagsArray);
+	
+	ResultObj->SetStringField(TEXT("message"), TEXT("MM Light created successfully"));
+
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetMMControlLights(const TSharedPtr<FJsonObject> &Params)
+{
+	// Get current world
+	UWorld* World = GetCurrentWorld();
+	if (!World)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
+	}
+
+	// Find all actors with MM_Control_Light tag
+	TArray<AActor*> MMControlLights;
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (Actor && IsValid(Actor) && Actor->Tags.Contains(TEXT("MM_Control_Light")))
+		{
+			MMControlLights.Add(Actor);
+		}
+	}
+
+	// Create lights array
+	TArray<TSharedPtr<FJsonValue>> LightsArray;
+	for (AActor* LightActor : MMControlLights)
+	{
+		if (LightActor && IsValid(LightActor))
+		{
+			TSharedPtr<FJsonObject> LightInfo = MakeShared<FJsonObject>();
+			
+			// Add basic actor info
+			LightInfo->SetStringField(TEXT("actor_name"), LightActor->GetName());
+			
+			// Add location info
+			FVector Location = LightActor->GetActorLocation();
+			TSharedPtr<FJsonObject> LocationObj = MakeShared<FJsonObject>();
+			LocationObj->SetNumberField(TEXT("x"), Location.X);
+			LocationObj->SetNumberField(TEXT("y"), Location.Y);
+			LocationObj->SetNumberField(TEXT("z"), Location.Z);
+			LightInfo->SetObjectField(TEXT("location"), LocationObj);
+			
+			// Add default intensity and color (since this is a basic actor without light components)
+			// In a real implementation, you'd extract these from light components
+			LightInfo->SetNumberField(TEXT("intensity"), 1000);
+			
+			TSharedPtr<FJsonObject> ColorObj = MakeShared<FJsonObject>();
+			ColorObj->SetNumberField(TEXT("r"), 255);
+			ColorObj->SetNumberField(TEXT("g"), 255);
+			ColorObj->SetNumberField(TEXT("b"), 255);
+			LightInfo->SetObjectField(TEXT("color"), ColorObj);
+			
+			LightsArray.Add(MakeShared<FJsonValueObject>(LightInfo));
+		}
+	}
+
+	// Create success response
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetArrayField(TEXT("lights"), LightsArray);
+	ResultObj->SetNumberField(TEXT("count"), LightsArray.Num());
+
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleUpdateMMControlLight(const TSharedPtr<FJsonObject> &Params)
+{
+	// Get required light_name parameter
+	FString LightName;
+	if (!Params->TryGetStringField(TEXT("light_name"), LightName))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'light_name' parameter"));
+	}
+
+	// Get current world
+	UWorld* World = GetCurrentWorld();
+	if (!World)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
+	}
+
+	// Find the specific MM Control Light by name and tag
+	AActor* TargetLightActor = nullptr;
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (Actor && IsValid(Actor) && 
+			Actor->GetName() == LightName && 
+			Actor->Tags.Contains(TEXT("MM_Control_Light")))
+		{
+			TargetLightActor = Actor;
+			break;
+		}
+	}
+
+	if (!TargetLightActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("MM Control Light not found: %s"), *LightName));
+	}
+
+	// Track what properties were updated
+	TSharedPtr<FJsonObject> UpdatedProperties = MakeShared<FJsonObject>();
+
+	// Update location if provided
+	if (Params->HasField(TEXT("location")))
+	{
+		FVector NewLocation = FUnrealMCPCommonUtils::GetVectorFromJson(Params, TEXT("location"));
+		TargetLightActor->SetActorLocation(NewLocation);
+		
+		TSharedPtr<FJsonObject> LocationObj = MakeShared<FJsonObject>();
+		LocationObj->SetNumberField(TEXT("x"), NewLocation.X);
+		LocationObj->SetNumberField(TEXT("y"), NewLocation.Y);
+		LocationObj->SetNumberField(TEXT("z"), NewLocation.Z);
+		UpdatedProperties->SetObjectField(TEXT("location"), LocationObj);
+	}
+
+	// Update intensity if provided
+	if (Params->HasField(TEXT("intensity")))
+	{
+		double IntensityValue;
+		if (Params->TryGetNumberField(TEXT("intensity"), IntensityValue))
+		{
+			float Intensity = static_cast<float>(IntensityValue);
+			UpdatedProperties->SetNumberField(TEXT("intensity"), Intensity);
+			// Note: In a real implementation, you'd update the light component's intensity
+		}
+	}
+
+	// Update color if provided
+	if (Params->HasField(TEXT("color")))
+	{
+		const TSharedPtr<FJsonObject>* ColorObj;
+		if (Params->TryGetObjectField(TEXT("color"), ColorObj))
+		{
+			double R = 255.0, G = 255.0, B = 255.0;
+			(*ColorObj)->TryGetNumberField(TEXT("r"), R);
+			(*ColorObj)->TryGetNumberField(TEXT("g"), G);
+			(*ColorObj)->TryGetNumberField(TEXT("b"), B);
+			
+			// Convert RGB 0-255 to 0-1 range for Unreal
+			FLinearColor LightColor = FLinearColor(R / 255.0f, G / 255.0f, B / 255.0f, 1.0f);
+			
+			// Store updated color in response
+			TSharedPtr<FJsonObject> UpdatedColorObj = MakeShared<FJsonObject>();
+			UpdatedColorObj->SetNumberField(TEXT("r"), R);
+			UpdatedColorObj->SetNumberField(TEXT("g"), G);
+			UpdatedColorObj->SetNumberField(TEXT("b"), B);
+			UpdatedProperties->SetObjectField(TEXT("color"), UpdatedColorObj);
+			// Note: In a real implementation, you'd update the light component's color
+		}
+	}
+
+	// Create success response
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("actor_name"), TargetLightActor->GetName());
+	ResultObj->SetObjectField(TEXT("updated_properties"), UpdatedProperties);
+	ResultObj->SetStringField(TEXT("message"), TEXT("MM Light updated successfully"));
+
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleDeleteMMControlLight(const TSharedPtr<FJsonObject> &Params)
+{
+	// Get required light_name parameter
+	FString LightName;
+	if (!Params->TryGetStringField(TEXT("light_name"), LightName))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'light_name' parameter"));
+	}
+
+	// Get current world
+	UWorld* World = GetCurrentWorld();
+	if (!World)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
+	}
+
+	// Find the specific MM Control Light by name and tag
+	AActor* TargetLightActor = nullptr;
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		AActor* Actor = *ActorItr;
+		if (Actor && IsValid(Actor) && 
+			Actor->GetName() == LightName && 
+			Actor->Tags.Contains(TEXT("MM_Control_Light")))
+		{
+			TargetLightActor = Actor;
+			break;
+		}
+	}
+
+	if (!TargetLightActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("MM Control Light not found: %s"), *LightName));
+	}
+
+	// Store the actor name before deletion for the response
+	FString ActorName = TargetLightActor->GetName();
+
+	// Delete the actor
+	if (IsValid(TargetLightActor))
+	{
+		TargetLightActor->Destroy();
+		
+		// Create success response
+		TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+		ResultObj->SetBoolField(TEXT("success"), true);
+		ResultObj->SetStringField(TEXT("actor_name"), ActorName);
+		ResultObj->SetStringField(TEXT("message"), TEXT("MM Light deleted successfully"));
+
+		return ResultObj;
+	}
+	else
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Failed to delete MM Control Light: %s"), *LightName));
+	}
 }

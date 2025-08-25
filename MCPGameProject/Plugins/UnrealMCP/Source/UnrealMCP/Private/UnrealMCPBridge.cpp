@@ -222,7 +222,11 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
                      CommandType == TEXT("get_ultra_dynamic_sky") ||
 					 CommandType == TEXT("set_color_temperature") ||
 					 CommandType == TEXT("set_cesium_latitude_longitude") ||
-					 CommandType == TEXT("get_cesium_properties"))
+					 CommandType == TEXT("get_cesium_properties") ||
+					 CommandType == TEXT("create_mm_control_light") ||
+					 CommandType == TEXT("get_mm_control_lights") ||
+					 CommandType == TEXT("update_mm_control_light") ||
+					 CommandType == TEXT("delete_mm_control_light"))
             {
                 ResultJson = ActorCommands->HandleCommand(CommandType, Params);
             }

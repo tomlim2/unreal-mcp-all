@@ -175,6 +175,30 @@ Available Unreal MCP commands:
 - get_actor_properties: Get actor properties, params: {{name: string}}
 - set_cesium_latitude_longitude: Set Cesium map coordinates, params: {{latitude: number, longitude: number}}
 - get_cesium_properties: Get Cesium actor properties and location info, params: {{}}
+- create_mm_control_light: Create MM Control Light, params: {{light_name: string, location?: {{x: number, y: number, z: number}}, intensity?: number, color?: {{r: number, g: number, b: number}}}}
+- get_mm_control_lights: Get all MM Control Lights, params: {{}}
+- update_mm_control_light: Update MM Control Light, params: {{light_name: string, location?: {{x: number, y: number, z: number}}, intensity?: number, color?: {{r: number, g: number, b: number}}}}
+- delete_mm_control_light: Delete MM Control Light, params: {{light_name: string}}
+
+IMPORTANT - Color Format Conversion Rules:
+For MM Control Light colors, use RGB values in 0-255 range:
+- "white" → color: {{r: 255, g: 255, b: 255}}
+- "red" → color: {{r: 255, g: 0, b: 0}}
+- "green" → color: {{r: 0, g: 255, b: 0}}
+- "blue" → color: {{r: 0, g: 0, b: 255}}
+- "warm orange" → color: {{r: 255, g: 165, b: 0}}
+- "bright white" → color: {{r: 255, g: 255, b: 255}}
+- "random color" → color: {{r: [random 0-255], g: [random 0-255], b: [random 0-255]}}
+
+IMPORTANT - Random Value Rules:
+When user requests random values, generate truly random literal numbers (NOT the examples shown below):
+
+For random light_names: mm_light_{{random_number}}
+For random locations: Generate random coordinates within user constraints - if user says "0 to 400 each position", use values like {{x: 287, y: 156, z: 342}} or {{x: 89, y: 378, z: 203}}
+For random intensity: Pick random values between 500-10000 like 3847, 1256, 7892, 9123
+For random colors: Generate random RGB 0-255 like {{r: 78, g: 234, b: 156}} or {{r: 198, g: 67, b: 245}}
+
+CRITICAL: NEVER copy the example numbers shown above - they are just examples! Always generate completely different random values!
 
 IMPORTANT - Time Format Conversion Rules:
 When user requests time changes, convert natural language to HHMM format:
@@ -395,6 +419,52 @@ def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
             
     elif command_type == "get_cesium_properties":
         response = unreal.send_command("get_cesium_properties", {})
+        return response
+    
+    elif command_type == "create_mm_control_light":
+        light_name = params.get("light_name")
+        if not light_name:
+            raise Exception("light_name parameter is required")
+        
+        command_params = {"light_name": light_name}
+        
+        if "location" in params:
+            command_params["location"] = params["location"]
+        if "intensity" in params:
+            command_params["intensity"] = params["intensity"]
+        if "color" in params:
+            command_params["color"] = params["color"]
+            
+        response = unreal.send_command("create_mm_control_light", command_params)
+        return response
+    
+    elif command_type == "get_mm_control_lights":
+        response = unreal.send_command("get_mm_control_lights", {})
+        return response
+    
+    elif command_type == "update_mm_control_light":
+        light_name = params.get("light_name")
+        if not light_name:
+            raise Exception("light_name parameter is required")
+        
+        command_params = {"light_name": light_name}
+        
+        if "location" in params:
+            command_params["location"] = params["location"]
+        if "intensity" in params:
+            command_params["intensity"] = params["intensity"]
+        if "color" in params:
+            command_params["color"] = params["color"]
+            
+        response = unreal.send_command("update_mm_control_light", command_params)
+        return response
+    
+    elif command_type == "delete_mm_control_light":
+        light_name = params.get("light_name")
+        if not light_name:
+            raise Exception("light_name parameter is required")
+            
+        response = unreal.send_command("delete_mm_control_light", {"light_name": light_name})
         return response
             
     else:
