@@ -9,6 +9,7 @@ import logging
 import json
 import os
 import sys
+import random
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
 from ..utils.temperature_utils import map_temperature_description
@@ -37,6 +38,41 @@ except ImportError as e:
 
 # Get logger
 logger = logging.getLogger("UnrealMCP")
+
+def fix_javascript_in_response(parsed_response: Dict[str, Any], user_input: str) -> Dict[str, Any]:
+    """Fix JavaScript code in AI responses by replacing with actual random values."""
+    if "random" in user_input.lower() and "commands" in parsed_response:
+        for command in parsed_response["commands"]:
+            if command.get("type") == "create_mm_control_light" and "params" in command:
+                params = command["params"]
+                
+                # Fix light name
+                if "light_name" in params and isinstance(params["light_name"], str):
+                    if "Math.random()" in str(params["light_name"]) or "+" in str(params["light_name"]):
+                        params["light_name"] = f"mm_light_{random.randint(10000, 99999)}"
+                
+                # Fix location
+                if "location" in params and isinstance(params["location"], dict):
+                    loc = params["location"]
+                    for axis in ["x", "y", "z"]:
+                        if axis in loc and not isinstance(loc[axis], (int, float)):
+                            if axis == "z":
+                                loc[axis] = random.randint(0, 1000)
+                            else:
+                                loc[axis] = random.randint(-1000, 1000)
+                
+                # Fix intensity
+                if "intensity" in params and not isinstance(params["intensity"], (int, float)):
+                    params["intensity"] = random.randint(500, 10000)
+                
+                # Fix color
+                if "color" in params and isinstance(params["color"], dict):
+                    color = params["color"]
+                    for channel in ["r", "g", "b"]:
+                        if channel in color and not isinstance(color[channel], (int, float)):
+                            color[channel] = random.randint(0, 255)
+    
+    return parsed_response
 
 def _process_natural_language_impl(user_input: str, context: str = None) -> Dict[str, Any]:
     """
@@ -95,6 +131,12 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
         # Parse AI response
         try:
             parsed_response = json.loads(ai_response)
+            
+            # Check for invalid JavaScript code in the response
+            if "Math.random()" in ai_response or "Math.floor(" in ai_response or '+ ' in ai_response:
+                logger.warning("AI generated JavaScript code instead of literal values, fixing...")
+                parsed_response = fix_javascript_in_response(parsed_response, user_input)
+                
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse AI response as JSON: {e}")
             # If AI didn't return valid JSON, create a structured response
@@ -163,6 +205,19 @@ def build_system_prompt(context: str) -> str:
     """Build the system prompt for the AI with available commands."""
     return f"""You are an AI assistant that translates natural language requests into Unreal Engine commands via MCP protocol.
 
+CRITICAL RULE FOR RANDOM VALUES: 
+You must return valid JSON with literal numeric values only. Never include JavaScript code, Math.random(), or string concatenation.
+
+REQUIRED FORMAT for random lights:
+{{
+  "light_name": "mm_light_12345",
+  "location": {{"x": 123, "y": -456, "z": 789}},
+  "intensity": 5678,
+  "color": {{"r": 255, "g": 128, "b": 64}}
+}}
+
+FORBIDDEN: Any use of +, Math.floor, Math.random(), or string concatenation in JSON values.
+
 Available Unreal MCP commands:
 - get_ultra_dynamic_sky: Get Ultra Dynamic Sky actor info and current time of day
 - get_time_of_day: Get current time from Ultra Dynamic Sky
@@ -191,14 +246,19 @@ For MM Control Light colors, use RGB values in 0-255 range:
 - "random color" → color: {{r: [random 0-255], g: [random 0-255], b: [random 0-255]}}
 
 IMPORTANT - Random Value Rules:
-When user requests random values, generate truly random literal numbers (NOT the examples shown below):
+When user requests random values, you must output actual literal numbers in the JSON response:
 
-For random light_names: mm_light_{{random_number}}
-For random locations: Generate random coordinates within user constraints - if user says "0 to 400 each position", use values like {{x: 287, y: 156, z: 342}} or {{x: 89, y: 378, z: 203}}
-For random intensity: Pick random values between 500-10000 like 3847, 1256, 7892, 9123
-For random colors: Generate random RGB 0-255 like {{r: 78, g: 234, b: 156}} or {{r: 198, g: 67, b: 245}}
+CORRECT FORMAT:
+"light_name": "mm_light_47291"
+"location": {{"x": 523, "y": -234, "z": 891}}
+"intensity": 6472
+"color": {{"r": 89, "g": 156, "b": 203}}
 
-CRITICAL: NEVER copy the example numbers shown above - they are just examples! Always generate completely different random values!
+WRONG FORMAT - NEVER DO THIS:
+"light_name": "mm_light_" + Math.floor(Math.random() * 1000)
+"x": Math.floor(Math.random() * 2000)
+
+You must calculate random numbers yourself and put the final numeric values in the JSON!
 
 IMPORTANT - Time Format Conversion Rules:
 When user requests time changes, convert natural language to HHMM format:
