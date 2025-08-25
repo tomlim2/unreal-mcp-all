@@ -83,7 +83,7 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
         response = client.messages.create(
             model='claude-3-haiku-20240307',
             max_tokens=1024,
-            temperature=0.1,
+            temperature=0.9,
             messages=[
                 {"role": "user", "content": f"{system_prompt}\n\nUser request: {user_input}"}
             ]
@@ -214,10 +214,6 @@ CORRECT FORMAT:
 "location": {{"x": 523, "y": -234, "z": 891}}
 "intensity": 6472
 "color": {{"r": 89, "g": 156, "b": 203}}
-
-WRONG FORMAT - NEVER DO THIS:
-"light_name": "mm_light_" + Math.floor(Math.random() * 1000)
-"x": Math.floor(Math.random() * 2000)
 
 You must calculate random numbers yourself and put the final numeric values in the JSON!
 
