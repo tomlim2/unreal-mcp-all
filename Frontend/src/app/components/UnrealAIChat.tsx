@@ -72,9 +72,9 @@ export default function UnrealLlmChat() {
     "Set the sky to sunset time",
     "Delete the actor named 'TestCube'",
     "Move the camera to position 500,0,200",
-    "Move the Cesium map to San Francisco coordinates latitude 37.7749 longitude -122.4194",
-    "Set the Cesium location to New York City coordinates",
-    "Move the map to Tokyo Japan coordinates"
+    "Set to San Francisco",
+    "Set the New York City",
+    "Move the map to Tokyo Japan"
   ];
 
   return (

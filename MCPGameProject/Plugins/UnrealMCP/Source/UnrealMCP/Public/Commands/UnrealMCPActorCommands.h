@@ -23,18 +23,26 @@ private:
     TSharedPtr<FJsonObject> HandleSetActorTransform(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleGetActorProperties(const TSharedPtr<FJsonObject>& Params);
 
+	// to do : how to get REAL current world in cinev from source code
+	UWorld* GetCurrentWorld();
+	AActor* FindActorByClassName(const FString& ClassName);
+	bool GetDoublePropertyValue(AActor* Actor, const FName& PropertyName, float& OutValue);
+	bool UpdateDoubleProperty(AActor* SkyActor, const FName& PropertyName, float NewValue);
+
     // Ultra Dynamic Sky specific commands
+	AActor* GetUltraDynamicSkyActor();
     TSharedPtr<FJsonObject> HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleGetUltraDynamicSkyProperties(const TSharedPtr<FJsonObject>& Params);
 
     // Cesium specific commands
-    TSharedPtr<FJsonObject> HandleSetCesiumLatitudeLongitude(const TSharedPtr<FJsonObject>& Params);
+	AActor* GetCesiumGeoreferenceActor();
     TSharedPtr<FJsonObject> HandleGetCesiumProperties(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleSetCesiumLatitudeLongitude(const TSharedPtr<FJsonObject>& Params);
 
-	AActor* GetUltraDynamicSkyActor();
-	UWorld* GetCurrentWorld();
-	void UpdateUdsDoubleProperty(const FName& PropertyName, float NewValue, TSharedPtr<FJsonObject>& ResultObj);
-	void GetUdsDoubleProperty(const FName& PropertyName, TSharedPtr<FJsonObject>& ResultObj);
-	float GetUdsDoublePropertyValue(AActor* SkyActor, const FName& PropertyName);
+	// Add Light Commands Create Read Update Delete
+	TSharedPtr<FJsonObject> HandleCreateMMLight(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleGetMMLights(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleUpdateMMLight(const TSharedPtr<FJsonObject>& Params);
+	TSharedPtr<FJsonObject> HandleDeleteMMLight(const TSharedPtr<FJsonObject>& Params);
 };

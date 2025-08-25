@@ -402,65 +402,7 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetActorProperties(const 
 	return FUnrealMCPCommonUtils::ActorToJsonObject(TargetActor, true);
 }
 
-TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSkyProperties(const TSharedPtr<FJsonObject> &Params)
-{
-	AActor* SkyActor = GetUltraDynamicSkyActor();
-	if (!SkyActor)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
-	}
-	const FName TODName = TEXT("Time of Day");
-	const FName ColorTempName = TEXT("ColorTemperature");
-
-	float TimeOfDayValue = GetUdsDoublePropertyValue(SkyActor, TODName);
-	float ColorTempValue = GetUdsDoublePropertyValue(SkyActor, ColorTempName);
-
-	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
-	ResultObj->SetNumberField(TEXT("time_of_day"), TimeOfDayValue);
-	ResultObj->SetNumberField(TEXT("color_temperature"), ColorTempValue);
-	return ResultObj;
-}
-
-TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
-{
-	static const FName PropertyName = TEXT("Time of Day");
-	double TimeOfDayValue;
-	if (!Params->TryGetNumberField(TEXT("time_of_day"), TimeOfDayValue))
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'time_of_day' parameter"));
-	}
-	if (TimeOfDayValue < 0.0 || TimeOfDayValue > 2400.0)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 0 and 2400"));
-	}
-	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	UpdateUdsDoubleProperty(PropertyName, TimeOfDayValue, ResultObj);
-	return ResultObj;
-}
-
-AActor *FUnrealMCPActorCommands::GetUltraDynamicSkyActor()
-{
-	UWorld* World = GetCurrentWorld();
-	if (!IsValid(World))
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get valid world"));
-		return nullptr;
-	}
-	const FString SkyClassName = TEXT("Ultra_Dynamic_Sky_C");
-	AActor* SkyActor = nullptr;
-	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
-	{
-		AActor* Actor = *ActorItr;
-		if (Actor && Actor->GetClass()->GetName() == SkyClassName)
-		{
-			SkyActor = Actor;
-			break;
-		}
-	}
-	return SkyActor;
-}
-
+// common helper function
 UWorld* FUnrealMCPActorCommands::GetCurrentWorld()
 {
 	UWorld* World = nullptr;
@@ -493,36 +435,72 @@ UWorld* FUnrealMCPActorCommands::GetCurrentWorld()
 	return World;
 }
 
-TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params)
+AActor* FUnrealMCPActorCommands::FindActorByClassName(const FString& ClassName)
 {
-	FName PropertyName = TEXT("ColorTemperature");
-	double ColorTemperatureValue;
-	if (!Params->TryGetNumberField(TEXT("color_temperature"), ColorTemperatureValue))
+	UWorld* World = GetCurrentWorld();
+	if (!IsValid(World))
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'color_temperature' parameter"));
+		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get valid world"));
+		return nullptr;
 	}
-	if (ColorTemperatureValue < 1500.0 || ColorTemperatureValue > 15000.0)
+	AActor* Actor = nullptr;
+	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Color temperature must be between 1500 and 15000"));
+		AActor* CurrentActor = *ActorItr;
+		if (CurrentActor && CurrentActor->GetClass()->GetName() == ClassName)
+		{
+			Actor = CurrentActor;
+			break;
+		}
 	}
-	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	UpdateUdsDoubleProperty(PropertyName, ColorTemperatureValue, ResultObj);
-	return ResultObj;
+	return Actor;
 }
 
-void FUnrealMCPActorCommands::UpdateUdsDoubleProperty(const FName& PropertyName, float NewValue, TSharedPtr<FJsonObject>& ResultObj)
+bool FUnrealMCPActorCommands::GetDoublePropertyValue(AActor* Actor, const FName& PropertyName, float& OutValue)
 {
-	AActor* Actor = GetUltraDynamicSkyActor();
+	if (!Actor)
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Actor not found"));
+		return false;
+	}
+	UClass* ActorClass = Actor->GetClass();
+	if (!ActorClass)
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get actor class"));
+		return false;
+	}
+	FProperty* FoundProperty = ActorClass->FindPropertyByName(PropertyName);
+	if (!FoundProperty)
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property not found in %s"), *Actor->GetName()));
+		return false;
+	}
+	float DoubleValue = 0.0f;
+	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(FoundProperty))
+	{
+		DoubleValue = DoubleProp->GetPropertyValue_InContainer(Actor);
+	}
+	else
+	{
+		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property '%s' is not a float"), *FoundProperty->GetName()));
+		return false;
+	}
+	OutValue = DoubleValue;
+	return true;
+}
+
+bool FUnrealMCPActorCommands::UpdateDoubleProperty(AActor* Actor, const FName& PropertyName, float NewValue)
+{
 	if (!Actor)
 	{
 		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
-		return;
+		return false;
 	}
 	UClass* ActorClass = Actor->GetClass();
 	FProperty* Property = ActorClass->FindPropertyByName(PropertyName);
 	if (!Property)
 	{
-		return;
+		return false;
 	}
 
 	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(Property))
@@ -534,147 +512,164 @@ void FUnrealMCPActorCommands::UpdateUdsDoubleProperty(const FName& PropertyName,
 	{
 		Actor->RerunConstructionScripts();
 	}
-
-	ResultObj->SetStringField(TEXT("sky_name"), Actor->GetName());
-	ResultObj->SetStringField(TEXT("property_name"), Property->GetName());
-	ResultObj->SetStringField(TEXT("property_type"), Property->GetClass()->GetName());
-	ResultObj->SetNumberField(TEXT("value"), NewValue);
-	ResultObj->SetBoolField(TEXT("success"), true);
-	ResultObj->SetStringField(TEXT("message"), TEXT("Time of day set and sky update functions called"));
+	return true;
 }
 
-void FUnrealMCPActorCommands::GetUdsDoubleProperty(const FName& PropertyName, TSharedPtr<FJsonObject>& ResultObj)
+// Ultra Dynamic Sky specific functions from now on
+static const FName UDSTODName = TEXT("Time of Day");
+static const FString UDSTODJSONKey = TEXT("time_of_day");
+static const FName UDSColorTempName = TEXT("ColorTemperature");
+static const FString UDSColorTempJSONKey = TEXT("color_temperature");
+
+AActor* FUnrealMCPActorCommands::GetUltraDynamicSkyActor()
+{
+	const FString SkyClassName = TEXT("Ultra_Dynamic_Sky_C");
+	return FindActorByClassName(SkyClassName);
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSkyProperties(const TSharedPtr<FJsonObject> &Params)
 {
 	AActor* SkyActor = GetUltraDynamicSkyActor();
 	if (!SkyActor)
 	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
-		return;
-	}
-	UClass* ActorClass = SkyActor->GetClass();
-	if (!ActorClass)
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get actor class"));
-		return;
-	}
-	FProperty* UdsProperty = ActorClass->FindPropertyByName(PropertyName);
-	if (!UdsProperty)
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property not found in %s"), *SkyActor->GetName()));
-		return;
-	}
-	float DoubleValue = 0.0f;
-	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(UdsProperty))
-	{
-		DoubleValue = DoubleProp->GetPropertyValue_InContainer(SkyActor);
-	}
-	else
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property '%s' is not a float"), *UdsProperty->GetName()));
-		return;
-	}
-	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
-	ResultObj->SetStringField(TEXT("property_name"), PropertyName.ToString());
-	ResultObj->SetStringField(TEXT("property_type"), UdsProperty->GetClass()->GetName());
-	ResultObj->SetNumberField(TEXT("value"), DoubleValue);
-	ResultObj->SetBoolField(TEXT("success"), true);
-	ResultObj->SetStringField(TEXT("message"), TEXT("Retrieved property value successfully"));
-}
-
-float FUnrealMCPActorCommands::GetUdsDoublePropertyValue(AActor* SkyActor,const FName& PropertyName)
-{
-	if (!SkyActor)
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
-		return 0.0f;
-	}
-	UClass* ActorClass = SkyActor->GetClass();
-	if (!ActorClass)
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get actor class"));
-		return 0.0f;
-	}
-	FProperty* UdsProperty = ActorClass->FindPropertyByName(PropertyName);
-	if (!UdsProperty)
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property not found in %s"), *SkyActor->GetName()));
-		return 0.0f;
-	}
-	float DoubleValue = 0.0f;
-	if (FDoubleProperty* DoubleProp = CastField<FDoubleProperty>(UdsProperty))
-	{
-		DoubleValue = DoubleProp->GetPropertyValue_InContainer(SkyActor);
-	}
-	else
-	{
-		FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Property '%s' is not a float"), *UdsProperty->GetName()));
-		return 0.0f;
-	}
-	return DoubleValue;
-}
-
-//todo
-TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetCesiumLatitudeLongitude(const TSharedPtr<FJsonObject>& Params)
-{
-	// Get required parameters
-	double Latitude;
-	if (!Params->TryGetNumberField(TEXT("latitude"), Latitude))
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'latitude' parameter"));
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
 	}
 
-	double Longitude;
-	if (!Params->TryGetNumberField(TEXT("longitude"), Longitude))
+	float TimeOfDayValue;
+	float ColorTempValue;
+	if (!GetDoublePropertyValue(SkyActor, UDSTODName, TimeOfDayValue) ||
+		!GetDoublePropertyValue(SkyActor, UDSColorTempName, ColorTempValue))
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'longitude' parameter"));
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get Ultra Dynamic Sky properties"));
 	}
 
-	// Get optional actor name parameter (defaults to CesiumActor_Main)
-	FString ActorName = TEXT("CesiumActor_Main");
-	Params->TryGetStringField(TEXT("actor_name"), ActorName);
-
-	// Validate coordinate ranges
-	if (Latitude < -90.0 || Latitude > 90.0)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Latitude must be between -90 and 90 degrees"));
-	}
-	if (Longitude < -180.0 || Longitude > 180.0)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Longitude must be between -180 and 180 degrees"));
-	}
-
-	// Get the world
-	UWorld* World = GetCurrentWorld();
-	if (!World)
-	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
-	}
-
-	// Create success response
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
-	ResultObj->SetStringField(TEXT("actor_name"), ActorName);
-	ResultObj->SetNumberField(TEXT("latitude"), Latitude);
-	ResultObj->SetNumberField(TEXT("longitude"), Longitude);
-	ResultObj->SetBoolField(TEXT("success"), true);
-	ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Cesium coordinates set to Lat: %f, Lng: %f for actor '%s'"), Latitude, Longitude, *ActorName));
-
+	ResultObj->SetStringField(TEXT("sky_name"), SkyActor->GetName());
+	ResultObj->SetNumberField(UDSTODJSONKey, TimeOfDayValue);
+	ResultObj->SetNumberField(UDSColorTempJSONKey, ColorTempValue);
 	return ResultObj;
 }
 
-//todo
-TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetCesiumProperties(const TSharedPtr<FJsonObject>& Params)
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params)
 {
-	// Get optional actor name parameter (defaults to CesiumActor_Main)
-	FString ActorName = TEXT("CesiumActor_Main");
-	Params->TryGetStringField(TEXT("actor_name"), ActorName);
-
-	// Get the world
-	UWorld* World = GetCurrentWorld();
-	if (!World)
+	double TimeOfDayValue;
+	if (!Params->TryGetNumberField(UDSTODJSONKey, TimeOfDayValue))
 	{
-		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get world context"));
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'time_of_day' parameter"));
+	}
+	if (TimeOfDayValue < 0.0 || TimeOfDayValue > 2400.0)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Time of day must be between 0 and 2400"));
+	}
+	AActor* Actor = GetUltraDynamicSkyActor();
+	if (!Actor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
 	}
 
+	if (!UpdateDoubleProperty(Actor, UDSTODName, TimeOfDayValue))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to update Ultra Dynamic Sky property"));
+	}
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetStringField(TEXT("sky_name"), Actor->GetName());
+	ResultObj->SetStringField(TEXT("property_name"), UDSTODName.ToString());
+	ResultObj->SetStringField(TEXT("property_type"), TEXT("float"));
+	ResultObj->SetNumberField(TEXT("value"), TimeOfDayValue);
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("message"), TEXT("Time of day set and sky update functions called"));
+	return ResultObj;
+}
 
-	return TSharedPtr<FJsonObject>();
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params)
+{
+	double ColorTemperatureValue;
+	if (!Params->TryGetNumberField(UDSColorTempJSONKey, ColorTemperatureValue))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'color_temperature' parameter"));
+	}
+	if (ColorTemperatureValue < 1500.0 || ColorTemperatureValue > 15000.0)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Color temperature must be between 1500 and 15000"));
+	}
+
+	AActor* Actor = GetUltraDynamicSkyActor();
+	if (!Actor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Sky actor not found"));
+	}
+	if (!UpdateDoubleProperty(Actor, UDSColorTempName, ColorTemperatureValue))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to update Ultra Dynamic Sky property"));
+	}
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetStringField(TEXT("sky_name"), Actor->GetName());
+	ResultObj->SetStringField(TEXT("property_name"), UDSColorTempName.ToString());
+	ResultObj->SetStringField(TEXT("property_type"), TEXT("float"));
+	ResultObj->SetNumberField(TEXT("value"), ColorTemperatureValue);
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("message"), TEXT("Color temperature set and sky update functions called"));
+	return ResultObj;
+}
+
+//Cesium from now on
+static const FName CesiumLatitudeName = TEXT("OriginalLatitude");
+static const FString CesiumLatitudeJSONKey = TEXT("latitude");
+static const FName CesiumLongitudeName = TEXT("OriginalLongitude");
+static const FString CesiumLongitudeJSONKey = TEXT("longitude");
+
+AActor* FUnrealMCPActorCommands::GetCesiumGeoreferenceActor()
+{
+	static const FString ClassName = TEXT("CesiumGeoreference_C");
+	return FindActorByClassName(ClassName);
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetCesiumLatitudeLongitude(const TSharedPtr<FJsonObject>& Params)
+{
+	double Latitude = 0.0;
+	double Longitude = 0.0;
+	if (!Params->TryGetNumberField(CesiumLatitudeJSONKey, Latitude) ||
+		!Params->TryGetNumberField(CesiumLongitudeJSONKey, Longitude))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'latitude' or 'longitude' parameter"));
+	}
+	AActor* CesiumActor = GetCesiumGeoreferenceActor();
+	if (!CesiumActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Cesium Georeference actor not found"));
+	}
+	// Update the actor's properties
+	if (!UpdateDoubleProperty(CesiumActor, CesiumLatitudeName, Latitude) ||
+		!UpdateDoubleProperty(CesiumActor, CesiumLongitudeName, Longitude))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to update Cesium properties"));
+	}
+	// Create success response
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetStringField(TEXT("actor_name"), CesiumActor->GetName());
+	ResultObj->SetNumberField(CesiumLatitudeJSONKey, Latitude);
+	ResultObj->SetNumberField(CesiumLongitudeJSONKey, Longitude);
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Cesium coordinates set to Lat: %f, Lng: %f for actor '%s'"), Latitude, Longitude, *CesiumActor->GetName()));
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetCesiumProperties(const TSharedPtr<FJsonObject>& Params)
+{
+	AActor* CesiumActor = GetCesiumGeoreferenceActor();
+	if (!CesiumActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Cesium Georeference actor not found"));
+	}
+	float Latitude = 0.0;
+	float Longitude = 0.0;
+	if (!GetDoublePropertyValue(CesiumActor, CesiumLatitudeName, Latitude) ||
+		!GetDoublePropertyValue(CesiumActor, CesiumLongitudeName, Longitude))
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to get Cesium properties"));
+	}
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetNumberField(CesiumLatitudeJSONKey, Latitude);
+	ResultObj->SetNumberField(CesiumLongitudeJSONKey, Longitude);
+	return ResultObj;
 }
