@@ -88,7 +88,6 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                 {"role": "user", "content": f"{system_prompt}\n\nUser request: {user_input}"}
             ]
         )
-        
         ai_response = response.content[0].text
         logger.info(f"AI response for '{user_input}': {ai_response}")
         print(f"DEBUG: AI response for '{user_input}': {ai_response}")
@@ -206,6 +205,9 @@ For MM Control Light colors, use RGB values in 0-255 range:
 
 IMPORTANT - Random Value Rules:
 When user requests random values, you must output actual literal numbers in the JSON response:
+
+CRITICAL RULE FOR RANDOM VALUES: 
+You must return valid JSON with literal numeric values only. Never include JavaScript code, Math.random(), or string concatenation.
 
 CORRECT FORMAT:
 "light_name": "mm_light_47291"
