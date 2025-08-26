@@ -5,6 +5,14 @@ import sys
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
 from ..utils.temperature_utils import map_temperature_description
+from .nlp_schema_validator import (
+    validate_command, 
+    normalize_light_parameters, 
+    normalize_sky_parameters,
+    ValidatedCommand,
+    SKY_CONSTRAINTS,
+    LIGHT_CONSTRAINTS
+)
 
 # Load environment variables from .env file
 try:
@@ -77,25 +85,33 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                 "commands": [],
                 "expectedResult": "Please rephrase your request more specifically."
             }
-        # Execute commands using direct connection
+        # Execute commands using direct connection with schema validation
         execution_results = []
         if parsed_response.get("commands") and isinstance(parsed_response["commands"], list):
             for command in parsed_response["commands"]:
                 try:
                     logger.info(f"Executing command from NLP: {command}")
                     print(f"DEBUG: Executing command from NLP: {command}")
+                    
+                    # Pre-validate command before execution
+                    validated_cmd = validate_command(command)
+                    if not validated_cmd.is_valid:
+                        raise Exception(f"Schema validation failed: {'; '.join(validated_cmd.validation_errors)}")
+                    
                     result = execute_command_direct(command)
                     execution_results.append({
                         "command": command.get("type", "unknown"),
                         "success": True,
-                        "result": result
+                        "result": result,
+                        "validation": "passed"
                     })
-                    logger.info(f"Successfully executed command: {command.get('type')}")
+                    logger.info(f"Successfully executed validated command: {command.get('type')}")
                 except Exception as e:
                     execution_results.append({
                         "command": command.get("type", "unknown"),
                         "success": False,
-                        "error": str(e)
+                        "error": str(e),
+                        "validation": "failed" if "validation failed" in str(e).lower() else "passed"
                     })
                     logger.error(f"Failed to execute command {command.get('type')}: {e}")
         return {
@@ -126,11 +142,23 @@ def build_system_prompt(context: str) -> str:
     
     return f"""You are a creative cinematic director's AI assistant translating natural language to Unreal Engine commands.
 
-## COMMANDS
-- Time/Sky: get_ultra_dynamic_sky, get_time_of_day, set_time_of_day, set_color_temperature
+## SCHEMA-VALIDATED COMMANDS
+- Time/Sky: get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
 - Actors: get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties  
 - Cesium: set_cesium_latitude_longitude, get_cesium_properties
 - MM Lights: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
+
+## PARAMETER VALIDATION RULES
+**Sky Commands:**
+- time_of_day: Range 0-{SKY_CONSTRAINTS['TIME_RANGE']['max']} (HHMM format)
+- color_temperature: Range {SKY_CONSTRAINTS['COLOR_TEMP_RANGE']['min']}-{SKY_CONSTRAINTS['COLOR_TEMP_RANGE']['max']} Kelvin OR string descriptions
+- sky_name: String (default: "{SKY_CONSTRAINTS['DEFAULT_SKY_NAME']}")
+
+**Light Commands:**
+- light_name: Required non-empty string for create/update/delete
+- location: {{"x": number, "y": number, "z": number}} (default: {LIGHT_CONSTRAINTS['DEFAULT_LOCATION']})
+- intensity: Non-negative number (default: {LIGHT_CONSTRAINTS['DEFAULT_INTENSITY']})
+- color: {{"r": 0-255, "g": 0-255, "b": 0-255}} (default: {LIGHT_CONSTRAINTS['DEFAULT_COLOR']})
 
 ## RANDOM UNIQUENESS
 For random elements use timestamp+suffix for unique IDs:
@@ -141,13 +169,14 @@ For random elements use timestamp+suffix for unique IDs:
 
 ## CONVERSIONS
 **Time:** sunrise→600, sunset→1800, noon→1200, midnight→0
-**ColorTemp:** warm→3200K, cool→6500K, warmer→current-500K, cooler→current+500K  
-**Colors:** red→{{r:255,g:0,b:0}}, white→{{r:255,g:255,b:255}}, random→use full RGB spectrum
+**ColorTemp:** warm→3200K, cool→6500K, warmer→"warmer", cooler→"cooler"
+**Colors:** red→{{"r":255,"g":0,"b":0}}, white→{{"r":255,"g":255,"b":255}}, random→use full RGB spectrum
 **Cities:** SF(37.7749,-122.4194), NYC(40.7128,-74.0060), Tokyo(35.6804,139.6917)
 
-## RULES
+## VALIDATION RULES
 - "cold morning"→time_of_day | "cold light"→color_temperature
 - "cooler" ALWAYS = color_temperature (never time)
+- All parameters must match schema validation rules
 - Return ONLY valid JSON with literal numbers (no Math.random, no code)
 
 Context: {context}
@@ -160,12 +189,18 @@ JSON FORMAT:
 }}"""
 
 def execute_command_direct(command: Dict[str, Any]) -> Any:
-    """Execute a command directly using Unreal connection (for HTTP bridge)."""
-    command_type = command.get("type")
-    params = command.get("params", {})
+    """Execute a command directly using Unreal connection (for HTTP bridge) with schema validation."""
+    # Validate command using schema
+    validated_cmd = validate_command(command)
     
-    logger.info(f"execute_command_direct: Processing {command_type} with params: {params}")
-    print(f"DEBUG: execute_command_direct called with {command_type}, params: {params}")
+    if not validated_cmd.is_valid:
+        raise Exception(f"Command validation failed: {'; '.join(validated_cmd.validation_errors)}")
+    
+    command_type = validated_cmd.type
+    params = validated_cmd.params.copy()
+    
+    logger.info(f"execute_command_direct: Processing validated {command_type} with params: {params}")
+    print(f"DEBUG: execute_command_direct called with validated {command_type}, params: {params}")
     
     # Import tools to get access to connection
     from unreal_mcp_server import get_unreal_connection
@@ -175,37 +210,18 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     if not unreal:
         raise Exception("Could not connect to Unreal Engine")
     
-    # Handle set_time_of_day specially to support both 'time' and 'time_of_day' parameter names
-    if command_type == "set_time_of_day":
-        time_value = params.get("time_of_day") or params.get("time")
-        sky_name = params.get("sky_name")
-        
-        print(f"DEBUG: set_time_of_day - time_value={time_value}, sky_name={sky_name}")
-        
-        if time_value is not None:
-            # Update params with correct parameter name
-            params = {"time_of_day": time_value}
-            if sky_name:
-                params["sky_name"] = sky_name
-        else:
-            raise Exception("time_of_day or time parameter is required")
+    # Normalize and validate sky commands
+    if command_type in ["set_time_of_day", "set_color_temperature", "get_ultra_dynamic_sky"]:
+        params = normalize_sky_parameters(params)
+        print(f"DEBUG: {command_type} - normalized params: {params}")
     
-    # Handle set_color_temperature specially to support both numeric and description inputs
-    if command_type == "set_color_temperature":
-        color_temp = params.get("color_temperature") or params.get("temperature")
-        description = params.get("description")
+    # Handle color temperature string descriptions
+    if command_type == "set_color_temperature" and "color_temperature" in params:
+        color_temp = params["color_temperature"]
         
-        print(f"DEBUG: set_color_temperature - color_temp={color_temp}, description={description}")
-        
-        # Check if we have a description parameter (correct usage)
-        if description and isinstance(description, str):
-            # Use the description parameter
-            color_temp = description
-            print(f"DEBUG: Using description parameter: {description}")
-        
-        # If it's a string (description), process it
         if isinstance(color_temp, str):
-            # Get current temperature
+            print(f"DEBUG: Processing color temperature description: {color_temp}")
+            # Get current temperature for relative adjustments
             current_response = unreal.send_command("get_ultra_dynamic_sky", {})
             current_temp = 6500.0
             if current_response and "result" in current_response and "color_temperature" in current_response["result"]:
@@ -216,14 +232,17 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
             # Use shared temperature mapping function
             try:
                 final_temp = map_temperature_description(color_temp, current_temp)
+                params["color_temperature"] = final_temp
+                print(f"DEBUG: Converted '{color_temp}' to {final_temp}K (from current {current_temp}K)")
             except ValueError as e:
                 raise Exception(str(e))
-            
-            # Update params with numeric value
-            params = {"color_temperature": final_temp}
-        elif color_temp is not None:
-            # Numeric temperature value - normalize parameter name
-            params = {"color_temperature": color_temp}
+    
+    # Normalize and validate light commands
+    if command_type in ["create_mm_control_light", "update_mm_control_light"]:
+        # Only normalize if we have optional parameters to set defaults for
+        if command_type == "create_mm_control_light":
+            params = normalize_light_parameters(params)
+        print(f"DEBUG: {command_type} - normalized params: {params}")
     
     response = unreal.send_command(command_type, params)
         

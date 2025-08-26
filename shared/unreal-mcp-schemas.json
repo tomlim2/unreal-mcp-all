@@ -1,0 +1,284 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unreal MCP Communication Schemas",
+  "description": "JSON schemas for Ultra Dynamic Sky and MM Control Light based on cross-checked C++ implementations",
+  
+  "definitions": {
+    "UltraDynamicSkyRequest": {
+      "type": "object",
+      "description": "Request parameters for Ultra Dynamic Sky commands",
+      "properties": {
+        "sky_name": {
+          "type": "string",
+          "description": "Name of the Ultra Dynamic Sky actor",
+          "default": "Ultra_Dynamic_Sky_C_0"
+        },
+        "time_of_day": {
+          "type": "number",
+          "description": "Time in HHMM format (e.g., 1430 for 2:30 PM) or decimal hours (0-24)",
+          "minimum": 0,
+          "maximum": 2400
+        },
+        "color_temperature": {
+          "type": "number",
+          "description": "Color temperature in Kelvin",
+          "minimum": 1500,
+          "maximum": 15000
+        }
+      },
+      "additionalProperties": false
+    },
+    
+    "UltraDynamicSkyResponse": {
+      "type": "object",
+      "description": "Response from Ultra Dynamic Sky operations",
+      "properties": {
+        "sky_name": {
+          "type": "string",
+          "description": "Name of the sky actor"
+        },
+        "time_of_day": {
+          "type": "number",
+          "description": "Current time of day value"
+        },
+        "color_temperature": {
+          "type": "number",
+          "description": "Current color temperature in Kelvin"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether the operation succeeded"
+        },
+        "message": {
+          "type": "string",
+          "description": "Status message"
+        },
+        "property_name": {
+          "type": "string",
+          "description": "Name of the property that was modified (for set operations)"
+        },
+        "property_type": {
+          "type": "string",
+          "description": "Type of the property (e.g., 'float')"
+        },
+        "value": {
+          "type": "number",
+          "description": "Value that was set (for set operations)"
+        }
+      },
+      "required": ["success"],
+      "additionalProperties": false
+    },
+
+    "MMControlLightRequest": {
+      "type": "object",
+      "description": "Request parameters for MM Control Light commands",
+      "properties": {
+        "light_name": {
+          "type": "string",
+          "description": "Unique name for the light (required for create/update/delete)",
+          "minLength": 1
+        },
+        "location": {
+          "$ref": "#/definitions/Vector3",
+          "description": "Light position in Unreal coordinates (X=forward, Y=right, Z=up)",
+          "default": {"x": 0.0, "y": 0.0, "z": 100.0}
+        },
+        "intensity": {
+          "type": "number",
+          "description": "Light intensity value",
+          "minimum": 0,
+          "default": 1000.0
+        },
+        "color": {
+          "$ref": "#/definitions/RGBColor",
+          "description": "Light color in RGB 0-255 range",
+          "default": {"r": 255, "g": 255, "b": 255}
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "MMControlLightResponse": {
+      "type": "object", 
+      "description": "Response from MM Control Light operations",
+      "properties": {
+        "light_name": {
+          "type": "string",
+          "description": "Name of the light"
+        },
+        "location": {
+          "$ref": "#/definitions/Vector3",
+          "description": "Light position"
+        },
+        "intensity": {
+          "type": "number",
+          "description": "Light intensity"
+        },
+        "color": {
+          "$ref": "#/definitions/RGBColor",
+          "description": "Light color in RGB 0-255 range"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether the operation succeeded"
+        },
+        "message": {
+          "type": "string",
+          "description": "Status message"
+        },
+        "actor_name": {
+          "type": "string",
+          "description": "Full actor name in Unreal Engine"
+        },
+        "lights": {
+          "type": "array",
+          "description": "Array of lights (for get_mm_control_lights)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "light_name": {"type": "string"},
+              "location": {"$ref": "#/definitions/Vector3"},
+              "intensity": {"type": "number"},
+              "color": {"$ref": "#/definitions/RGBColor"}
+            }
+          }
+        }
+      },
+      "required": ["success"],
+      "additionalProperties": false
+    },
+
+    "Vector3": {
+      "type": "object",
+      "description": "3D vector for positions in Unreal coordinates",
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": "X coordinate (forward in Unreal)"
+        },
+        "y": {
+          "type": "number", 
+          "description": "Y coordinate (right in Unreal)"
+        },
+        "z": {
+          "type": "number",
+          "description": "Z coordinate (up in Unreal)"
+        }
+      },
+      "required": ["x", "y", "z"],
+      "additionalProperties": false
+    },
+
+    "RGBColor": {
+      "type": "object",
+      "description": "RGB color with 0-255 range (converted to 0-1 internally by Unreal)",
+      "properties": {
+        "r": {
+          "type": "integer",
+          "description": "Red component",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "g": {
+          "type": "integer", 
+          "description": "Green component",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "b": {
+          "type": "integer",
+          "description": "Blue component", 
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "required": ["r", "g", "b"],
+      "additionalProperties": false
+    },
+
+    "UnrealCommandWrapper": {
+      "type": "object",
+      "description": "Top-level command wrapper sent to Unreal Engine",
+      "properties": {
+        "command": {
+          "type": "string",
+          "enum": [
+            "get_ultra_dynamic_sky",
+            "set_time_of_day", 
+            "set_color_temperature",
+            "create_mm_control_light",
+            "get_mm_control_lights",
+            "update_mm_control_light", 
+            "delete_mm_control_light"
+          ]
+        },
+        "parameters": {
+          "oneOf": [
+            {"$ref": "#/definitions/UltraDynamicSkyRequest"},
+            {"$ref": "#/definitions/MMControlLightRequest"}
+          ]
+        }
+      },
+      "required": ["command", "parameters"],
+      "additionalProperties": false
+    },
+
+    "UnrealResponseWrapper": {
+      "type": "object",
+      "description": "Top-level response wrapper from Unreal Engine",
+      "properties": {
+        "result": {
+          "oneOf": [
+            {"$ref": "#/definitions/UltraDynamicSkyResponse"},
+            {"$ref": "#/definitions/MMControlLightResponse"}
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "error"]
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if status is error"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "examples": {
+    "SetTimeOfDay": {
+      "command": "set_time_of_day",
+      "parameters": {
+        "sky_name": "Ultra_Dynamic_Sky_C_0",
+        "time_of_day": 1430
+      }
+    },
+    "CreateLight": {
+      "command": "create_mm_control_light", 
+      "parameters": {
+        "light_name": "mm_light_1234_abcd",
+        "location": {"x": 500.0, "y": -200.0, "z": 150.0},
+        "intensity": 5000.0,
+        "color": {"r": 255, "g": 200, "b": 100}
+      }
+    },
+    "SkyResponse": {
+      "sky_name": "Ultra_Dynamic_Sky_C_0",
+      "time_of_day": 1430.0,
+      "color_temperature": 6500.0,
+      "success": true,
+      "message": "Time of day set and sky update functions called"
+    },
+    "LightResponse": {
+      "light_name": "mm_light_1234_abcd",
+      "actor_name": "PointLight_5",
+      "location": {"x": 500.0, "y": -200.0, "z": 150.0},
+      "intensity": 5000.0,
+      "color": {"r": 255, "g": 200, "b": 100},
+      "success": true,
+      "message": "Light created successfully"
+    }
+  }
+}
