@@ -175,9 +175,24 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     if not unreal:
         raise Exception("Could not connect to Unreal Engine")
     
+    # Handle set_time_of_day specially to support both 'time' and 'time_of_day' parameter names
+    if command_type == "set_time_of_day":
+        time_value = params.get("time_of_day") or params.get("time")
+        sky_name = params.get("sky_name")
+        
+        print(f"DEBUG: set_time_of_day - time_value={time_value}, sky_name={sky_name}")
+        
+        if time_value is not None:
+            # Update params with correct parameter name
+            params = {"time_of_day": time_value}
+            if sky_name:
+                params["sky_name"] = sky_name
+        else:
+            raise Exception("time_of_day or time parameter is required")
+    
     # Handle set_color_temperature specially to support both numeric and description inputs
     if command_type == "set_color_temperature":
-        color_temp = params.get("color_temperature")
+        color_temp = params.get("color_temperature") or params.get("temperature")
         description = params.get("description")
         
         print(f"DEBUG: set_color_temperature - color_temp={color_temp}, description={description}")
@@ -206,6 +221,9 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
             
             # Update params with numeric value
             params = {"color_temperature": final_temp}
+        elif color_temp is not None:
+            # Numeric temperature value - normalize parameter name
+            params = {"color_temperature": color_temp}
     
     response = unreal.send_command(command_type, params)
         

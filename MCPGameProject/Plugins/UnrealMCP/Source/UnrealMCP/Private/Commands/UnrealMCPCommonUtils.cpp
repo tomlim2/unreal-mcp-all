@@ -115,11 +115,25 @@ FVector FUnrealMCPCommonUtils::GetVectorFromJson(const TSharedPtr<FJsonObject>& 
     }
     
     const TArray<TSharedPtr<FJsonValue>>* JsonArray;
+    const TSharedPtr<FJsonObject>* JsonObjectField;
+    
+    // Try array format first: [x, y, z]
     if (JsonObject->TryGetArrayField(FieldName, JsonArray) && JsonArray->Num() >= 3)
     {
         Result.X = (float)(*JsonArray)[0]->AsNumber();
         Result.Y = (float)(*JsonArray)[1]->AsNumber();
         Result.Z = (float)(*JsonArray)[2]->AsNumber();
+    }
+    // Try object format: {"x": 0, "y": 0, "z": 0}
+    else if (JsonObject->TryGetObjectField(FieldName, JsonObjectField))
+    {
+        double X = 0.0, Y = 0.0, Z = 0.0;
+        (*JsonObjectField)->TryGetNumberField(TEXT("x"), X);
+        (*JsonObjectField)->TryGetNumberField(TEXT("y"), Y);
+        (*JsonObjectField)->TryGetNumberField(TEXT("z"), Z);
+        Result.X = (float)X;
+        Result.Y = (float)Y;
+        Result.Z = (float)Z;
     }
     
     return Result;

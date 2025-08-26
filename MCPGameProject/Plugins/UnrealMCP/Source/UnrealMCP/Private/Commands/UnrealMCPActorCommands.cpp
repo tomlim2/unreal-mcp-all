@@ -1,6 +1,8 @@
 #include "Commands/UnrealMCPActorCommands.h"
 #include "Commands/UnrealMCPCommonUtils.h"
 #include "GameFramework/Actor.h"
+#include "Components/PointLightComponent.h"
+#include "Engine/PointLight.h"
 
 FUnrealMCPActorCommands::FUnrealMCPActorCommands()
 {
@@ -630,14 +632,14 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const
 }
 
 //Cesium from now on
-static const FName CesiumLatitudeName = TEXT("OriginalLatitude");
+static const FName CesiumLatitudeName = TEXT("OriginLatitude");
 static const FString CesiumLatitudeJSONKey = TEXT("latitude");
-static const FName CesiumLongitudeName = TEXT("OriginalLongitude");
+static const FName CesiumLongitudeName = TEXT("OriginLongitude");
 static const FString CesiumLongitudeJSONKey = TEXT("longitude");
 
 AActor* FUnrealMCPActorCommands::GetCesiumGeoreferenceActor()
 {
-	static const FString ClassName = TEXT("CesiumGeoreference_C");
+	static const FString ClassName = TEXT("CesiumGeoreference");
 	return FindActorByClassName(ClassName);
 }
 
@@ -763,11 +765,23 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCreateMMControlLight(cons
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 	// Spawn the point light actor
-	AActor* NewLightActor = World->SpawnActor<AActor>(AActor::StaticClass(), Location, FRotator::ZeroRotator, SpawnParams);
+	APointLight* NewLightActor = World->SpawnActor<APointLight>(APointLight::StaticClass(), Location, FRotator::ZeroRotator, SpawnParams);
 	
 	if (!NewLightActor)
 	{
 		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Failed to spawn light actor"));
+	}
+
+	// Explicitly set the actor location to ensure it's positioned correctly
+	NewLightActor->SetActorLocation(Location);
+
+	// Configure the point light component
+	UPointLightComponent* PointLightComp = NewLightActor->FindComponentByClass<UPointLightComponent>();
+	if (PointLightComp)
+	{
+		PointLightComp->SetIntensity(Intensity);
+		PointLightComp->SetLightColor(LightColor);
+		PointLightComp->SetAttenuationRadius(3000.0f); // Set reasonable attenuation radius
 	}
 
 	// Add MM_Control_Light tag
@@ -779,11 +793,12 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCreateMMControlLight(cons
 	ResultObj->SetStringField(TEXT("actor_name"), NewLightActor->GetName());
 	ResultObj->SetStringField(TEXT("actor_class"), TEXT("APointLight"));
 	
-	// Add location info
+	// Add location info (get actual spawned location)
+	FVector ActualLocation = NewLightActor->GetActorLocation();
 	TSharedPtr<FJsonObject> LocationObj = MakeShared<FJsonObject>();
-	LocationObj->SetNumberField(TEXT("x"), Location.X);
-	LocationObj->SetNumberField(TEXT("y"), Location.Y);
-	LocationObj->SetNumberField(TEXT("z"), Location.Z);
+	LocationObj->SetNumberField(TEXT("x"), ActualLocation.X);
+	LocationObj->SetNumberField(TEXT("y"), ActualLocation.Y);
+	LocationObj->SetNumberField(TEXT("z"), ActualLocation.Z);
 	ResultObj->SetObjectField(TEXT("location"), LocationObj);
 	
 	ResultObj->SetNumberField(TEXT("intensity"), Intensity);
