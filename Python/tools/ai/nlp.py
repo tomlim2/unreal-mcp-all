@@ -1,10 +1,3 @@
-"""
-Natural Language Processing Tools for Unreal MCP.
-
-This module provides tools for processing natural language commands and translating them
-to appropriate Unreal Engine operations.
-"""
-
 import logging
 import json
 import os
@@ -38,20 +31,8 @@ except ImportError as e:
 # Get logger
 logger = logging.getLogger("UnrealMCP")
 
-
 def _process_natural_language_impl(user_input: str, context: str = None) -> Dict[str, Any]:
-    """
-    Implementation of natural language processing (non-decorated version).
-    
-    Args:
-        user_input: The natural language command from the user
-        context: Optional context about the current Unreal Engine state
-        
-    Returns:
-        Dict containing explanation, executed commands, and results
-    """
     try:
-        # Check if Anthropic SDK is available
         if not ANTHROPIC_AVAILABLE:
             return {
                 "error": "Anthropic SDK not installed. Run: pip install anthropic",
@@ -59,10 +40,7 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                 "commands": [],
                 "executionResults": []
             }
-        
-        # Get API key from environment (now loaded from .env file)
         api_key = os.getenv('ANTHROPIC_API_KEY')
-        
         if not api_key or api_key == 'your-api-key-here':
             return {
                 "error": "ANTHROPIC_API_KEY environment variable not set",
@@ -70,20 +48,16 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                 "commands": [],
                 "executionResults": []
             }
-        
         # Initialize Anthropic client
         client = anthropic.Anthropic(api_key=api_key)
-        
         # Build system prompt with available tools
-        system_prompt = build_system_prompt(context or "User is working with Unreal Engine project")
-        
+        system_prompt = build_system_prompt(context or "Assume as you are a creative cinematic director")
         logger.info(f"Processing natural language input: {user_input}")
-        
         # Get AI response
         response = client.messages.create(
             model='claude-3-haiku-20240307',
             max_tokens=1024,
-            temperature=0.9,
+            temperature=0.1,
             messages=[
                 {"role": "user", "content": f"{system_prompt}\n\nUser request: {user_input}"}
             ]
@@ -103,7 +77,6 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                 "commands": [],
                 "expectedResult": "Please rephrase your request more specifically."
             }
-        
         # Execute commands using direct connection
         execution_results = []
         if parsed_response.get("commands") and isinstance(parsed_response["commands"], list):
@@ -125,14 +98,12 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                         "error": str(e)
                     })
                     logger.error(f"Failed to execute command {command.get('type')}: {e}")
-        
         return {
             "explanation": parsed_response.get("explanation", "Processed your request"),
             "commands": parsed_response.get("commands", []),
             "expectedResult": parsed_response.get("expectedResult", "Commands executed"),
             "executionResults": execution_results
         }
-        
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {
@@ -143,132 +114,49 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
         }
 
 def register_nlp_tools(mcp: FastMCP):
-    """Register natural language processing tools with the MCP server."""
-    
     @mcp.tool()
     def process_natural_language(ctx: Context, user_input: str, context: str = None) -> Dict[str, Any]:
-        """
-        Process natural language input and execute appropriate Unreal Engine commands.
-        
-        Args:
-            user_input: The natural language command from the user
-            context: Optional context about the current Unreal Engine state
-            
-        Returns:
-            Dict containing explanation, executed commands, and results
-        """
         return _process_natural_language_impl(user_input, context)
 
 def build_system_prompt(context: str) -> str:
-    """Build the system prompt for the AI with available commands."""
-    return f"""You are an AI assistant that translates natural language requests into Unreal Engine commands via MCP protocol.
+    import time
+    import random
+    timestamp = int(time.time() * 1000)
+    random_suffix = random.randint(1000, 9999)
+    
+    return f"""You are a creative cinematic director's AI assistant translating natural language to Unreal Engine commands.
 
-CRITICAL RULE FOR RANDOM VALUES: 
-You must return valid JSON with literal numeric values only. Never include JavaScript code, Math.random(), or string concatenation.
+## COMMANDS
+- Time/Sky: get_ultra_dynamic_sky, get_time_of_day, set_time_of_day, set_color_temperature
+- Actors: get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties  
+- Cesium: set_cesium_latitude_longitude, get_cesium_properties
+- MM Lights: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
-REQUIRED FORMAT for random lights:
-{{
-  "light_name": "mm_light_12345",
-  "location": {{"x": 123, "y": -456, "z": 789}},
-  "intensity": 5678,
-  "color": {{"r": 255, "g": 128, "b": 64}}
-}}
+## RANDOM UNIQUENESS
+For random elements use timestamp+suffix for unique IDs:
+- Light names: "mm_light_{timestamp}_{random_suffix}"
+- Wide ranges: Location(-2000,2000), Intensity(500-15000), Colors(0-255 full spectrum)
+- Avoid clustering: Use diverse values across entire ranges
+- Current: timestamp={timestamp}, suffix={random_suffix}
 
-FORBIDDEN: Any use of +, Math.floor, Math.random(), or string concatenation in JSON values.
+## CONVERSIONS
+**Time:** sunrise→600, sunset→1800, noon→1200, midnight→0
+**ColorTemp:** warm→3200K, cool→6500K, warmer→current-500K, cooler→current+500K  
+**Colors:** red→{{r:255,g:0,b:0}}, white→{{r:255,g:255,b:255}}, random→use full RGB spectrum
+**Cities:** SF(37.7749,-122.4194), NYC(40.7128,-74.0060), Tokyo(35.6804,139.6917)
 
-Available Unreal MCP commands:
-- get_ultra_dynamic_sky: Get Ultra Dynamic Sky actor info and current time of day
-- get_time_of_day: Get current time from Ultra Dynamic Sky
-- set_time_of_day: Set time in HHMM format (0000-2359), params: {{time_of_day: number, sky_name?: string}}
-- set_color_temperature: Set lighting color temperature in Kelvin (1500-15000), params: {{color_temperature: number}} OR {{description: string}}
-- get_actors_in_level: List all actors in level
-- create_actor: Create new actor, params: {{name: string, type: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}}
-- delete_actor: Delete actor by name, params: {{name: string}}
-- set_actor_transform: Move/rotate/scale actor, params: {{name: string, location?: [x,y,z], rotation?: [x,y,z], scale?: [x,y,z]}}
-- get_actor_properties: Get actor properties, params: {{name: string}}
-- set_cesium_latitude_longitude: Set Cesium map coordinates, params: {{latitude: number, longitude: number}}
-- get_cesium_properties: Get Cesium actor properties and location info, params: {{}}
-- create_mm_control_light: Create MM Control Light, params: {{light_name: string, location?: {{x: number, y: number, z: number}}, intensity?: number, color?: {{r: number, g: number, b: number}}}}
-- get_mm_control_lights: Get all MM Control Lights, params: {{}}
-- update_mm_control_light: Update MM Control Light, params: {{light_name: string, location?: {{x: number, y: number, z: number}}, intensity?: number, color?: {{r: number, g: number, b: number}}}}
-- delete_mm_control_light: Delete MM Control Light, params: {{light_name: string}}
-
-IMPORTANT - Color Format Conversion Rules:
-For MM Control Light colors, use RGB values in 0-255 range:
-- "white" → color: {{r: 255, g: 255, b: 255}}
-- "red" → color: {{r: 255, g: 0, b: 0}}
-- "green" → color: {{r: 0, g: 255, b: 0}}
-- "blue" → color: {{r: 0, g: 0, b: 255}}
-- "warm orange" → color: {{r: 255, g: 165, b: 0}}
-- "bright white" → color: {{r: 255, g: 255, b: 255}}
-- "random color" → color: {{r: [random 0-255], g: [random 0-255], b: [random 0-255]}}
-
-IMPORTANT - Random Value Rules:
-When user requests random values, you must output actual literal numbers in the JSON response:
-
-CRITICAL RULE FOR RANDOM VALUES: 
-You must return valid JSON with literal numeric values only. Never include JavaScript code, Math.random(), or string concatenation.
-
-CORRECT FORMAT:
-"light_name": "mm_light_47291"
-"location": {{"x": 523, "y": -234, "z": 891}}
-"intensity": 6472
-"color": {{"r": 89, "g": 156, "b": 203}}
-
-You must calculate random numbers yourself and put the final numeric values in the JSON!
-
-IMPORTANT - Time Format Conversion Rules:
-When user requests time changes, convert natural language to HHMM format:
-- "sunrise" or "6 AM" → time_of_day: 600
-- "sunset" or "6 PM" → time_of_day: 1800
-- "1 PM" → time_of_day: 1300
-- "23:30" → time_of_day: 2330
-- "12:30 AM" → time_of_day: 30
-- "noon" → time_of_day: 1200
-- "midnight" → time_of_day: 0
-
-IMPORTANT - Color Temperature Conversion Rules:
-When user requests color/lighting changes (NOT time-related), use set_color_temperature command:
-- For descriptive terms, use description parameter: {{description: "term"}}
-- "make it warm" or "warm light" → set_color_temperature with {{description: "warm"}}
-- "make it cold" or "cold light" → set_color_temperature with {{description: "cold"}} 
-- "warmer" or "more warm" → set_color_temperature with {{description: "warmer"}}
-- "cooler" or "more cool" → set_color_temperature with {{description: "cooler"}}
-- "sunset lighting" → set_color_temperature with {{description: "sunset"}}
-- "daylight" → set_color_temperature with {{description: "daylight"}}
-- For numeric values, use color_temperature parameter: {{color_temperature: number}}
-- "3200K" or "3200 Kelvin" → set_color_temperature with {{color_temperature: 3200}}
-
-DISAMBIGUATION: 
-- If user mentions "cold evening" or "cold morning" → use set_time_of_day for time of day
-- If user mentions "cold light", "make it cold", "cooler", "warmer" → use set_color_temperature for lighting color
-- "cooler" ALWAYS means lighting color temperature, never time of day
-
-IMPORTANT - Cesium Geospatial Commands:
-For map/location movement requests, use set_cesium_latitude_longitude for Cesium:
-- "Move map to [location]" → set_cesium_latitude_longitude with {{latitude: number, longitude: number}}
-- "Set Cesium location to [city]" → Convert city to coordinates, use set_cesium_latitude_longitude
-- "Get Cesium properties" → use get_cesium_properties
-
-Common coordinates:
-- San Francisco: latitude: 37.7749, longitude: -122.4194
-- New York City: latitude: 40.7128, longitude: -74.0060  
-- Tokyo: latitude: 35.6804, longitude: 139.6917
-- London: latitude: 51.5074, longitude: -0.1278
-- Paris: latitude: 48.8566, longitude: 2.3522
+## RULES
+- "cold morning"→time_of_day | "cold light"→color_temperature
+- "cooler" ALWAYS = color_temperature (never time)
+- Return ONLY valid JSON with literal numbers (no Math.random, no code)
 
 Context: {context}
 
-Return a JSON response with:
+JSON FORMAT:
 {{
-  "explanation": "What you understood from the request",
-  "commands": [
-    {{
-      "type": "command_name",
-      "params": {{...}}
-    }}
-  ],
-  "expectedResult": "What the user should expect to see"
+  "explanation": "Brief description",
+  "commands": [{{"type": "command_name", "params": {{...}}}}],
+  "expectedResult": "What happens"
 }}"""
 
 def execute_command_direct(command: Dict[str, Any]) -> Any:
