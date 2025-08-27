@@ -67,11 +67,8 @@ export default function UnrealLlmChat() {
 
   const examplePrompts = [
     "Set the time to sunrise (6 AM)",
-    "Create a cube actor at position 0,0,100",
     "Show me all actors in the current level",
     "Set the sky to sunset time",
-    "Delete the actor named 'TestCube'",
-    "Move the camera to position 500,0,200",
     "Set to San Francisco",
     "Set the New York City",
     "Move the map to Tokyo Japan",
@@ -79,7 +76,7 @@ export default function UnrealLlmChat() {
     "Create a warm orange light named MainLight",
     "Show me all MM control lights",
     "Make MainLight red and move it to 100,100,150",
-    "Delete the light named MainLight"
+    "Delete the light named MainLight",
   ];
 
   return (
