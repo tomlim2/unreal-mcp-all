@@ -16,6 +16,10 @@ from typing import Dict, Any, Optional
 # Import the UnrealConnection from the main server
 from unreal_mcp_server import get_unreal_connection, UnrealConnection
 
+# Import session management
+from tools.ai.session_management import SessionManager, SessionContext, get_session_manager
+from tools.ai.session_management.utils.session_helpers import extract_session_id_from_request, generate_session_id
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MCPHttpBridge")
@@ -57,10 +61,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             
             # Check if this is a natural language request
             if 'prompt' in request_data:
-                # Handle natural language processing
-                logger.info("Processing natural language request")
+                # Handle natural language processing with session management
+                logger.info("Processing natural language request with session support")
                 try:
-                    from tools.ai.nlp import _process_natural_language_impl, ANTHROPIC_AVAILABLE
+                    from tools.ai.nlp import _process_natural_language_impl_with_session, ANTHROPIC_AVAILABLE
                     logger.info(f"Import successful. ANTHROPIC_AVAILABLE = {ANTHROPIC_AVAILABLE}")
                     
                     user_input = request_data.get('prompt', '')
@@ -70,10 +74,22 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         self._send_error("Missing 'prompt' field")
                         return
                     
-                    # Process natural language using the implementation function
+                    # Extract or generate session ID
+                    session_id = extract_session_id_from_request(request_data)
+                    if not session_id:
+                        session_id = generate_session_id()
+                        logger.info(f"Generated new session ID: {session_id}")
+                    else:
+                        logger.debug(f"Using existing session ID: {session_id}")
+                    
+                    # Process natural language with session context
                     logger.info(f"Calling NLP function with input: {user_input[:50]}...")
-                    result = _process_natural_language_impl(user_input, context)
+                    result = _process_natural_language_impl_with_session(user_input, context, session_id)
                     logger.info(f"NLP response: {result}")
+                    
+                    # Include session_id in response for frontend
+                    if result and not result.get('error'):
+                        result['session_id'] = session_id
                     
                     # Send response back to frontend
                     response_json = json.dumps(result)

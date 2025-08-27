@@ -11,7 +11,8 @@ dependencies = [
   "fastapi",
   "pydantic>=2.6.1",
   "requests",
-  "anthropic>=0.59.0"
+  "anthropic>=0.59.0",
+  "supabase>=2.0.0"
 ]
 
 [build-system]

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './UnrealAIChat.module.css';
 
 interface CommandResult {
@@ -20,6 +20,7 @@ interface AIResponse {
   executionResults?: CommandResult[];
   error?: string;
   fallback?: boolean;
+  session_id?: string;
 }
 
 export default function UnrealLlmChat() {
@@ -27,6 +28,20 @@ export default function UnrealLlmChat() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AIResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  
+  // Initialize session ID on component mount
+  useEffect(() => {
+    // Try to get existing session ID from localStorage
+    const existingSessionId = localStorage.getItem('unreal_session_id');
+    if (existingSessionId) {
+      setSessionId(existingSessionId);
+      console.log('Loaded existing session ID:', existingSessionId);
+    } else {
+      // Generate new session ID will happen on first request
+      console.log('No existing session ID found, will generate on first request');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,15 +52,23 @@ export default function UnrealLlmChat() {
     setResponse(null);
 
     try {
+      // Prepare request body with session support
+      const requestBody: any = {
+        prompt,
+        context: 'User is working with Unreal Engine project with dynamic sky system'
+      };
+      
+      // Include session ID if we have one
+      if (sessionId) {
+        requestBody.session_id = sessionId;
+      }
+      
       const res = await fetch('/api/mcp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          prompt,
-          context: 'User is working with Unreal Engine project with dynamic sky system'
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -54,6 +77,13 @@ export default function UnrealLlmChat() {
 
       const data: AIResponse = await res.json();
       setResponse(data);
+      
+      // Handle session ID from response
+      if (data.session_id) {
+        setSessionId(data.session_id);
+        localStorage.setItem('unreal_session_id', data.session_id);
+        console.log('Updated session ID:', data.session_id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -63,6 +93,14 @@ export default function UnrealLlmChat() {
 
   const handleExamplePrompt = (examplePrompt: string) => {
     setPrompt(examplePrompt);
+  };
+  
+  const clearSession = () => {
+    localStorage.removeItem('unreal_session_id');
+    setSessionId(null);
+    setResponse(null);
+    setError(null);
+    console.log('Session cleared');
   };
 
   const examplePrompts = [
@@ -85,6 +123,22 @@ export default function UnrealLlmChat() {
       <p className={styles.subtitle}>
         Powered by Python MCP Server with Claude-3-Haiku
       </p>
+      
+      {/* Session Status */}
+      <div className={styles.sessionStatus}>
+        <span className={styles.sessionLabel}>
+          Session: {sessionId ? `${sessionId.slice(0, 8)}...` : 'None'}
+        </span>
+        {sessionId && (
+          <button 
+            onClick={clearSession}
+            className={styles.clearSessionButton}
+            title="Start a new conversation session"
+          >
+            New Session
+          </button>
+        )}
+      </div>
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.inputGroup}>
           <textarea
