@@ -4,15 +4,11 @@ import os
 import sys
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
-from ..utils.temperature_utils import map_temperature_description
 from .nlp_schema_validator import (
-    validate_command, 
-    normalize_light_parameters, 
-    normalize_sky_parameters,
-    ValidatedCommand,
     SKY_CONSTRAINTS,
     LIGHT_CONSTRAINTS
 )
+from .actor_command_handlers import get_command_registry
 
 # Load environment variables from .env file
 try:
@@ -93,10 +89,8 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                     logger.info(f"Executing command from NLP: {command}")
                     print(f"DEBUG: Executing command from NLP: {command}")
                     
-                    # Pre-validate command before execution
-                    validated_cmd = validate_command(command)
-                    if not validated_cmd.is_valid:
-                        raise Exception(f"Schema validation failed: {'; '.join(validated_cmd.validation_errors)}")
+                    # Commands are now validated by handler system in execute_command_direct
+                    # No need for pre-validation here as handlers manage their own validation
                     
                     result = execute_command_direct(command)
                     execution_results.append({
@@ -140,13 +134,17 @@ def build_system_prompt(context: str) -> str:
     timestamp = int(time.time() * 1000)
     random_suffix = random.randint(1000, 9999)
     
+    # Get supported commands from registry
+    registry = get_command_registry()
+    supported_commands = registry.get_supported_commands()
+    
     return f"""You are a creative cinematic director's AI assistant translating natural language to Unreal Engine commands.
 
-## SCHEMA-VALIDATED COMMANDS
-- Time/Sky: get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
-- Actors: get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties  
-- Cesium: set_cesium_latitude_longitude, get_cesium_properties
-- MM Lights: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
+## SUPPORTED COMMANDS
+**Ultra Dynamic Sky:** get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
+**Generic Actors:** get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties
+**Cesium Geospatial:** set_cesium_latitude_longitude, get_cesium_properties
+**MM Control Lights:** create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
 ## PARAMETER VALIDATION RULES
 **Sky Commands:**
@@ -159,6 +157,15 @@ def build_system_prompt(context: str) -> str:
 - location: {{"x": number, "y": number, "z": number}} (default: {LIGHT_CONSTRAINTS['DEFAULT_LOCATION']})
 - intensity: Non-negative number (default: {LIGHT_CONSTRAINTS['DEFAULT_INTENSITY']})
 - color: {{"r": 0-255, "g": 0-255, "b": 0-255}} (default: {LIGHT_CONSTRAINTS['DEFAULT_COLOR']})
+
+**Cesium Commands:**
+- latitude: Number between -90 and 90 degrees
+- longitude: Number between -180 and 180 degrees
+
+**Actor Commands:**
+- name: Required non-empty string for most operations
+- type: Required for create_actor (e.g., "StaticMeshActor", "PointLight")
+- location/rotation/scale: Optional Vector3 objects {{"x": number, "y": number, "z": number}}
 
 ## RANDOM UNIQUENESS
 For random elements use timestamp+suffix for unique IDs:
@@ -176,8 +183,9 @@ For random elements use timestamp+suffix for unique IDs:
 ## VALIDATION RULES
 - "cold morning"→time_of_day | "cold light"→color_temperature
 - "cooler" ALWAYS = color_temperature (never time)
-- All parameters must match schema validation rules
+- All parameters validated by specialized handlers
 - Return ONLY valid JSON with literal numbers (no Math.random, no code)
+- Commands are processed by modular handler system for consistency
 
 Context: {context}
 
@@ -189,18 +197,9 @@ JSON FORMAT:
 }}"""
 
 def execute_command_direct(command: Dict[str, Any]) -> Any:
-    """Execute a command directly using Unreal connection (for HTTP bridge) with schema validation."""
-    # Validate command using schema
-    validated_cmd = validate_command(command)
-    
-    if not validated_cmd.is_valid:
-        raise Exception(f"Command validation failed: {'; '.join(validated_cmd.validation_errors)}")
-    
-    command_type = validated_cmd.type
-    params = validated_cmd.params.copy()
-    
-    logger.info(f"execute_command_direct: Processing validated {command_type} with params: {params}")
-    print(f"DEBUG: execute_command_direct called with validated {command_type}, params: {params}")
+    """Execute a command directly using Unreal connection with new handler system."""
+    logger.info(f"execute_command_direct: Processing {command.get('type')} with params: {command.get('params', {})}")
+    print(f"DEBUG: execute_command_direct called with {command.get('type')}, params: {command.get('params', {})}")
     
     # Import tools to get access to connection
     from unreal_mcp_server import get_unreal_connection
@@ -210,204 +209,13 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     if not unreal:
         raise Exception("Could not connect to Unreal Engine")
     
-    # Normalize and validate sky commands
-    if command_type in ["set_time_of_day", "set_color_temperature", "get_ultra_dynamic_sky"]:
-        params = normalize_sky_parameters(params)
-        print(f"DEBUG: {command_type} - normalized params: {params}")
-    
-    # Handle color temperature string descriptions
-    if command_type == "set_color_temperature" and "color_temperature" in params:
-        color_temp = params["color_temperature"]
-        
-        if isinstance(color_temp, str):
-            print(f"DEBUG: Processing color temperature description: {color_temp}")
-            # Get current temperature for relative adjustments
-            current_response = unreal.send_command("get_ultra_dynamic_sky", {})
-            current_temp = 6500.0
-            if current_response and "result" in current_response and "color_temperature" in current_response["result"]:
-                current_temp = float(current_response["result"]["color_temperature"])
-            elif current_response and "color_temperature" in current_response:
-                current_temp = float(current_response["color_temperature"])
-            
-            # Use shared temperature mapping function
-            try:
-                final_temp = map_temperature_description(color_temp, current_temp)
-                params["color_temperature"] = final_temp
-                print(f"DEBUG: Converted '{color_temp}' to {final_temp}K (from current {current_temp}K)")
-            except ValueError as e:
-                raise Exception(str(e))
-    
-    # Normalize and validate light commands
-    if command_type in ["create_mm_control_light", "update_mm_control_light"]:
-        # Only normalize if we have optional parameters to set defaults for
-        if command_type == "create_mm_control_light":
-            params = normalize_light_parameters(params)
-        print(f"DEBUG: {command_type} - normalized params: {params}")
-    
-    response = unreal.send_command(command_type, params)
-        
-    if response and response.get("status") == "error":
-        raise Exception(response.get("error", "Unknown Unreal error"))
-    
-    return response
+    # Use command registry for unified execution
+    registry = get_command_registry()
+    return registry.execute_command(command, unreal)
 
 def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
-    """Execute a command using MCP's tool system."""
-    command_type = command.get("type")
-    params = command.get("params", {})
+    """Execute a command using MCP's tool system (legacy compatibility wrapper)."""
+    logger.info(f"execute_command_via_mcp (legacy): {command.get('type')} with params: {command.get('params', {})}")
     
-    logger.info(f"Executing command: {command_type} with params: {params}")
-    
-    # Import tools to get access to functions
-    from unreal_mcp_server import get_unreal_connection
-    
-    # Get connection
-    unreal = get_unreal_connection()
-    if not unreal:
-        raise Exception("Could not connect to Unreal Engine")
-    
-    # Execute the appropriate command
-    if command_type == "get_actors_in_level":
-        response = unreal.send_command("get_actors_in_level", {})
-        if response and "result" in response and "actors" in response["result"]:
-            return response["result"]["actors"]
-        elif response and "actors" in response:
-            return response["actors"]
-        else:
-            return []
-            
-    elif command_type == "set_time_of_day":
-        time_of_day = params.get("time_of_day")
-        sky_name = params.get("sky_name")
-        if time_of_day is not None:
-            response = unreal.send_command("set_time_of_day", {
-                "time_of_day": time_of_day,
-                "sky_name": sky_name
-            })
-            return response
-        else:
-            raise Exception("time_of_day parameter is required")
-            
-    elif command_type == "get_time_of_day":
-        response = unreal.send_command("get_time_of_day", {})
-        return response
-        
-    elif command_type == "create_actor":
-        name = params.get("name")
-        actor_type = params.get("type")
-        if name and actor_type:
-            response = unreal.send_command("create_actor", {
-                "name": name,
-                "type": actor_type,
-                "location": params.get("location"),
-                "rotation": params.get("rotation"),
-                "scale": params.get("scale")
-            })
-            return response
-        else:
-            raise Exception("name and type parameters are required")
-            
-    elif command_type == "delete_actor":
-        name = params.get("name")
-        if name:
-            response = unreal.send_command("delete_actor", {"name": name})
-            return response
-        else:
-            raise Exception("name parameter is required")
-            
-    elif command_type == "set_actor_transform":
-        name = params.get("name")
-        if name:
-            response = unreal.send_command("set_actor_transform", {
-                "name": name,
-                "location": params.get("location"),
-                "rotation": params.get("rotation"),
-                "scale": params.get("scale")
-            })
-            return response
-        else:
-            raise Exception("name parameter is required")
-            
-    elif command_type == "get_actor_properties":
-        name = params.get("name")
-        if name:
-            response = unreal.send_command("get_actor_properties", {"name": name})
-            return response
-        else:
-            raise Exception("name parameter is required")
-            
-    elif command_type == "set_color_temperature":
-        color_temperature = params.get("color_temperature")
-        if color_temperature is not None:
-            response = unreal.send_command("set_color_temperature", {
-                "color_temperature": color_temperature
-            })
-            return response
-        else:
-            raise Exception("color_temperature parameter is required")
-            
-    elif command_type == "set_cesium_latitude_longitude":
-        latitude = params.get("latitude")
-        longitude = params.get("longitude") 
-        
-        if latitude is not None and longitude is not None:
-            response = unreal.send_command("set_cesium_latitude_longitude", {
-                "latitude": latitude,
-                "longitude": longitude
-            })
-            return response
-        else:
-            raise Exception("latitude and longitude parameters are required")
-            
-    elif command_type == "get_cesium_properties":
-        response = unreal.send_command("get_cesium_properties", {})
-        return response
-    
-    elif command_type == "create_mm_control_light":
-        light_name = params.get("light_name")
-        if not light_name:
-            raise Exception("light_name parameter is required")
-        
-        command_params = {"light_name": light_name}
-        
-        if "location" in params:
-            command_params["location"] = params["location"]
-        if "intensity" in params:
-            command_params["intensity"] = params["intensity"]
-        if "color" in params:
-            command_params["color"] = params["color"]
-            
-        response = unreal.send_command("create_mm_control_light", command_params)
-        return response
-    
-    elif command_type == "get_mm_control_lights":
-        response = unreal.send_command("get_mm_control_lights", {})
-        return response
-    
-    elif command_type == "update_mm_control_light":
-        light_name = params.get("light_name")
-        if not light_name:
-            raise Exception("light_name parameter is required")
-        
-        command_params = {"light_name": light_name}
-        
-        if "location" in params:
-            command_params["location"] = params["location"]
-        if "intensity" in params:
-            command_params["intensity"] = params["intensity"]
-        if "color" in params:
-            command_params["color"] = params["color"]
-            
-        response = unreal.send_command("update_mm_control_light", command_params)
-        return response
-    
-    elif command_type == "delete_mm_control_light":
-        light_name = params.get("light_name")
-        if not light_name:
-            raise Exception("light_name parameter is required")
-            
-        response = unreal.send_command("delete_mm_control_light", {"light_name": light_name})
-        return response
-            
-    else:
-        raise Exception(f"Unknown command type: {command_type}")
+    # Use the same unified execution path as direct commands
+    return execute_command_direct(command)

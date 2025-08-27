@@ -1,24 +1,5 @@
-"""
-Temperature mapping utilities for Unreal MCP color temperature operations.
-"""
-
 def map_temperature_description(description: str, current_temp: float = 6500.0) -> float:
-    """
-    Map temperature description to Kelvin value.
-    
-    Args:
-        description: Natural language description of temperature
-        current_temp: Current temperature in Kelvin for relative adjustments
-        
-    Returns:
-        Temperature in Kelvin
-        
-    Raises:
-        ValueError: If description cannot be interpreted
-    """
     desc_lower = description.lower().strip()
-    
-    # Determine new temperature based on description
     # Note: Lower Kelvin = warmer (more red/orange), Higher Kelvin = cooler (more blue/white)
     if "very warm" in desc_lower or "extremely warm" in desc_lower:
         return 2700.0  # Very warm candle light

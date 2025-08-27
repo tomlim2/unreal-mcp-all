@@ -1,0 +1,100 @@
+"""
+Ultra Dynamic Sky command handler.
+
+Handles time of day, color temperature, and sky property commands for Unreal Engine's
+Ultra Dynamic Sky system. Supports both numeric and descriptive color temperature inputs.
+"""
+
+import logging
+from typing import Dict, Any, List
+from .main import BaseCommandHandler
+from ..nlp_schema_validator import (
+    validate_command, 
+    normalize_sky_parameters,
+    ValidatedCommand
+)
+from ..handler_utils.temperature_utils import map_temperature_description
+
+logger = logging.getLogger("UnrealMCP")
+
+
+class UDSCommandHandler(BaseCommandHandler):
+    """Handler for Ultra Dynamic Sky commands (time, color temperature, sky properties).
+    
+    Purpose: Control Ultra Dynamic Sky blueprint in Unreal Engine for lighting and time simulation
+    
+    Supported Commands:
+    - get_ultra_dynamic_sky: Retrieve current sky state (no parameters)
+    - set_time_of_day: Set time using HHMM format (0-2400) 
+    - set_color_temperature: Set color temperature (1500-15000K or descriptive strings)
+    
+    Input Constraints:
+    - time_of_day: Integer 0-2400 (HHMM format, e.g., 1200 = noon)
+    - color_temperature: Float 1500-15000 OR string ('warm', 'cool', 'warmer', 'cooler')
+    - sky_name: Optional string (default: 'Ultra_Dynamic_Sky_C_0')
+    
+    Special Behavior:
+    - String color temperatures require current value lookup for relative adjustments
+    - 'warmer' = current - 500K, 'cooler' = current + 500K
+    - Automatic sky_name defaulting via normalize_sky_parameters()
+    """
+    
+    def get_supported_commands(self) -> List[str]:
+        return ["get_ultra_dynamic_sky", "set_time_of_day", "set_color_temperature"]
+    
+    def validate_command(self, command_type: str, params: Dict[str, Any]) -> ValidatedCommand:
+        """Validate UDS commands using existing schema validation."""
+        command = {"type": command_type, "params": params}
+        return validate_command(command)
+    
+    def preprocess_params(self, command_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize sky parameters and handle color temperature descriptions.
+        
+        Preprocessing Rules:
+        - Apply default sky_name if not provided
+        - Mark string color temperatures for runtime conversion
+        - Preserve numeric color temperatures as-is
+        """
+        processed_params = normalize_sky_parameters(params)
+        
+        # Handle color temperature string descriptions  
+        if command_type == "set_color_temperature" and "color_temperature" in processed_params:
+            color_temp = processed_params["color_temperature"]
+            if isinstance(color_temp, str):
+                # Mark for runtime conversion (requires current temperature lookup)
+                processed_params["_color_temp_description"] = color_temp
+                logger.info(f"UDS: Marked color temperature '{color_temp}' for runtime conversion")
+        
+        return processed_params
+    
+    def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
+        """Execute UDS commands with proper parameter handling."""
+        logger.info(f"UDS Handler: Executing {command_type} with params: {params}")
+        
+        # Handle color temperature descriptions that need current value
+        if command_type == "set_color_temperature" and "_color_temp_description" in params:
+            description = params.pop("_color_temp_description")
+            
+            # Get current temperature for relative adjustments
+            current_response = connection.send_command("get_ultra_dynamic_sky", {})
+            current_temp = 6500.0
+            if current_response and "result" in current_response and "color_temperature" in current_response["result"]:
+                current_temp = float(current_response["result"]["color_temperature"])
+            elif current_response and "color_temperature" in current_response:
+                current_temp = float(current_response["color_temperature"])
+            
+            # Convert description to numeric value
+            try:
+                final_temp = map_temperature_description(description, current_temp)
+                params["color_temperature"] = final_temp
+                logger.info(f"Converted '{description}' to {final_temp}K (from current {current_temp}K)")
+            except ValueError as e:
+                raise Exception(str(e))
+        
+        # Send command to Unreal Engine
+        response = connection.send_command(command_type, params)
+        
+        if response and response.get("status") == "error":
+            raise Exception(response.get("error", "Unknown Unreal error"))
+        
+        return response
