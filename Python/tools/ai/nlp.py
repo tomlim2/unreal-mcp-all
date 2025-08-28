@@ -82,7 +82,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         ai_response = response.content[0].text
         logger.info(f"AI response for '{user_input}': {ai_response}")
         print(f"DEBUG: AI response for '{user_input}': {ai_response}")
-        
+
         # Parse AI response
         try:
             parsed_response = json.loads(ai_response)
@@ -145,9 +145,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         }
 
 def register_nlp_tools(mcp: FastMCP):
-    @mcp.tool()
-    def process_natural_language_mcp_tool(ctx: Context, user_input: str, context: str = None) -> Dict[str, Any]:
-        return _process_natural_language_impl(user_input, context)
+    # No NLP tools to register - use process_natural_language() function directly
+    pass
 
 # Main function for external use with session support
 def process_natural_language(user_input: str, context: str = None, session_id: str = None) -> Dict[str, Any]:

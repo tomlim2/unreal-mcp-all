@@ -3,10 +3,8 @@ Factory for creating session storage backends.
 """
 
 import logging
-from typing import Optional
 
 from .base_storage import BaseStorage
-from .file_storage import FileStorage
 
 logger = logging.getLogger("SessionManager.Factory")
 
@@ -28,7 +26,7 @@ def _get_supabase_storage():
 
 
 class StorageFactory:
-    """Factory for creating session storage backends."""
+    """Factory for creating session storage backends (database only)."""
     
     @staticmethod
     def create(storage_type: str = 'supabase', **kwargs) -> BaseStorage:
@@ -36,7 +34,7 @@ class StorageFactory:
         Create a storage backend instance.
         
         Args:
-            storage_type: Type of storage ('supabase', 'file')
+            storage_type: Type of storage ('supabase')
             **kwargs: Additional arguments for storage backend
             
         Returns:
@@ -52,55 +50,12 @@ class StorageFactory:
             if storage_type == 'supabase':
                 supabase_class = _get_supabase_storage()
                 return supabase_class(**kwargs)
-            
-            elif storage_type == 'file':
-                return FileStorage(**kwargs)
-            
             else:
-                raise ValueError(f"Unknown storage type: {storage_type}")
+                raise ValueError(f"Unknown storage type: {storage_type}. Only 'supabase' is supported.")
                 
         except Exception as e:
             logger.error(f"Failed to create {storage_type} storage: {e}")
             raise RuntimeError(f"Failed to initialize {storage_type} storage") from e
-    
-    @staticmethod
-    def create_with_fallback(primary_type: str = 'supabase', 
-                           fallback_type: str = 'file',
-                           **kwargs) -> tuple[BaseStorage, Optional[BaseStorage]]:
-        """
-        Create primary storage with fallback.
-        
-        Args:
-            primary_type: Primary storage type
-            fallback_type: Fallback storage type (None for no fallback)
-            **kwargs: Additional arguments for storage backends
-            
-        Returns:
-            Tuple of (primary_storage, fallback_storage)
-        """
-        primary = None
-        fallback = None
-        
-        # Try to create primary storage
-        try:
-            primary = StorageFactory.create(primary_type, **kwargs)
-            logger.info(f"Primary storage ({primary_type}) initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize primary storage ({primary_type}): {e}")
-        
-        # Try to create fallback storage
-        if fallback_type and fallback_type != primary_type:
-            try:
-                fallback = StorageFactory.create(fallback_type, **kwargs)
-                logger.info(f"Fallback storage ({fallback_type}) initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to initialize fallback storage ({fallback_type}): {e}")
-        
-        # Ensure we have at least one working storage
-        if primary is None and fallback is None:
-            raise RuntimeError("Failed to initialize any storage backend")
-        
-        return primary, fallback
     
     @staticmethod
     def get_available_backends() -> list[str]:
@@ -110,7 +65,7 @@ class StorageFactory:
         Returns:
             List of available backend names
         """
-        backends = ['file']  # File storage is always available
+        backends = []
         
         # Check if Supabase is available
         try:

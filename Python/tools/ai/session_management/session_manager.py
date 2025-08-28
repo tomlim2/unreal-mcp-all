@@ -1,5 +1,5 @@
 """
-Main session manager with dual storage support.
+Main session manager with database-only storage.
 """
 
 import logging
@@ -17,46 +17,40 @@ logger = logging.getLogger("SessionManager")
 
 class SessionManager:
     """
-    Main session manager with primary and fallback storage support.
+    Main session manager with database-only storage (Supabase).
     """
     
     def __init__(self, 
-                 primary_storage: str = 'supabase',
-                 fallback_storage: str = 'file',
+                 storage_type: str = 'supabase',
                  auto_cleanup: bool = True,
                  cleanup_interval_hours: int = 6,
                  session_max_age_days: int = 30):
         """
-        Initialize session manager with dual storage.
+        Initialize session manager with database storage only.
         
         Args:
-            primary_storage: Primary storage backend ('supabase', 'file')
-            fallback_storage: Fallback storage backend ('file', None for no fallback)
+            storage_type: Storage backend type (default: 'supabase')
             auto_cleanup: Whether to start automatic cleanup
             cleanup_interval_hours: How often to run cleanup
             session_max_age_days: Maximum session age before deletion
         """
-        self.primary_storage: Optional[BaseStorage] = None
-        self.fallback_storage: Optional[BaseStorage] = None
+        self.storage: Optional[BaseStorage] = None
         self.cleanup_tasks: Optional[SessionCleanupTasks] = None
         
-        # Initialize storage backends
+        # Initialize storage backend
         try:
-            self.primary_storage, self.fallback_storage = StorageFactory.create_with_fallback(
-                primary_storage, fallback_storage
-            )
-            
-            logger.info(f"Session manager initialized with primary: {primary_storage}, fallback: {fallback_storage}")
+            self.storage = StorageFactory.create(storage_type)
+            logger.info(f"Session manager initialized with storage: {storage_type}")
             
         except Exception as e:
             logger.error(f"Failed to initialize session manager: {e}")
             raise
         
         # Set up automatic cleanup
-        if auto_cleanup and self._get_active_storage():
+        if auto_cleanup and self.storage:
             try:
                 self.cleanup_tasks = SessionCleanupTasks(
-                    self._get_active_storage(),
+                    self.storage,
                     cleanup_interval_hours,
                     session_max_age_days
                 )
@@ -65,52 +59,13 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"Failed to start automatic cleanup: {e}")
     
-    def _get_active_storage(self) -> Optional[BaseStorage]:
-        """Get the currently active storage backend (primary if healthy, fallback otherwise)."""
-        if self.primary_storage and self.primary_storage.health_check():
-            return self.primary_storage
-        elif self.fallback_storage and self.fallback_storage.health_check():
-            logger.warning("Primary storage unhealthy, using fallback")
-            return self.fallback_storage
+    def _get_storage(self) -> Optional[BaseStorage]:
+        """Get the active storage backend."""
+        if self.storage and self.storage.health_check():
+            return self.storage
         else:
-            logger.error("No healthy storage backend available")
+            logger.error("Storage backend not available or unhealthy")
             return None
-    
-    def _execute_with_fallback(self, operation_name: str, operation_func, *args, **kwargs):
-        """
-        Execute an operation with fallback support.
-        
-        Args:
-            operation_name: Name of the operation for logging
-            operation_func: Function to call on storage backend
-            *args, **kwargs: Arguments for the operation
-            
-        Returns:
-            Result of the operation or None if all backends fail
-        """
-        # Try primary storage first
-        if self.primary_storage:
-            try:
-                result = operation_func(self.primary_storage, *args, **kwargs)
-                if result is not None:
-                    return result
-                logger.debug(f"Primary storage returned None for {operation_name}")
-            except Exception as e:
-                logger.warning(f"Primary storage failed for {operation_name}: {e}")
-        
-        # Try fallback storage
-        if self.fallback_storage:
-            try:
-                result = operation_func(self.fallback_storage, *args, **kwargs)
-                if result is not None:
-                    logger.debug(f"Fallback storage succeeded for {operation_name}")
-                    return result
-                logger.debug(f"Fallback storage returned None for {operation_name}")
-            except Exception as e:
-                logger.error(f"Fallback storage failed for {operation_name}: {e}")
-        
-        logger.error(f"All storage backends failed for {operation_name}")
-        return None
     
     def create_session(self, session_id: str = None) -> Optional[SessionContext]:
         """
@@ -141,30 +96,21 @@ class SessionManager:
             last_accessed=now
         )
         
-        # Store in all available backends
-        success = False
+        # Store in database
+        storage = self._get_storage()
+        if not storage:
+            logger.error("No healthy storage backend available")
+            return None
         
-        if self.primary_storage:
-            try:
-                if self.primary_storage.create_session(session_context):
-                    success = True
-                    logger.debug(f"Created session {session_id} in primary storage")
-            except Exception as e:
-                logger.warning(f"Failed to create session in primary storage: {e}")
-        
-        if self.fallback_storage:
-            try:
-                if self.fallback_storage.create_session(session_context):
-                    success = True
-                    logger.debug(f"Created session {session_id} in fallback storage")
-            except Exception as e:
-                logger.warning(f"Failed to create session in fallback storage: {e}")
-        
-        if success:
-            logger.info(f"Created new session: {session_id}")
-            return session_context
-        else:
-            logger.error(f"Failed to create session {session_id} in any storage")
+        try:
+            if storage.create_session(session_context):
+                logger.info(f"Created new session: {session_id}")
+                return session_context
+            else:
+                logger.error(f"Failed to create session {session_id}")
+                return None
+        except Exception as e:
+            logger.error(f"Failed to create session in storage: {e}")
             return None
     
     def get_session(self, session_id: str) -> Optional[SessionContext]:
@@ -181,17 +127,20 @@ class SessionManager:
             logger.error(f"Invalid session ID: {session_id}")
             return None
         
-        def get_operation(storage: BaseStorage, session_id: str):
-            return storage.get_session(session_id)
+        storage = self._get_storage()
+        if not storage:
+            return None
         
-        result = self._execute_with_fallback("get_session", get_operation, session_id)
-        
-        if result:
-            logger.debug(f"Retrieved session: {session_id}")
-        else:
-            logger.debug(f"Session not found: {session_id}")
-        
-        return result
+        try:
+            result = storage.get_session(session_id)
+            if result:
+                logger.debug(f"Retrieved session: {session_id}")
+            else:
+                logger.debug(f"Session not found: {session_id}")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to get session {session_id}: {e}")
+            return None
     
     def update_session(self, session_context: SessionContext) -> bool:
         """
@@ -201,7 +150,7 @@ class SessionManager:
             session_context: The updated session context
             
         Returns:
-            True if successful in at least one backend, False otherwise
+            True if successful, False otherwise
         """
         if not validate_session_id(session_context.session_id):
             logger.error(f"Invalid session ID: {session_context.session_id}")
@@ -210,31 +159,21 @@ class SessionManager:
         # Update last_accessed timestamp
         session_context.last_accessed = datetime.now()
         
-        success = False
+        storage = self._get_storage()
+        if not storage:
+            logger.error("No healthy storage backend available")
+            return False
         
-        # Update in all available backends
-        if self.primary_storage:
-            try:
-                if self.primary_storage.update_session(session_context):
-                    success = True
-                    logger.debug(f"Updated session {session_context.session_id} in primary storage")
-            except Exception as e:
-                logger.warning(f"Failed to update session in primary storage: {e}")
-        
-        if self.fallback_storage:
-            try:
-                if self.fallback_storage.update_session(session_context):
-                    success = True
-                    logger.debug(f"Updated session {session_context.session_id} in fallback storage")
-            except Exception as e:
-                logger.warning(f"Failed to update session in fallback storage: {e}")
-        
-        if success:
-            logger.debug(f"Updated session: {session_context.session_id}")
-        else:
-            logger.error(f"Failed to update session {session_context.session_id} in any storage")
-        
-        return success
+        try:
+            if storage.update_session(session_context):
+                logger.debug(f"Updated session: {session_context.session_id}")
+                return True
+            else:
+                logger.error(f"Failed to update session {session_context.session_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to update session in storage: {e}")
+            return False
     
     def delete_session(self, session_id: str) -> bool:
         """
@@ -244,22 +183,26 @@ class SessionManager:
             session_id: The session ID to delete
             
         Returns:
-            True if successful in at least one backend, False otherwise
+            True if successful, False otherwise
         """
         if not validate_session_id(session_id):
             logger.error(f"Invalid session ID: {session_id}")
             return False
         
-        def delete_operation(storage: BaseStorage, session_id: str):
-            return storage.delete_session(session_id)
+        storage = self._get_storage()
+        if not storage:
+            logger.error("No healthy storage backend available")
+            return False
         
-        result = self._execute_with_fallback("delete_session", delete_operation, session_id)
-        
-        if result:
-            logger.info(f"Deleted session: {session_id}")
-            return True
-        else:
-            logger.error(f"Failed to delete session: {session_id}")
+        try:
+            if storage.delete_session(session_id):
+                logger.info(f"Deleted session: {session_id}")
+                return True
+            else:
+                logger.error(f"Failed to delete session: {session_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete session in storage: {e}")
             return False
     
     def list_sessions(self, limit: int = 50, offset: int = 0) -> List[SessionContext]:
@@ -273,16 +216,20 @@ class SessionManager:
         Returns:
             List of SessionContext objects
         """
-        def list_operation(storage: BaseStorage, limit: int, offset: int):
-            return storage.list_sessions(limit, offset)
-        
-        result = self._execute_with_fallback("list_sessions", list_operation, limit, offset)
-        
-        if result is None:
+        storage = self._get_storage()
+        if not storage:
+            logger.error("No healthy storage backend available")
             return []
         
-        logger.debug(f"Listed {len(result)} sessions")
-        return result
+        try:
+            result = storage.list_sessions(limit, offset)
+            if result is None:
+                return []
+            logger.debug(f"Listed {len(result)} sessions")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to list sessions: {e}")
+            return []
     
     def add_interaction(self, session_id: str, user_input: str, ai_response: Dict[str, Any]) -> bool:
         """
@@ -337,82 +284,63 @@ class SessionManager:
             max_age: Maximum age before deletion
             
         Returns:
-            Number of sessions deleted across all backends
+            Number of sessions deleted
         """
-        total_deleted = 0
+        storage = self._get_storage()
+        if not storage:
+            logger.error("No healthy storage backend available")
+            return 0
         
-        if self.primary_storage:
-            try:
-                deleted = self.primary_storage.cleanup_expired_sessions(max_age)
-                total_deleted += deleted
-                logger.debug(f"Primary storage cleaned up {deleted} sessions")
-            except Exception as e:
-                logger.warning(f"Primary storage cleanup failed: {e}")
-        
-        if self.fallback_storage:
-            try:
-                deleted = self.fallback_storage.cleanup_expired_sessions(max_age)
-                total_deleted += deleted
-                logger.debug(f"Fallback storage cleaned up {deleted} sessions")
-            except Exception as e:
-                logger.warning(f"Fallback storage cleanup failed: {e}")
-        
-        if total_deleted > 0:
-            logger.info(f"Cleaned up {total_deleted} expired sessions")
-        
-        return total_deleted
+        try:
+            deleted = storage.cleanup_expired_sessions(max_age)
+            if deleted > 0:
+                logger.info(f"Cleaned up {deleted} expired sessions")
+            return deleted
+        except Exception as e:
+            logger.error(f"Storage cleanup failed: {e}")
+            return 0
     
     def get_session_count(self) -> int:
         """
         Get total number of sessions.
         
         Returns:
-            Total session count from primary storage, or fallback if primary fails
+            Total session count
         """
-        def count_operation(storage: BaseStorage):
-            return storage.get_session_count()
+        storage = self._get_storage()
+        if not storage:
+            return 0
         
-        result = self._execute_with_fallback("get_session_count", count_operation)
-        return result if result is not None else 0
+        try:
+            return storage.get_session_count()
+        except Exception as e:
+            logger.error(f"Failed to get session count: {e}")
+            return 0
     
     def get_health_status(self) -> Dict[str, Any]:
         """
-        Get health status of all storage backends.
+        Get health status of storage backend.
         
         Returns:
             Dictionary with health status information
         """
         status = {
-            'primary_storage': {
-                'available': self.primary_storage is not None,
+            'storage': {
+                'available': self.storage is not None,
                 'healthy': False,
                 'type': None
             },
-            'fallback_storage': {
-                'available': self.fallback_storage is not None,
-                'healthy': False,
-                'type': None
-            },
-            'active_storage': None,
             'session_count': 0,
             'cleanup_status': None
         }
         
-        # Check primary storage
-        if self.primary_storage:
-            status['primary_storage']['healthy'] = self.primary_storage.health_check()
-            status['primary_storage']['type'] = type(self.primary_storage).__name__
-        
-        # Check fallback storage
-        if self.fallback_storage:
-            status['fallback_storage']['healthy'] = self.fallback_storage.health_check()
-            status['fallback_storage']['type'] = type(self.fallback_storage).__name__
-        
-        # Determine active storage
-        active_storage = self._get_active_storage()
-        if active_storage:
-            status['active_storage'] = type(active_storage).__name__
-            status['session_count'] = self.get_session_count()
+        # Check storage
+        if self.storage:
+            status['storage']['healthy'] = self.storage.health_check()
+            status['storage']['type'] = type(self.storage).__name__
+            
+            if status['storage']['healthy']:
+                status['session_count'] = self.get_session_count()
         
         # Get cleanup status
         if self.cleanup_tasks:
@@ -433,14 +361,12 @@ class SessionManager:
 _global_session_manager: Optional[SessionManager] = None
 
 
-def get_session_manager(primary_storage: str = 'supabase',
-                       fallback_storage: str = 'file') -> SessionManager:
+def get_session_manager(storage_type: str = 'supabase') -> SessionManager:
     """
     Get or create the global session manager instance.
     
     Args:
-        primary_storage: Primary storage backend
-        fallback_storage: Fallback storage backend
+        storage_type: Storage backend type (default: 'supabase')
         
     Returns:
         SessionManager instance
@@ -450,8 +376,7 @@ def get_session_manager(primary_storage: str = 'supabase',
     if _global_session_manager is None:
         try:
             _global_session_manager = SessionManager(
-                primary_storage=primary_storage,
-                fallback_storage=fallback_storage
+                storage_type=storage_type
             )
             logger.info("Global session manager initialized")
         except Exception as e:
