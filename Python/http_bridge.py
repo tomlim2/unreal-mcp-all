@@ -64,7 +64,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 # Handle natural language processing with session management
                 logger.info("Processing natural language request with session support")
                 try:
-                    from tools.ai.nlp import _process_natural_language_impl_with_session, ANTHROPIC_AVAILABLE
+                    from tools.ai.nlp import process_natural_language, ANTHROPIC_AVAILABLE
                     logger.info(f"Import successful. ANTHROPIC_AVAILABLE = {ANTHROPIC_AVAILABLE}")
                     
                     user_input = request_data.get('prompt', '')
@@ -84,7 +84,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     
                     # Process natural language with session context
                     logger.info(f"Calling NLP function with input: {user_input[:50]}...")
-                    result = _process_natural_language_impl_with_session(user_input, context, session_id)
+                    result = process_natural_language(user_input, context, session_id)
                     logger.info(f"NLP response: {result}")
                     
                     # Include session_id in response for frontend

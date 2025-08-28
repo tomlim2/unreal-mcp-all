@@ -38,7 +38,7 @@ logger = logging.getLogger("UnrealMCP")
 # Import session management
 from .session_management import get_session_manager, SessionContext
 
-def _process_natural_language_impl(user_input: str, context: str = None) -> Dict[str, Any]:
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None) -> Dict[str, Any]:
     try:
         if not ANTHROPIC_AVAILABLE:
             return {
@@ -57,8 +57,18 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
             }
         # Initialize Anthropic client
         client = anthropic.Anthropic(api_key=api_key)
-        # Build system prompt with available tools
-        system_prompt = build_system_prompt(context or "Assume as you are a creative cinematic director")
+        # Get session manager and session context if session_id provided
+        session_manager = None
+        session_context = None
+        if session_id:
+            session_manager = get_session_manager()
+            session_context = session_manager.get_or_create_session(session_id)
+            logger.info(f"Using session context: {session_id}")
+        else:
+            logger.info("No session ID provided, processing without session context")
+        
+        # Build system prompt with session context
+        system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context)
         logger.info(f"Processing natural language input: {user_input}")
         # Get AI response
         response = client.messages.create(
@@ -111,12 +121,20 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
                         "validation": "failed" if "validation failed" in str(e).lower() else "passed"
                     })
                     logger.error(f"Failed to execute command {command.get('type')}: {e}")
-        return {
+        # Prepare final response
+        result = {
             "explanation": parsed_response.get("explanation", "Processed your request"),
             "commands": parsed_response.get("commands", []),
             "expectedResult": parsed_response.get("expectedResult", "Commands executed"),
             "executionResults": execution_results
         }
+        
+        # Update session with this interaction if session_id provided
+        if session_manager and session_context:
+            session_manager.add_interaction(session_id, user_input, result)
+            logger.debug(f"Updated session {session_id} with interaction")
+        
+        return result
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {
@@ -126,122 +144,24 @@ def _process_natural_language_impl(user_input: str, context: str = None) -> Dict
             "executionResults": []
         }
 
-def _process_natural_language_impl_with_session(user_input: str, context: str = None, session_id: str = None) -> Dict[str, Any]:
-    """Process natural language with session context support."""
+def register_nlp_tools(mcp: FastMCP):
+    @mcp.tool()
+    def process_natural_language_mcp_tool(ctx: Context, user_input: str, context: str = None) -> Dict[str, Any]:
+        return _process_natural_language_impl(user_input, context)
+
+# Main function for external use with session support
+def process_natural_language(user_input: str, context: str = None, session_id: str = None) -> Dict[str, Any]:
+    """Process natural language input and return structured commands with optional session support."""
     try:
-        if not ANTHROPIC_AVAILABLE:
-            return {
-                "error": "Anthropic SDK not installed. Run: pip install anthropic",
-                "explanation": "Natural language processing unavailable", 
-                "commands": [],
-                "executionResults": []
-            }
-            
-        # Get session manager and session context
-        session_manager = get_session_manager()
-        session_context = None
-        
-        if session_id:
-            session_context = session_manager.get_or_create_session(session_id)
-            logger.info(f"Using session context: {session_id}")
-        else:
-            logger.info("No session ID provided, processing without session context")
-        
-        # Process with existing implementation but enhanced context
-        api_key = os.getenv('ANTHROPIC_API_KEY')
-        if not api_key or api_key == 'your-api-key-here':
-            return {
-                "error": "ANTHROPIC_API_KEY environment variable not set",
-                "explanation": "Please configure your Anthropic API key",
-                "commands": [],
-                "executionResults": []
-            }
-            
-        # Initialize Anthropic client
-        client = anthropic.Anthropic(api_key=api_key)
-        
-        # Build system prompt with session context
-        system_prompt = build_system_prompt_with_session(context, session_context)
-        logger.info(f"Processing natural language input: {user_input}")
-        
-        # Get AI response
-        response = client.messages.create(
-            model='claude-3-haiku-20240307',
-            max_tokens=1024,
-            temperature=0.1,
-            messages=[
-                {"role": "user", "content": f"{system_prompt}\n\nUser request: {user_input}"}
-            ]
-        )
-        ai_response = response.content[0].text
-        logger.info(f"AI response for '{user_input}': {ai_response}")
-        print(f"DEBUG: AI response for '{user_input}': {ai_response}")
-        
-        # Parse AI response
-        try:
-            parsed_response = json.loads(ai_response)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse AI response as JSON: {e}")
-            # If AI didn't return valid JSON, create a structured response
-            parsed_response = {
-                "explanation": ai_response,
-                "commands": [],
-                "expectedResult": "Please rephrase your request more specifically."
-            }
-        
-        # Execute commands using direct connection with schema validation
-        execution_results = []
-        if parsed_response.get("commands") and isinstance(parsed_response["commands"], list):
-            for command in parsed_response["commands"]:
-                try:
-                    logger.info(f"Executing command from NLP: {command}")
-                    print(f"DEBUG: Executing command from NLP: {command}")
-                    
-                    result = execute_command_direct(command)
-                    execution_results.append({
-                        "command": command.get("type", "unknown"),
-                        "success": True,
-                        "result": result,
-                        "validation": "passed"
-                    })
-                    logger.info(f"Successfully executed validated command: {command.get('type')}")
-                except Exception as e:
-                    execution_results.append({
-                        "command": command.get("type", "unknown"),
-                        "success": False,
-                        "error": str(e),
-                        "validation": "failed" if "validation failed" in str(e).lower() else "passed"
-                    })
-                    logger.error(f"Failed to execute command {command.get('type')}: {e}")
-        
-        # Prepare final response
-        result = {
-            "explanation": parsed_response.get("explanation", "Processed your request"),
-            "commands": parsed_response.get("commands", []),
-            "expectedResult": parsed_response.get("expectedResult", "Commands executed"),
-            "executionResults": execution_results
-        }
-        
-        # Update session with this interaction
-        if session_context:
-            session_manager.add_interaction(session_id, user_input, result)
-            logger.debug(f"Updated session {session_id} with interaction")
-        
-        return result
-        
+        return _process_natural_language_impl(user_input, context, session_id)
     except Exception as e:
-        logger.error(f"Error in process_natural_language_with_session: {e}")
+        logger.error(f"Error in process_natural_language: {e}")
         return {
             "error": str(e),
             "explanation": "An error occurred while processing your request",
             "commands": [],
             "executionResults": []
         }
-
-def register_nlp_tools(mcp: FastMCP):
-    @mcp.tool()
-    def process_natural_language(ctx: Context, user_input: str, context: str = None) -> Dict[str, Any]:
-        return _process_natural_language_impl(user_input, context)
 
 def build_system_prompt_with_session(context: str, session_context: SessionContext = None) -> str:
     """Build system prompt with session context information."""
@@ -321,73 +241,6 @@ For random elements use timestamp+suffix for unique IDs:
     
     return base_prompt
 
-def build_system_prompt(context: str) -> str:
-    import time
-    import random
-    timestamp = int(time.time() * 1000)
-    random_suffix = random.randint(1000, 9999)
-    
-    # Get supported commands from registry
-    registry = get_command_registry()
-    supported_commands = registry.get_supported_commands()
-    
-    return f"""You are a creative cinematic director's AI assistant translating natural language to Unreal Engine commands.
-
-## SUPPORTED COMMANDS
-**Ultra Dynamic Sky:** get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
-**Generic Actors:** get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties
-**Cesium Geospatial:** set_cesium_latitude_longitude, get_cesium_properties
-**MM Control Lights:** create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
-
-## PARAMETER VALIDATION RULES
-**Sky Commands:**
-- time_of_day: Range 0-{SKY_CONSTRAINTS['TIME_RANGE']['max']} (HHMM format)
-- color_temperature: Range {SKY_CONSTRAINTS['COLOR_TEMP_RANGE']['min']}-{SKY_CONSTRAINTS['COLOR_TEMP_RANGE']['max']} Kelvin OR string descriptions
-- sky_name: String (default: "{SKY_CONSTRAINTS['DEFAULT_SKY_NAME']}")
-
-**Light Commands:**
-- light_name: Required non-empty string for create/update/delete
-- location: {{"x": number, "y": number, "z": number}} (default: {LIGHT_CONSTRAINTS['DEFAULT_LOCATION']})
-- intensity: Non-negative number (default: {LIGHT_CONSTRAINTS['DEFAULT_INTENSITY']})
-- color: {{"r": 0-255, "g": 0-255, "b": 0-255}} (default: {LIGHT_CONSTRAINTS['DEFAULT_COLOR']})
-
-**Cesium Commands:**
-- latitude: Number between -90 and 90 degrees
-- longitude: Number between -180 and 180 degrees
-
-**Actor Commands:**
-- name: Required non-empty string for most operations
-- type: Required for create_actor (e.g., "StaticMeshActor", "PointLight")
-- location/rotation/scale: Optional Vector3 objects {{"x": number, "y": number, "z": number}}
-
-## RANDOM UNIQUENESS
-For random elements use timestamp+suffix for unique IDs:
-- Light names: "mm_light_{timestamp}_{random_suffix}"
-- Wide ranges: Location(-2000,2000), Intensity(500-15000), Colors(0-255 full spectrum)
-- Avoid clustering: Use diverse values across entire ranges
-- Current: timestamp={timestamp}, suffix={random_suffix}
-
-## CONVERSIONS
-**Time:** sunrise→600, sunset→1800, noon→1200, midnight→0
-**ColorTemp:** warm→3200K, cool→6500K, warmer→"warmer", cooler→"cooler"
-**Colors:** red→{{"r":255,"g":0,"b":0}}, white→{{"r":255,"g":255,"b":255}}, random→use full RGB spectrum
-**Cities:** SF(37.7749,-122.4194), NYC(40.7128,-74.0060), Tokyo(35.6804,139.6917)
-
-## VALIDATION RULES
-- "cold morning"→time_of_day | "cold light"→color_temperature
-- "cooler" ALWAYS = color_temperature (never time)
-- All parameters validated by specialized handlers
-- Return ONLY valid JSON with literal numbers (no Math.random, no code)
-- Commands are processed by modular handler system for consistency
-
-Context: {context}
-
-JSON FORMAT:
-{{
-  "explanation": "Brief description",
-  "commands": [{{"type": "command_name", "params": {{...}}}}],
-  "expectedResult": "What happens"
-}}"""
 
 def execute_command_direct(command: Dict[str, Any]) -> Any:
     """Execute a command directly using Unreal connection with new handler system."""
