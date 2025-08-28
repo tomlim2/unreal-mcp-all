@@ -1,0 +1,626 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unreal MCP Data Structures",
+  "description": "JSON schemas for all data structures used in the Unreal MCP system",
+  
+  "definitions": {
+    "SessionContext": {
+      "type": "object",
+      "title": "Session Context",
+      "description": "Complete session context including conversation and scene state",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Unique identifier for this session",
+          "minLength": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the session was created"
+        },
+        "last_accessed": {
+          "type": "string", 
+          "format": "date-time",
+          "description": "Last time session was accessed/updated"
+        },
+        "conversation_history": {
+          "type": "array",
+          "description": "Complete conversation history",
+          "items": {
+            "$ref": "#/definitions/ChatMessage"
+          }
+        },
+        "scene_state": {
+          "$ref": "#/definitions/SceneState",
+          "description": "Current state of Unreal Engine scene"
+        },
+        "user_preferences": {
+          "type": "object",
+          "description": "User-specific preferences and settings",
+          "additionalProperties": true
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional session metadata",
+          "additionalProperties": true
+        }
+      },
+      "required": ["session_id", "created_at", "last_accessed", "conversation_history", "scene_state"],
+      "additionalProperties": false
+    },
+
+    "ChatMessage": {
+      "type": "object",
+      "title": "Chat Message",
+      "description": "Represents a single message in the conversation",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the message was created"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "assistant", "system"],
+          "description": "Message sender role"
+        },
+        "content": {
+          "type": "string",
+          "description": "The actual message content",
+          "minLength": 1
+        },
+        "commands": {
+          "type": "array",
+          "description": "Commands extracted from this message",
+          "items": {
+            "$ref": "#/definitions/Command"
+          },
+          "default": []
+        },
+        "execution_results": {
+          "type": "array", 
+          "description": "Results from executing commands",
+          "items": {
+            "$ref": "#/definitions/ExecutionResult"
+          },
+          "default": []
+        }
+      },
+      "required": ["timestamp", "role", "content"],
+      "additionalProperties": false
+    },
+
+    "Command": {
+      "type": "object",
+      "title": "Command",
+      "description": "A command to be executed in Unreal Engine",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Command name/type",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "description": "Command parameters",
+          "additionalProperties": true
+        }
+      },
+      "required": ["type", "params"],
+      "additionalProperties": false
+    },
+
+    "ExecutionResult": {
+      "type": "object",
+      "title": "Execution Result", 
+      "description": "Result from executing a command",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command name that was executed"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether command succeeded"
+        },
+        "result": {
+          "description": "Full Unreal Engine response",
+          "oneOf": [
+            {"$ref": "#/definitions/UnrealSuccessResponse"},
+            {"$ref": "#/definitions/UnrealErrorResponse"}
+          ]
+        },
+        "validation": {
+          "type": "string",
+          "enum": ["passed", "failed"],
+          "description": "Validation status"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if success=false"
+        }
+      },
+      "required": ["command", "success", "validation"],
+      "additionalProperties": false
+    },
+
+    "SceneState": {
+      "type": "object",
+      "title": "Scene State",
+      "description": "Current state of the Unreal Engine scene",
+      "properties": {
+        "actors": {
+          "type": "array",
+          "description": "All actors currently in scene",
+          "items": {
+            "$ref": "#/definitions/ActorInfo"
+          }
+        },
+        "lights": {
+          "type": "array",
+          "description": "All light actors in scene", 
+          "items": {
+            "$ref": "#/definitions/LightInfo"
+          }
+        },
+        "sky_settings": {
+          "type": "object",
+          "description": "Ultra Dynamic Sky settings",
+          "properties": {
+            "time_of_day": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2400,
+              "description": "HHMM format (0000-2400)"
+            },
+            "color_temperature": {
+              "oneOf": [
+                {"type": "number", "minimum": 1000, "maximum": 12000},
+                {"type": "string", "enum": ["warmer", "cooler", "warm", "cool"]}
+              ],
+              "description": "Kelvin or string description"
+            },
+            "sky_name": {
+              "type": "string",
+              "description": "Name of sky actor"
+            }
+          },
+          "additionalProperties": true
+        },
+        "cesium_location": {
+          "type": "object",
+          "description": "Cesium geospatial location",
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90,
+              "description": "Degrees latitude"
+            },
+            "longitude": {
+              "type": "number", 
+              "minimum": -180,
+              "maximum": 180,
+              "description": "Degrees longitude"
+            },
+            "altitude": {
+              "type": "number",
+              "description": "Meters above sea level"
+            }
+          },
+          "required": ["latitude", "longitude"],
+          "additionalProperties": false
+        },
+        "last_commands": {
+          "type": "array",
+          "description": "Last 10 commands executed",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "properties": {
+              "command": {"type": "string"},
+              "params": {"type": "object"},
+              "result": {"type": "object"}, 
+              "timestamp": {"type": "string", "format": "date-time"}
+            },
+            "required": ["command", "params", "result", "timestamp"]
+          }
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When scene was last modified"
+        }
+      },
+      "required": ["actors", "lights", "sky_settings", "last_commands", "last_updated"],
+      "additionalProperties": false
+    },
+
+    "ActorInfo": {
+      "type": "object",
+      "title": "Actor Info",
+      "description": "Information about an Unreal Engine actor",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique actor name in the scene",
+          "minLength": 1
+        },
+        "actor_class": {
+          "type": "string",
+          "description": "Unreal class type",
+          "enum": ["StaticMeshActor", "PointLight", "DirectionalLight", "SpotLight", "CameraActor", "Pawn"]
+        },
+        "location": {
+          "$ref": "#/definitions/Vector3",
+          "description": "3D world position"
+        },
+        "rotation": {
+          "$ref": "#/definitions/Rotator",
+          "description": "3D rotation in degrees"  
+        },
+        "scale": {
+          "$ref": "#/definitions/Vector3",
+          "description": "3D scale factors"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Additional actor properties",
+          "additionalProperties": true
+        }
+      },
+      "required": ["name", "actor_class", "properties"],
+      "additionalProperties": false
+    },
+
+    "LightInfo": {
+      "type": "object",
+      "title": "Light Info",
+      "description": "Light-specific actor information",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique light name",
+          "minLength": 1
+        },
+        "light_type": {
+          "type": "string",
+          "enum": ["PointLight", "DirectionalLight", "SpotLight", "RectLight"],
+          "description": "Type of light"
+        },
+        "intensity": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Light intensity (lumens)"
+        },
+        "color": {
+          "$ref": "#/definitions/RGBColor",
+          "description": "RGB color values"
+        },
+        "location": {
+          "$ref": "#/definitions/Vector3",
+          "description": "3D world position"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Additional light properties",
+          "additionalProperties": true
+        }
+      },
+      "required": ["name", "light_type", "intensity", "color", "properties"],
+      "additionalProperties": false
+    },
+
+    "Vector3": {
+      "type": "object",
+      "title": "3D Vector",
+      "description": "3D coordinate or vector",
+      "properties": {
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "z": {"type": "number"}
+      },
+      "required": ["x", "y", "z"],
+      "additionalProperties": false
+    },
+
+    "Rotator": {
+      "type": "object",
+      "title": "3D Rotation",
+      "description": "3D rotation in degrees",
+      "properties": {
+        "pitch": {"type": "number", "minimum": -180, "maximum": 180},
+        "yaw": {"type": "number", "minimum": -180, "maximum": 180}, 
+        "roll": {"type": "number", "minimum": -180, "maximum": 180}
+      },
+      "required": ["pitch", "yaw", "roll"],
+      "additionalProperties": false
+    },
+
+    "RGBColor": {
+      "type": "object", 
+      "title": "RGB Color",
+      "description": "RGB color with values 0-255",
+      "properties": {
+        "r": {"type": "integer", "minimum": 0, "maximum": 255},
+        "g": {"type": "integer", "minimum": 0, "maximum": 255},
+        "b": {"type": "integer", "minimum": 0, "maximum": 255}
+      },
+      "required": ["r", "g", "b"],
+      "additionalProperties": false
+    },
+
+    "UnrealSuccessResponse": {
+      "type": "object",
+      "title": "Unreal Success Response",
+      "description": "Standard success response from Unreal Engine",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success"]
+        },
+        "message": {
+          "type": "string",
+          "description": "Success message"
+        },
+        "data": {
+          "type": "object",
+          "description": "Command-specific result data",
+          "additionalProperties": true
+        }
+      },
+      "required": ["status", "message"],
+      "additionalProperties": false
+    },
+
+    "UnrealSuccessResponseAlt": {
+      "type": "object",
+      "title": "Unreal Success Response (Alternative)",
+      "description": "Alternative success response format from Unreal Engine",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "enum": [true]
+        },
+        "message": {
+          "type": "string",
+          "description": "Success message"
+        },
+        "result": {
+          "type": "object", 
+          "description": "Command-specific result data",
+          "additionalProperties": true
+        }
+      },
+      "required": ["success", "message"],
+      "additionalProperties": false
+    },
+
+    "UnrealErrorResponse": {
+      "type": "object",
+      "title": "Unreal Error Response", 
+      "description": "Standard error response from Unreal Engine",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["error"]
+        },
+        "error": {
+          "type": "string",
+          "description": "Error description"
+        },
+        "details": {
+          "type": "object",
+          "description": "Additional error details",
+          "properties": {
+            "error_code": {
+              "type": "string",
+              "enum": ["VALIDATION_ERROR", "MISSING_PARAMETER", "ACTOR_NOT_FOUND", "ASSET_NOT_FOUND", "PLUGIN_ERROR", "ENGINE_ERROR", "PERMISSION_DENIED", "TIMEOUT", "UNKNOWN_COMMAND"]
+            },
+            "field_errors": {
+              "type": "object",
+              "additionalProperties": {"type": "string"}
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["status", "error"],
+      "additionalProperties": false
+    },
+
+    "UnrealErrorResponseAlt": {
+      "type": "object",
+      "title": "Unreal Error Response (Alternative)",
+      "description": "Alternative error response format from Unreal Engine", 
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "enum": [false]
+        },
+        "message": {
+          "type": "string",
+          "description": "Error message"
+        },
+        "error": {
+          "type": "string",
+          "description": "Detailed error description"
+        }
+      },
+      "required": ["success", "message"],
+      "additionalProperties": false
+    },
+
+    "NLPResponse": {
+      "type": "object",
+      "title": "NLP Processing Response",
+      "description": "Response from natural language processing",
+      "properties": {
+        "explanation": {
+          "type": "string",
+          "description": "Brief description of what will happen"
+        },
+        "commands": {
+          "type": "array",
+          "description": "Commands to be executed",
+          "items": {
+            "$ref": "#/definitions/Command"
+          }
+        },
+        "expectedResult": {
+          "type": "string",
+          "description": "What the user should expect"
+        },
+        "executionResults": {
+          "type": "array",
+          "description": "Results from command execution", 
+          "items": {
+            "$ref": "#/definitions/ExecutionResult"
+          }
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if processing failed"
+        }
+      },
+      "required": ["explanation", "commands", "executionResults"],
+      "additionalProperties": false
+    },
+
+    "ValidatedCommand": {
+      "type": "object",
+      "title": "Validated Command",
+      "description": "Result of command validation",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Command type"
+        },
+        "params": {
+          "type": "object",
+          "description": "Validated/normalized parameters",
+          "additionalProperties": true
+        },
+        "is_valid": {
+          "type": "boolean",
+          "description": "Whether validation passed"
+        },
+        "validation_errors": {
+          "type": "array",
+          "description": "Validation error messages",
+          "items": {"type": "string"}
+        }
+      },
+      "required": ["type", "params", "is_valid", "validation_errors"],
+      "additionalProperties": false
+    }
+  },
+
+  "examples": {
+    "SessionContext": {
+      "session_id": "user_123_session",
+      "created_at": "2024-01-01T10:00:00.000Z",
+      "last_accessed": "2024-01-01T10:15:30.000Z",
+      "conversation_history": [
+        {
+          "timestamp": "2024-01-01T10:05:00.000Z",
+          "role": "user",
+          "content": "Create a bright red light",
+          "commands": [
+            {
+              "type": "create_mm_control_light",
+              "params": {
+                "light_name": "RedLight_001",
+                "intensity": 5000,
+                "color": {"r": 255, "g": 0, "b": 0}
+              }
+            }
+          ],
+          "execution_results": [
+            {
+              "command": "create_mm_control_light",
+              "success": true,
+              "result": {
+                "status": "success",
+                "message": "Light created successfully"
+              },
+              "validation": "passed"
+            }
+          ]
+        }
+      ],
+      "scene_state": {
+        "actors": [
+          {
+            "name": "RedLight_001",
+            "actor_class": "PointLight",
+            "location": {"x": 0.0, "y": 0.0, "z": 200.0},
+            "rotation": {"pitch": 0.0, "yaw": 0.0, "roll": 0.0},
+            "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+            "properties": {"intensity": 5000}
+          }
+        ],
+        "lights": [
+          {
+            "name": "RedLight_001", 
+            "light_type": "PointLight",
+            "intensity": 5000,
+            "color": {"r": 255, "g": 0, "b": 0},
+            "location": {"x": 0.0, "y": 0.0, "z": 200.0},
+            "properties": {}
+          }
+        ],
+        "sky_settings": {
+          "time_of_day": 1200,
+          "color_temperature": 6500
+        },
+        "last_commands": [],
+        "last_updated": "2024-01-01T10:05:30.000Z"
+      },
+      "user_preferences": {},
+      "metadata": {}
+    },
+
+    "NLPResponse": {
+      "explanation": "Creating a bright red point light at the default location",
+      "commands": [
+        {
+          "type": "create_mm_control_light",
+          "params": {
+            "light_name": "RedLight_001", 
+            "intensity": 5000,
+            "color": {"r": 255, "g": 0, "b": 0},
+            "location": {"x": 0, "y": 0, "z": 200}
+          }
+        }
+      ],
+      "expectedResult": "A bright red light will appear in your scene",
+      "executionResults": [
+        {
+          "command": "create_mm_control_light",
+          "success": true,
+          "result": {
+            "status": "success", 
+            "message": "Light created successfully",
+            "data": {
+              "actor_name": "RedLight_001",
+              "intensity": 5000
+            }
+          },
+          "validation": "passed"
+        }
+      ]
+    },
+
+    "UnrealErrorResponse": {
+      "status": "error",
+      "error": "Actor 'NonExistentActor' not found in level",
+      "details": {
+        "searched_name": "NonExistentActor",
+        "available_actors": ["TestCube_001", "MainLight"],
+        "error_code": "ACTOR_NOT_FOUND"
+      }
+    }
+  }
+}
