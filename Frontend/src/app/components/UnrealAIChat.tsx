@@ -88,7 +88,7 @@ export default function UnrealLlmChat({ apiService }: UnrealLlmChatProps) {
           </button>
         </div>
       </form>
-	  <div className={styles.examples}>
+	  {/* <div className={styles.examples}>
         <h3>Examples:</h3>
         <div className={styles.exampleButtons}>
           {examplePrompts.map((example, index) => (
@@ -113,7 +113,7 @@ export default function UnrealLlmChat({ apiService }: UnrealLlmChatProps) {
         <div className={styles.loading}>
           <p>Processing your request...</p>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

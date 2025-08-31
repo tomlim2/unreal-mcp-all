@@ -1,8 +1,12 @@
 .container {
-  padding: 20px;
+  padding: 0;
   width: 800px;
-  margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  height: 85vh;
+  margin: 0px auto;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
 }
 
 .header {
@@ -51,13 +55,14 @@
 }
 
 .placeholder {
-  background-color: #cccccc;
-  border: 2px dashed #666666;
-  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   text-align: center;
-  color: #333333;
+  color: #999999;
   font-style: italic;
-  margin: 20px 0;
+  font-size: 16px;
 }
 
 .sessionInfo {
@@ -75,14 +80,16 @@
 .sessionMeta {
   font-size: 14px;
   color: #cccccc;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
 .section {
-  background: #ffffff;
-  border: 1px solid #cccccc;
-  margin: 20px 0;
+  border: none;
+  margin: 0;
   overflow: hidden;
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
 }
 
 .section h4 {
@@ -103,31 +110,69 @@
 }
 
 .messages {
-  padding: 0;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #cccccc transparent;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.spacer {
+  flex: 1;
+  min-height: 1px;
+}
+
+.messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 3px;
+}
+
+.messages::-webkit-scrollbar-thumb:hover {
+  background: #999999;
 }
 
 .message {
-  padding: 20px;
-  border-bottom: 1px solid #cccccc;
-}
-
-.message:last-child {
-  border-bottom: none;
+  padding: 15px 20px;
+  border-radius: 12px;
+  margin: 0;
+  max-width: 85%;
+  word-wrap: break-word;
+  border: none;
 }
 
 .message.user {
-  background-color: #cccccc;
-  border-left: 4px solid #333333;
+  background-color: #007AFF;
+  color: #ffffff;
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 .message.assistant {
-  background-color: #ffffff;
-  border-left: 4px solid #666666;
+  background-color: #E9ECEF;
+  color: #000000;
+  align-self: flex-start;
+  margin-right: auto;
 }
 
 .message.system {
-  background-color: #cccccc;
-  border-left: 4px solid #000000;
+  background-color: #FFF3CD;
+  color: #856404;
+  align-self: center;
+  max-width: 70%;
+  text-align: center;
 }
 
 .messageHeader {
@@ -141,7 +186,7 @@
 .sessionName {
   font-size: 12px;
   color: #666666;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   background: #cccccc;
   padding: 2px 6px;
   border-radius: 4px;
@@ -158,51 +203,85 @@
 }
 
 .message.user .role {
-  background-color: #333333;
+  background-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
 }
 
 .message.assistant .role {
-  background-color: #666666;
-  color: #ffffff;
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #333333;
 }
 
 .message.system .role {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: rgba(133, 100, 4, 0.2);
+  color: #856404;
 }
 
 .timestamp {
-  font-size: 12px;
+  font-size: 11px;
+  opacity: 0.7;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+}
+
+.message.user .timestamp {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.message.assistant .timestamp {
   color: #666666;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+}
+
+.message.system .timestamp {
+  color: #856404;
 }
 
 .toggleButton {
-  background: #666666;
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.1);
+  color: inherit;
   border: none;
-  border-radius: 4px;
-  width: 24px;
-  height: 24px;
-  font-size: 14px;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: monospace;
-  min-width: 24px;
+  font-family: 'Inter', monospace;
+  min-width: 20px;
+  opacity: 0.7;
 }
 
 .toggleButton:hover {
-  background: #333333;
+  background: rgba(0, 0, 0, 0.2);
+  opacity: 1;
+}
+
+.message.user .toggleButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.message.user .toggleButton:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .content {
-  line-height: 1.6;
-  color: #333333;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.message.user .content {
+  color: #ffffff;
+}
+
+.message.assistant .content {
+  color: #000000;
+}
+
+.message.system .content {
+  color: #856404;
 }
 
 .commands {
@@ -232,7 +311,7 @@
   display: inline-block;
   padding: 8px 12px;
   background-color: #cccccc;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 13px;
   color: #000000;
   border-bottom: 1px solid #cccccc;
@@ -243,7 +322,7 @@
 .command pre {
   margin: 0;
   padding: 12px;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 12px;
   line-height: 1.4;
   color: #000000;
@@ -285,7 +364,7 @@
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 600;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
 .result.success .resultHeader {
@@ -303,7 +382,7 @@
 .resultData {
   margin: 0;
   padding: 12px;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 12px;
   line-height: 1.4;
   color: #000000;
@@ -315,7 +394,7 @@
   padding: 12px;
   color: #000000;
   background: #ffffff;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 12px;
 }
 
@@ -344,7 +423,7 @@
   background: #ffffff;
   border: 1px solid #cccccc;
   border-radius: 4px;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 13px;
   color: #000000;
 }
@@ -352,7 +431,7 @@
 .sceneItem pre {
   margin: 8px 0 0 0;
   padding: 12px;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 12px;
   line-height: 1.4;
   color: #000000;
