@@ -59,11 +59,6 @@ export default function UnrealLlmChat({ apiService }: UnrealLlmChatProps) {
 
   return (
     <div className={styles.container}>      
-      <div className={styles.sessionStatus}>
-        <span className={styles.sessionLabel}>
-          Session: {sessionId === 'all' ? 'All Sessions' : sessionId ? `${sessionId.slice(0, 8)}...` : 'None'}
-        </span>
-      </div>
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.inputGroup}>
           <textarea

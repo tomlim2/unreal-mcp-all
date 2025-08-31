@@ -25,7 +25,6 @@ export default function ContextPanel() {
       )}
       <SessionController apiService={apiService} />
       <ContextHistory apiService={apiService} />
-      <UnrealAIChat apiService={apiService} />
     </div>
   );
 }

@@ -174,7 +174,6 @@ export default function SessionController({ apiService }: SessionControllerProps
           ))
         )}
       </div>
-      
     </div>
   );
 }

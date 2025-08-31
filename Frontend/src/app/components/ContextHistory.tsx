@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore';
 import { ApiService, Session, SessionContext } from '../services';
 import MessageItem from './MessageItem';
 import styles from './ContextHistory.module.css';
+import UnrealAIChat from './UnrealAIChat';
 
 interface ChatMessage {
   timestamp: string;
@@ -158,7 +159,6 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
   if (!sessionId) {
     return (
       <div className={styles.container}>
-        <h2>Context History</h2>
         <div className={styles.placeholder}>
           Select a session to view its context and conversation history.
         </div>
@@ -169,7 +169,6 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
   if (loading) {
     return (
       <div className={styles.container}>
-        <h2>Context History</h2>
         <div className={styles.loading}>Loading context...</div>
       </div>
     );
@@ -178,7 +177,6 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
   if (error) {
     return (
       <div className={styles.container}>
-        <h2>Context History</h2>
         <div className={styles.error}>
           Error: {error}
         </div>
@@ -256,7 +254,6 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
   if (!context) {
     return (
       <div className={styles.container}>
-        <h2>Context History</h2>
         <div className={styles.placeholder}>
           No context data found for this session.
         </div>
@@ -266,26 +263,8 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h2>Context History</h2>
-        <button 
-          className={styles.refreshButton} 
-          onClick={refreshCurrentView}
-          title="Refresh context data"
-        >
-          ↻
-        </button>
-      </div>
-      <div className={styles.sessionInfo}>
-        <h3>{context.session_name || `Session ${context.session_id.slice(0, 8)}`}</h3>
-        <div className={styles.sessionMeta}>
-          ID: {context.session_id} • {context.conversation_history.length} messages
-        </div>
-      </div>
-
       {/* Conversation History */}
       <div className={styles.section}>
-        <h4>Conversation History</h4>
         {context.conversation_history.length === 0 ? (
           <div className={styles.empty}>No conversation history yet.</div>
         ) : (
@@ -334,6 +313,7 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
           )}
         </div>
       </div>
+      {<UnrealAIChat apiService={apiService} />}
     </div>
   );
 }
