@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSessionStore } from "../store/sessionStore";
 import { ApiService, Session } from "../services";
+import SessionItem from "./SessionItem";
 import styles from "./SessionController.module.css";
 
 interface SessionControllerProps {
@@ -84,9 +85,9 @@ export default function SessionController({ apiService }: SessionControllerProps
     try {
       await apiService.deleteSession(sessionIdToDelete);
 
-      // If the deleted session was currently selected, switch to "All Sessions"
+      // If the deleted session was currently selected, clear selection
       if (sessionId === sessionIdToDelete) {
-        setSessionId('all');
+        setSessionId(null);
       }
       
       await fetchSessions();
@@ -98,22 +99,14 @@ export default function SessionController({ apiService }: SessionControllerProps
     }
   };
 
-  const handleSessionSelect = (selectedSessionId: string | "all") => {
+  const handleSessionSelect = (selectedSessionId: string) => {
     setSessionId(selectedSessionId);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleString();
-    } catch {
-      return dateString;
-    }
-  };
 
   if (loading) {
     return (
       <div className={styles.container}>
-        <h2>Session Selector</h2>
         <div className={styles.loading}>Loading sessions...</div>
       </div>
     );
@@ -122,7 +115,6 @@ export default function SessionController({ apiService }: SessionControllerProps
   if (error) {
     return (
       <div className={styles.container}>
-        <h2>Session Selector</h2>
         <div className={styles.error}>
           Error: {error}
           <button onClick={fetchSessions} className={styles.retryButton}>
@@ -135,7 +127,6 @@ export default function SessionController({ apiService }: SessionControllerProps
 
   return (
     <div className={styles.container}>
-      <h2>Session Selector</h2>
       <div className={styles.sessionControls}>
         <button onClick={fetchSessions} className={styles.refreshButton}>
           Refresh Sessions
@@ -168,60 +159,18 @@ export default function SessionController({ apiService }: SessionControllerProps
         </div>
       </div>
       <div className={styles.sessionList}>
-        {/* All Sessions option */}
-        <div
-          className={`${styles.sessionItem} ${
-            sessionId === "all" ? styles.active : ""
-          }`}
-          onClick={() => handleSessionSelect("all")}
-        >
-          <div className={styles.sessionId}>All Sessions</div>
-          <div className={styles.sessionMeta}>
-            <span>View all chat sessions</span>
-            {sessions.length > 0 && (
-              <span>{sessions.length} total sessions</span>
-            )}
-          </div>
-        </div>
-
-        {/* Individual sessions */}
         {sessions.length === 0 ? (
           <div className={styles.noSessions}>No sessions found (total: {sessions.length})</div>
         ) : (
           sessions.map((session) => (
-            <div
+            <SessionItem
               key={session.session_id}
-              className={`${styles.sessionItem} ${
-                sessionId === session.session_id ? styles.active : ""
-              }`}
-              onClick={() => handleSessionSelect(session.session_id)}
-            >
-              <div className={styles.sessionItemHeader}>
-                <div className={styles.sessionId}>
-                  {session.session_name ||
-                    `Session ${session.session_id.slice(0, 8)}`}
-                </div>
-                <button
-                  className={styles.sessionItemDelete}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSpecificSession(session.session_id);
-                  }}
-                  disabled={deletingSessionId !== null}
-                  title="Delete session"
-                >
-                  {deletingSessionId === session.session_id ? '×' : '×'}
-                </button>
-              </div>
-              <div className={styles.sessionItemContent}>
-                <div className={styles.sessionMeta}>
-                  <span>Created: {formatDate(session.created_at)}</span>
-                  {session.interaction_count && (
-                    <span>{session.interaction_count} interactions</span>
-                  )}
-                </div>
-              </div>
-            </div>
+              session={session}
+              isActive={sessionId === session.session_id}
+              onSelect={() => handleSessionSelect(session.session_id)}
+              onDelete={deleteSpecificSession}
+              isDeleting={deletingSessionId === session.session_id}
+            />
           ))
         )}
       </div>

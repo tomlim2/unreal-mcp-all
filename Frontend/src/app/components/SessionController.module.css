@@ -1,7 +1,12 @@
 .container {
+  background-color: #000000;
   padding: 20px;
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
 }
 
 .loading {
@@ -13,7 +18,6 @@
 .error {
   background-color: #cccccc;
   border: 1px solid #666666;
-  border-radius: 4px;
   padding: 16px;
   color: #000000;
   text-align: center;
@@ -25,7 +29,6 @@
   background: #666666;
   color: #ffffff;
   border: none;
-  border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
 }
@@ -37,43 +40,10 @@
 .sessionList {
   margin: 20px 0;
   border: 1px solid #cccccc;
-  border-radius: 8px;
   max-height: 400px;
   overflow-y: auto;
 }
 
-.sessionItem {
-  padding: 12px 16px;
-  border-bottom: 1px solid #cccccc;
-  cursor: pointer;
-}
-
-.sessionItem:hover {
-  background-color: #cccccc;
-}
-
-.sessionItem:last-child {
-  border-bottom: none;
-}
-
-.sessionItem.active {
-  background-color: #cccccc;
-  border-left: 4px solid #333333;
-}
-
-.sessionId {
-  font-family: monospace;
-  font-weight: bold;
-  color: #333333;
-  margin-bottom: 4px;
-}
-
-.sessionMeta {
-  font-size: 12px;
-  color: #666666;
-  display: flex;
-  gap: 16px;
-}
 
 .noSessions {
   text-align: center;
@@ -87,7 +57,6 @@
   background: #333333;
   color: #ffffff;
   border: none;
-  border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
   width: 100%;
@@ -113,7 +82,6 @@
 .sessionNameInput {
   padding: 12px;
   border: 1px solid #cccccc;
-  border-radius: 4px;
   font-size: 14px;
   resize: vertical;
   font-family: inherit;
@@ -162,49 +130,3 @@
   color: #666666 !important;
 }
 
-/* Inline delete button styles for sessionItem */
-.sessionItemHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.sessionItemContent {
-  margin-top: 4px;
-}
-
-.sessionItemDelete {
-  background: #666666;
-  color: #ffffff;
-  border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  opacity: 0.7;
-  min-width: 24px;
-  font-family: monospace;
-}
-
-.sessionItemDelete:hover:not(:disabled) {
-  background: #333333;
-  opacity: 1;
-}
-
-.sessionItemDelete:disabled {
-  background: #cccccc;
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.sessionItemDelete.loading {
-  background: #cccccc;
-  cursor: wait;
-}

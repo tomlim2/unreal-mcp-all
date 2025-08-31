@@ -1,34 +1,28 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface SessionState {
   sessionId: string | null;
-  setSessionId: (sessionId: string | 'all') => void;
+  setSessionId: (sessionId: string | null) => void;
   clearSession: () => void;
-  isAllSessions: () => boolean;
 }
 
 export const useSessionStore = create<SessionState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       sessionId: null,
       
-      setSessionId: (sessionId: string | 'all') => {
+      setSessionId: (sessionId: string | null) => {
         set({ sessionId });
       },
       
       clearSession: () => {
         set({ sessionId: null });
       },
-      
-      isAllSessions: () => {
-        const { sessionId } = get();
-        return sessionId === 'all';
-      },
     }),
     {
       name: 'unreal-session-storage',
-      getStorage: () => localStorage,
+      storage: createJSONStorage(() => localStorage),
     }
   )
 );

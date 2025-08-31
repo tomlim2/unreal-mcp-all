@@ -7,7 +7,7 @@ interface SessionsResponse {
 
 export function createApiService(
   sessionId: string | null,
-  setSessionId: (sessionId: string) => void,
+  setSessionId: (sessionId: string | null) => void,
   setError: (error: string | null) => void
 ): ApiService {
   return {
@@ -86,8 +86,8 @@ export function createApiService(
           context: context || 'User is working with Unreal Engine project with dynamic sky system'
         };
         
-        // Include session ID if we have one (but not "all" sessions)
-        if (sessionId && sessionId !== 'all') {
+        // Include session ID if we have one
+        if (sessionId) {
           requestBody.session_id = sessionId;
         }
         
@@ -107,7 +107,7 @@ export function createApiService(
         
         // Only update session ID if we got a successful response with a session_id
         // and we don't have a specific session selected
-        if (data.session_id && !data.error && (!sessionId || sessionId === 'all')) {
+        if (data.session_id && !data.error && !sessionId) {
           setSessionId(data.session_id);
         }
         
@@ -118,9 +118,7 @@ export function createApiService(
         
         // Clear session ID if backend is unavailable
         if (err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('Failed to get AI response'))) {
-          if (sessionId && sessionId !== 'all') {
-            setSessionId('all'); // Switch to "all sessions" view when backend is down
-          }
+          setSessionId(null); // Clear session when backend is down
         }
         
         throw err;

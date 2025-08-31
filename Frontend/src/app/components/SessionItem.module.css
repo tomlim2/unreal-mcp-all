@@ -1,0 +1,78 @@
+.sessionItem {
+  padding: 12px 16px;
+  border-bottom: 1px solid #cccccc;
+  cursor: pointer;
+}
+
+.sessionItem:hover {
+  background-color: #cccccc;
+}
+
+.sessionItem:last-child {
+  border-bottom: none;
+}
+
+.sessionItem.active {
+  background-color: #cccccc;
+  border-left: 4px solid #333333;
+}
+
+.sessionId {
+  font-family: monospace;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 4px;
+}
+
+.sessionMeta {
+  font-size: 12px;
+  color: #666666;
+  display: flex;
+  gap: 16px;
+}
+
+.sessionItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.sessionItemContent {
+  margin-top: 4px;
+}
+
+.sessionItemDelete {
+  background: #666666;
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+  min-width: 24px;
+  font-family: monospace;
+}
+
+.sessionItemDelete:hover:not(:disabled) {
+  background: #333333;
+  opacity: 1;
+}
+
+.sessionItemDelete:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sessionItemDelete.loading {
+  background: #cccccc;
+  cursor: wait;
+}
