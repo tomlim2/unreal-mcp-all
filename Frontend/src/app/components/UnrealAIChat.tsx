@@ -3,34 +3,18 @@
 import { useState } from 'react';
 import styles from './UnrealAIChat.module.css';
 import { useSessionStore } from '../store/sessionStore';
+import { ApiService } from '../services';
 
-interface CommandResult {
-  command: string;
-  success: boolean;
-  result?: any;
-  error?: string;
+interface UnrealLlmChatProps {
+  apiService: ApiService;
 }
 
-interface AIResponse {
-  explanation?: string;
-  commands?: Array<{
-    type: string;
-    params: Record<string, any>;
-  }>;
-  expectedResult?: string;
-  executionResults?: CommandResult[];
-  error?: string;
-  fallback?: boolean;
-  session_id?: string;
-}
-
-export default function UnrealLlmChat() {
+export default function UnrealLlmChat({ apiService }: UnrealLlmChatProps) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<AIResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  const { sessionId, setSessionId, generateNewSession } = useSessionStore();
+  const { sessionId } = useSessionStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,53 +22,26 @@ export default function UnrealLlmChat() {
 
     setLoading(true);
     setError(null);
-    setResponse(null);
 
     try {
-      // Prepare request body with session support
-      const requestBody: any = {
+      console.log('Session ID:', sessionId);
+      const data = await apiService.sendMessage(
         prompt,
-        context: 'User is working with Unreal Engine project with dynamic sky system'
-      };
+        'User is working with Unreal Engine project with dynamic sky system'
+      );
       
-      // Include session ID if we have one, or generate a new one
-      if (sessionId) {
-        requestBody.session_id = sessionId;
-      } else {
-        requestBody.session_id = generateNewSession();
-      }
-      
-      const res = await fetch('/api/mcp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to get AI response');
-      }
-
-      const data: AIResponse = await res.json();
-      setResponse(data);
-      
-      // Handle session ID from response
-      if (data.session_id && data.session_id !== sessionId) {
-        setSessionId(data.session_id);
-        console.log('Updated session ID:', data.session_id);
-      }
+      console.log('AI Response:', data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+      setPrompt(''); // Clear the input after submission
     }
   };
 
   const handleExamplePrompt = (examplePrompt: string) => {
     setPrompt(examplePrompt);
   };
-  
 
   const examplePrompts = [
     "Set the time to sunrise (6 AM)",
@@ -104,7 +61,7 @@ export default function UnrealLlmChat() {
     <div className={styles.container}>      
       <div className={styles.sessionStatus}>
         <span className={styles.sessionLabel}>
-          Session: {sessionId ? `${sessionId.slice(0, 8)}...` : 'None'}
+          Session: {sessionId === 'all' ? 'All Sessions' : sessionId ? `${sessionId.slice(0, 8)}...` : 'None'}
         </span>
       </div>
       <form onSubmit={handleSubmit} className={styles.form}>
@@ -157,71 +114,9 @@ export default function UnrealLlmChat() {
         </div>
       )}
 
-      {response && (
-        <div className={styles.response}>
-          {response.error && (
-            <div className={styles.error}>
-              <h3>❌ Server Error</h3>
-              <p>{response.error}</p>
-              {response.fallback && (
-                <p><em>This is a fallback response - check if all services are running.</em></p>
-              )}
-            </div>
-          )}
-          
-          {response.explanation && (
-            <div className={styles.explanation}>
-              <h3>LLM Output</h3>
-              <p>{response.explanation}</p>
-            </div>
-          )}
-
-          {response.commands && response.commands.length > 0 && (
-            <div className={styles.commands}>
-              <h3>Generated Commands</h3>
-              {response.commands.map((cmd, index) => (
-                <div key={index} className={styles.command}>
-                  <strong>{cmd.type}</strong>
-                  <pre>{JSON.stringify(cmd.params, null, 2)}</pre>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {response.executionResults && response.executionResults.length > 0 && (
-            <div className={styles.results}>
-              <h3>Execution Results</h3>
-              {response.executionResults.map((result, index) => (
-                <div
-                  key={index}
-                  className={`${styles.result} ${
-                    result.success ? styles.success : styles.failure
-                  }`}
-                >
-                  <div className={styles.resultHeader}>
-                    <span className={styles.commandName}>{result.command}</span>
-                    <span className={styles.status}>
-                      {result.success ? '✅' : '❌'}
-                    </span>
-                  </div>
-                  {result.success ? (
-                    <pre className={styles.resultData}>
-                      {JSON.stringify(result.result, null, 2)}
-                    </pre>
-                  ) : (
-                    <p className={styles.errorMessage}>{result.error}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {response.expectedResult && (
-            <div className={styles.expected}>
-              <h3>🎯 Expected Result</h3>
-              <p>{response.expectedResult}</p>
-            </div>
-          )}
+      {loading && (
+        <div className={styles.loading}>
+          <p>Processing your request...</p>
         </div>
       )}
     </div>

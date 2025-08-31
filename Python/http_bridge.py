@@ -49,10 +49,28 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             path = parsed_url.path
             
             if path == '/sessions':
-                # Handle sessions list request
+                # Handle sessions list request with pagination support
                 try:
+                    # Parse query parameters for pagination
+                    query_params = parse_qs(parsed_url.query)
+                    limit = int(query_params.get('limit', [50])[0])  # Default 50
+                    offset = int(query_params.get('offset', [0])[0])  # Default 0
+                    
+                    # Validate pagination parameters
+                    if limit < 1 or limit > 100:
+                        self._send_error("Invalid limit. Must be between 1 and 100")
+                        return
+                    if offset < 0:
+                        self._send_error("Invalid offset. Must be 0 or greater")
+                        return
+                    
                     session_manager = get_session_manager()
-                    sessions = session_manager.list_sessions()
+                    
+                    # Get paginated sessions
+                    logger.info(f"Requesting sessions with limit={limit}, offset={offset}")
+                    sessions = session_manager.list_sessions(limit=limit, offset=offset)
+                    total_count = session_manager.get_session_count()
+                    logger.info(f"Retrieved {len(sessions)} sessions out of {total_count} total")
                     
                     # Convert sessions to JSON-serializable format
                     sessions_data = []
@@ -71,7 +89,17 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             'interaction_count': interaction_count
                         })
                     
-                    response = {'sessions': sessions_data}
+                    # Build response with pagination metadata
+                    response = {
+                        'sessions': sessions_data,
+                        'pagination': {
+                            'limit': limit,
+                            'offset': offset,
+                            'total': total_count,
+                            'returned': len(sessions_data),
+                            'has_more': offset + len(sessions_data) < total_count
+                        }
+                    }
                     response_json = json.dumps(response)
                     self.wfile.write(response_json.encode('utf-8'))
                     return
@@ -79,6 +107,30 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 except Exception as e:
                     logger.error(f"Error listing sessions: {e}")
                     self._send_error(f"Error listing sessions: {e}")
+                    return
+            
+            elif path == '/session-ids':
+                # Handle session IDs list request (just the IDs, ordered by last_accessed)
+                try:
+                    session_manager = get_session_manager()
+                    sessions = session_manager.list_sessions()
+                    
+                    # Sort sessions by last_accessed date (most recent first)
+                    sessions_sorted = sorted(sessions, 
+                                           key=lambda s: s.last_accessed if s.last_accessed else s.created_at, 
+                                           reverse=True)
+                    
+                    # Extract just the session IDs in sorted order
+                    session_ids = [session.session_id for session in sessions_sorted]
+                    
+                    response = {'session_ids': session_ids}
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error listing session IDs: {e}")
+                    self._send_error(f"Error listing session IDs: {e}")
                     return
             
             # Handle other GET requests (404)
@@ -346,13 +398,17 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         self._send_error("Missing 'prompt' field")
                         return
                     
-                    # Extract or generate session ID
-                    session_id = extract_session_id_from_request(request_data)
-                    if not session_id:
-                        session_id = generate_session_id()
-                        logger.info(f"Generated new session ID: {session_id}")
+                    # Extract session ID from request - preserve if provided
+                    session_id = request_data.get('session_id')
+                    logger.info(f"Session ID from request: {session_id}")
+                    
+                    if session_id:
+                        # Use the provided session ID (don't validate format strictly)
+                        logger.info(f"Using provided session ID: {session_id}")
                     else:
-                        logger.debug(f"Using existing session ID: {session_id}")
+                        # Only generate new session ID if none was provided
+                        session_id = generate_session_id()
+                        logger.info(f"No session ID provided, generated new one: {session_id}")
                     
                     # Process natural language with session context
                     logger.info(f"Calling NLP function with input: {user_input[:50]}...")

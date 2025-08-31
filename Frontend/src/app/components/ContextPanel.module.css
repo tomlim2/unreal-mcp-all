@@ -1,0 +1,38 @@
+.contextPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-y: auto;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.globalError {
+  background-color: #fee;
+  border: 1px solid #fcc;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #c33;
+  font-size: 14px;
+}
+
+.globalError button {
+  background: none;
+  border: none;
+  color: #c33;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 0;
+  margin-left: 12px;
+}
+
+.globalError button:hover {
+  background-color: #fcc;
+  border-radius: 3px;
+  padding: 2px 6px;
+}

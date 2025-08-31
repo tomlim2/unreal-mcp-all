@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSessionStore } from '../store/sessionStore';
+import { ApiService, Session, SessionContext } from '../services';
 import MessageItem from './MessageItem';
 import styles from './ContextHistory.module.css';
 
@@ -21,53 +22,11 @@ interface ChatMessage {
   }>;
 }
 
-interface Actor {
-  name: string;
-  type: string;
-  location: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
+interface ContextHistoryProps {
+  apiService: ApiService;
 }
 
-interface Light {
-  name: string;
-  light_type: string;
-  intensity: number;
-  color?: { r: number; g: number; b: number };
-}
-
-interface SessionContext {
-  session_id: string;
-  session_name?: string;
-  conversation_history: ChatMessage[];
-  scene_state: {
-    actors: Actor[];
-    lights: Light[];
-    sky_settings: Record<string, unknown>;
-    cesium_location?: { latitude: number; longitude: number };
-    last_commands: unknown[];
-    last_updated: string;
-  };
-  user_preferences: Record<string, unknown>;
-  metadata: Record<string, unknown>;
-}
-
-interface ContextResponse {
-  context?: SessionContext;
-  error?: string;
-}
-
-interface AllSessionsResponse {
-  sessions: Array<{
-    session_id: string;
-    session_name?: string;
-    created_at: string;
-    last_accessed: string;
-    interaction_count?: number;
-  }>;
-  error?: string;
-}
-
-export default function ContextHistory() {
+export default function ContextHistory({ apiService }: ContextHistoryProps) {
   const [context, setContext] = useState<SessionContext | null>(null);
   const [allSessions, setAllSessions] = useState<SessionContext[]>([]);
   const [loading, setLoading] = useState(false);
@@ -127,18 +86,7 @@ export default function ContextHistory() {
     setAllSessions([]);
 
     try {
-      const response = await fetch(`/api/sessions/${id}/context`);
-      const data: ContextResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch context: ${response.status}`);
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      const sessionContext = data.context || null;
+      const sessionContext = await apiService.fetchSessionContext(id);
       
       // Cache the result
       if (sessionContext) {
@@ -169,18 +117,7 @@ export default function ContextHistory() {
 
     try {
       // First get list of sessions
-      const sessionsResponse = await fetch('/api/sessions');
-      const sessionsData: AllSessionsResponse = await sessionsResponse.json();
-
-      if (!sessionsResponse.ok) {
-        throw new Error(`Failed to fetch sessions: ${sessionsResponse.status}`);
-      }
-
-      if (sessionsData.error) {
-        throw new Error(sessionsData.error);
-      }
-
-      const sessions = sessionsData.sessions || [];
+      const sessions = await apiService.fetchSessions();
       const validContexts: SessionContext[] = [];
 
       // Use cached individual sessions where possible, fetch missing ones
@@ -193,13 +130,12 @@ export default function ContextHistory() {
         } else {
           // Fetch missing session context
           try {
-            const response = await fetch(`/api/sessions/${session.session_id}/context`);
-            const data: ContextResponse = await response.json();
+            const sessionContext = await apiService.fetchSessionContext(session.session_id);
             
-            if (data.context) {
+            if (sessionContext) {
               // Cache the newly fetched context
-              contextCache.current.set(session.session_id, data.context);
-              validContexts.push(data.context);
+              contextCache.current.set(session.session_id, sessionContext);
+              validContexts.push(sessionContext);
             }
           } catch {
             // If individual session fails, skip it

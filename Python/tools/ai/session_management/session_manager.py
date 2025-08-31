@@ -273,6 +273,10 @@ class SessionManager:
         session = self.get_session(session_id)
         if session is None:
             session = self.create_session(session_id)
+            # If create_session failed because session already exists,
+            # try to get it again (race condition protection)
+            if session is None:
+                session = self.get_session(session_id)
         
         return session
     

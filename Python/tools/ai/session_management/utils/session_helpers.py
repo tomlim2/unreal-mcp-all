@@ -23,6 +23,10 @@ def validate_session_id(session_id: str) -> bool:
         uuid.UUID(session_id)
         return True
     except (ValueError, TypeError):
+        # Also accept session IDs that are at least 8 characters long
+        # to handle legacy or shortened session IDs
+        if isinstance(session_id, str) and len(session_id) >= 8:
+            return True
         return False
 
 

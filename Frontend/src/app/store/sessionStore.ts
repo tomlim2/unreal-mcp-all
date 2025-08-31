@@ -5,7 +5,6 @@ interface SessionState {
   sessionId: string | null;
   setSessionId: (sessionId: string | 'all') => void;
   clearSession: () => void;
-  generateNewSession: () => string;
   isAllSessions: () => boolean;
 }
 
@@ -20,12 +19,6 @@ export const useSessionStore = create<SessionState>()(
       
       clearSession: () => {
         set({ sessionId: null });
-      },
-      
-      generateNewSession: () => {
-        const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        set({ sessionId: newSessionId });
-        return newSessionId;
       },
       
       isAllSessions: () => {

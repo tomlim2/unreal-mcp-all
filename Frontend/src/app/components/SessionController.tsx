@@ -2,22 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useSessionStore } from "../store/sessionStore";
+import { ApiService, Session } from "../services";
 import styles from "./SessionController.module.css";
 
-interface Session {
-  session_id: string;
-  session_name?: string;
-  created_at: string;
-  last_accessed: string;
-  interaction_count?: number;
+interface SessionControllerProps {
+  apiService: ApiService;
 }
 
-interface SessionsResponse {
-  sessions: Session[];
-  error?: string;
-}
-
-export default function SessionController() {
+export default function SessionController({ apiService }: SessionControllerProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,14 +27,9 @@ export default function SessionController() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/sessions");
-      const data: SessionsResponse = await response.json();
-
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setSessions(data.sessions || []);
-      }
+      const sessions = await apiService.fetchSessions();
+      setSessions(sessions);
+      console.log('SessionController loaded sessions:', sessions.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch sessions");
     } finally {
@@ -65,26 +52,7 @@ export default function SessionController() {
     setError(null);
 
     try {
-      // Create session via API - server will generate unique ID
-      const response = await fetch("/api/sessions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          session_name: sessionName.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create session: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      const result = await apiService.createSession(sessionName);
 
       // Clear input and refresh sessions
       setSessionName("");
@@ -114,20 +82,7 @@ export default function SessionController() {
     setError(null);
 
     try {
-      // Delete session via API
-      const response = await fetch(`/api/sessions/${sessionIdToDelete}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete session: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      await apiService.deleteSession(sessionIdToDelete);
 
       // If the deleted session was currently selected, switch to "All Sessions"
       if (sessionId === sessionIdToDelete) {
@@ -231,7 +186,7 @@ export default function SessionController() {
 
         {/* Individual sessions */}
         {sessions.length === 0 ? (
-          <div className={styles.noSessions}>No sessions found</div>
+          <div className={styles.noSessions}>No sessions found (total: {sessions.length})</div>
         ) : (
           sessions.map((session) => (
             <div

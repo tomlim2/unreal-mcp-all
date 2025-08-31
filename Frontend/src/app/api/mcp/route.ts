@@ -6,10 +6,21 @@ const MCP_HTTP_BRIDGE_URL = `http://127.0.0.1:${MCP_HTTP_BRIDGE_PORT}`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, context } = await request.json();
+    const { prompt, context, session_id } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    }
+
+    // Prepare request body for Python MCP server
+    const requestBody: Record<string, any> = {
+      prompt,
+      context: context || 'User is working with Unreal Engine project'
+    };
+
+    // Include session_id if provided
+    if (session_id) {
+      requestBody.session_id = session_id;
     }
 
     // Forward request to Python MCP server with natural language processing
@@ -19,10 +30,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        prompt,
-        context: context || 'User is working with Unreal Engine project'
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
