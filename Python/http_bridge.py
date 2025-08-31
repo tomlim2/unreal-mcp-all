@@ -31,9 +31,199 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         """Handle CORS preflight requests"""
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
+    
+    def do_GET(self):
+        """Handle GET requests"""
+        try:
+            # Handle CORS
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            
+            # Parse URL path
+            parsed_url = urlparse(self.path)
+            path = parsed_url.path
+            
+            if path == '/sessions':
+                # Handle sessions list request
+                try:
+                    session_manager = get_session_manager()
+                    sessions = session_manager.list_sessions()
+                    
+                    # Convert sessions to JSON-serializable format
+                    sessions_data = []
+                    for session in sessions:
+                        # Calculate interaction count (each interaction = 1 user + 1 assistant message)
+                        # Count user messages as interactions since each user message triggers an assistant response
+                        interaction_count = 0
+                        if session.conversation_history:
+                            interaction_count = len([msg for msg in session.conversation_history if msg.role == 'user'])
+                        
+                        sessions_data.append({
+                            'session_id': session.session_id,
+                            'session_name': session.session_name,
+                            'created_at': session.created_at.isoformat() if session.created_at else None,
+                            'last_accessed': session.last_accessed.isoformat() if session.last_accessed else None,
+                            'interaction_count': interaction_count
+                        })
+                    
+                    response = {'sessions': sessions_data}
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error listing sessions: {e}")
+                    self._send_error(f"Error listing sessions: {e}")
+                    return
+            
+            # Handle other GET requests (404)
+            self.send_response(404)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self._send_error(f"Endpoint not found: {path}")
+            
+        except Exception as e:
+            logger.error(f"Error handling GET request: {e}")
+            self._send_error(f"Server error: {e}")
+    
+    def do_PUT(self):
+        """Handle PUT requests"""
+        try:
+            # Handle CORS
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            
+            # Parse URL path
+            parsed_url = urlparse(self.path)
+            path = parsed_url.path
+            
+            if path.startswith('/sessions/') and path.endswith('/name'):
+                # Handle update session name request
+                # Extract session_id from path: /sessions/{session_id}/name
+                path_parts = path.split('/')
+                if len(path_parts) == 4 and path_parts[1] == 'sessions' and path_parts[3] == 'name':
+                    session_id = path_parts[2]
+                    
+                    # Parse request body
+                    content_length = int(self.headers.get('Content-Length', 0))
+                    put_data = self.rfile.read(content_length)
+                    
+                    if not put_data:
+                        self._send_error("No request data")
+                        return
+                        
+                    try:
+                        request_data = json.loads(put_data.decode('utf-8'))
+                        session_name = request_data.get('session_name')
+                        
+                        if not session_name:
+                            self._send_error("Missing 'session_name' field")
+                            return
+                        
+                        # Update session name
+                        session_manager = get_session_manager()
+                        storage = session_manager._get_storage()
+                        
+                        if not storage:
+                            self._send_error("Storage backend not available")
+                            return
+                        
+                        success = storage.update_session_name(session_id, session_name)
+                        
+                        if success:
+                            response = {'success': True, 'session_id': session_id, 'session_name': session_name}
+                        else:
+                            response = {'success': False, 'error': 'Failed to update session name'}
+                        
+                        response_json = json.dumps(response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+                        
+                    except json.JSONDecodeError as e:
+                        self._send_error(f"Invalid JSON: {e}")
+                        return
+                    except Exception as e:
+                        logger.error(f"Error updating session name: {e}")
+                        self._send_error(f"Error updating session name: {e}")
+                        return
+            
+            # Handle other PUT requests (404)
+            self.send_response(404)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self._send_error(f"Endpoint not found: {path}")
+            
+        except Exception as e:
+            logger.error(f"Error handling PUT request: {e}")
+            self._send_error(f"Server error: {e}")
+    
+    def do_DELETE(self):
+        """Handle DELETE requests"""
+        try:
+            # Handle CORS
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            
+            # Parse request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            delete_data = self.rfile.read(content_length)
+            
+            if not delete_data:
+                self._send_error("No request data")
+                return
+                
+            try:
+                request_data = json.loads(delete_data.decode('utf-8'))
+                session_id = request_data.get('session_id')
+                action = request_data.get('action')
+                
+                if not session_id or action != 'delete_session':
+                    self._send_error("Missing 'session_id' or invalid 'action' field")
+                    return
+                
+                # Delete session
+                session_manager = get_session_manager()
+                success = session_manager.delete_session(session_id)
+                
+                if success:
+                    response = {
+                        'success': True,
+                        'session_id': session_id,
+                        'message': 'Session deleted successfully'
+                    }
+                    logger.info(f"Deleted session: {session_id}")
+                else:
+                    response = {
+                        'success': False,
+                        'error': 'Failed to delete session'
+                    }
+                
+                response_json = json.dumps(response)
+                self.wfile.write(response_json.encode('utf-8'))
+                return
+                
+            except json.JSONDecodeError as e:
+                self._send_error(f"Invalid JSON: {e}")
+                return
+            except Exception as e:
+                logger.error(f"Error deleting session: {e}")
+                self._send_error(f"Error deleting session: {e}")
+                return
+            
+        except Exception as e:
+            logger.error(f"Error handling DELETE request: {e}")
+            self._send_error(f"Server error: {e}")
     
     def do_POST(self):
         """Handle POST requests"""
@@ -58,6 +248,88 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             except json.JSONDecodeError as e:
                 self._send_error(f"Invalid JSON: {e}")
                 return
+            
+            # Check if this is a session context request
+            if 'session_id' in request_data and request_data.get('action') == 'get_context':
+                # Handle session context fetch
+                logger.info("Processing session context request")
+                try:
+                    session_id = request_data.get('session_id')
+                    
+                    if not session_id:
+                        self._send_error("Missing 'session_id' field")
+                        return
+                    
+                    # Get session context
+                    session_manager = get_session_manager()
+                    session_context = session_manager.get_session(session_id)
+                    
+                    if not session_context:
+                        self._send_error("Session not found")
+                        return
+                    
+                    # Return the full session context
+                    response = {
+                        'success': True,
+                        'context': session_context.to_dict()
+                    }
+                    logger.info(f"Retrieved context for session: {session_id}")
+                    
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error retrieving session context: {e}")
+                    self._send_error(f"Context retrieval error: {e}")
+                    return
+            
+            # Check if this is a session creation request (handle before other checks)
+            if 'session_name' in request_data and 'prompt' not in request_data:
+                # Handle session creation
+                logger.info("Processing session creation request")
+                try:
+                    session_name = request_data.get('session_name')
+                    
+                    if not session_name:
+                        self._send_error("Missing 'session_name' field")
+                        return
+                    
+                    # Create new session with server-generated ID
+                    session_manager = get_session_manager()
+                    # Let session_manager generate the ID (pass None)
+                    session_context = session_manager.create_session(None)
+                    
+                    if not session_context:
+                        self._send_error("Failed to create session")
+                        return
+                    
+                    # Set the session name
+                    session_context.session_name = session_name
+                    success = session_manager.update_session(session_context)
+                    
+                    if success:
+                        response = {
+                            'success': True,
+                            'session_id': session_context.session_id,
+                            'session_name': session_name,
+                            'created_at': session_context.created_at.isoformat(),
+                        }
+                        logger.info(f"Created session {session_context.session_id} with name '{session_name}'")
+                    else:
+                        response = {
+                            'success': False,
+                            'error': 'Failed to update session with name'
+                        }
+                    
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error creating session: {e}")
+                    self._send_error(f"Session creation error: {e}")
+                    return
             
             # Check if this is a natural language request
             if 'prompt' in request_data:

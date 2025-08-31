@@ -13,7 +13,7 @@ from ..session_context import SessionContext
 
 # Configure logging
 logger = logging.getLogger("SessionManager.Supabase")
-datatable_user_sessions_name = "user_sessions"
+datatable_user_sessions_name = "chat_context"
 
 try:
     from supabase import create_client, Client
@@ -57,6 +57,7 @@ class SupabaseStorage(BaseStorage):
         try:
             data = {
                 'session_id': session_context.session_id,
+                'session_name': getattr(session_context, 'session_name', None),
                 'context': json.dumps(session_context.to_dict()),
                 'created_at': session_context.created_at.isoformat(),
                 'last_accessed': session_context.last_accessed.isoformat()
@@ -87,6 +88,10 @@ class SupabaseStorage(BaseStorage):
                 session_data = result.data[0]
                 context_dict = json.loads(session_data['context'])
                 
+                # Add session_name to context if available
+                if session_data.get('session_name'):
+                    context_dict['session_name'] = session_data['session_name']
+                
                 # Update last_accessed timestamp
                 self.supabase.table(datatable_user_sessions_name)\
                     .update({'last_accessed': datetime.now().isoformat()})\
@@ -111,6 +116,7 @@ class SupabaseStorage(BaseStorage):
             
             data = {
                 'context': json.dumps(session_context.to_dict()),
+                'session_name': getattr(session_context, 'session_name', None),
                 'last_accessed': session_context.last_accessed.isoformat()
             }
             
@@ -159,6 +165,11 @@ class SupabaseStorage(BaseStorage):
             for session_data in result.data:
                 try:
                     context_dict = json.loads(session_data['context'])
+                    
+                    # Add session_name to context if available
+                    if session_data.get('session_name'):
+                        context_dict['session_name'] = session_data['session_name']
+                    
                     sessions.append(SessionContext.from_dict(context_dict))
                 except Exception as e:
                     logger.warning(f"Failed to parse session {session_data.get('session_id', 'unknown')}: {e}")
@@ -169,6 +180,25 @@ class SupabaseStorage(BaseStorage):
         except Exception as e:
             logger.error(f"Error listing sessions: {e}")
             return []
+    
+    def update_session_name(self, session_id: str, session_name: str) -> bool:
+        """Update just the session name for a specific session."""
+        try:
+            result = self.supabase.table(datatable_user_sessions_name)\
+                .update({'session_name': session_name})\
+                .eq('session_id', session_id)\
+                .execute()
+            
+            if result.data:
+                logger.debug(f"Updated session name for {session_id}")
+                return True
+            else:
+                logger.error(f"Failed to update session name for {session_id}: No data returned")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating session name for {session_id}: {e}")
+            return False
     
     def cleanup_expired_sessions(self, max_age: timedelta = timedelta(days=30)) -> int:
         """Remove sessions older than max_age."""

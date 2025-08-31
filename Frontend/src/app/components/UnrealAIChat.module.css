@@ -5,7 +5,7 @@
 }
 
 .title {
-  color: #fcfcfc;
+  color: #ffffff;
   font-size: 2rem;
   font-weight: 700;
   text-align: left;
@@ -15,7 +15,7 @@
 
 .subtitle {
   text-align: left;
-  color: #fcfcfc;
+  color: #ffffff;
   margin-bottom: 1rem;
   font-size: 1.1rem;
 }
@@ -24,8 +24,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #2a2a2a;
-  border: 1px solid #444;
+  background: #333333;
+  border: 1px solid #666666;
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 2rem;
@@ -33,38 +33,36 @@
 }
 
 .sessionLabel {
-  color: #fcfcfc;
+  color: #ffffff;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
 .clearSessionButton {
-  background: #e74c3c;
-  color: white;
+  background: #666666;
+  color: #ffffff;
   border: none;
   border-radius: 6px;
   padding: 0.4rem 0.8rem;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .clearSessionButton:hover {
-  background: #c0392b;
-  transform: translateY(-1px);
+  background: #333333;
 }
 
 .examples {
   margin-bottom: 2rem;
   padding: 1.5rem;
-  background: #f8f9fa;
+  background: #cccccc;
   border-radius: 12px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #666666;
 }
 
 .examples h3 {
   margin-bottom: 1rem;
-  color: #495057;
+  color: #000000;
   font-size: 1rem;
 }
 
@@ -76,20 +74,18 @@
 
 .exampleButton {
   padding: 0.5rem 1rem;
-  background: #fff;
-  border: 1px solid #dee2e6;
+  background: #ffffff;
+  border: 1px solid #666666;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
-  color: #495057;
+  color: #000000;
   text-align: left;
-  transition: all 0.2s ease;
 }
 
 .exampleButton:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
-  transform: translateY(-1px);
+  background: #cccccc;
+  border-color: #333333;
 }
 
 .form {
@@ -105,35 +101,32 @@
 .textarea {
   flex: 1;
   padding: 1rem;
-  border: 2px solid #e9ecef;
+  border: 2px solid #cccccc;
   border-radius: 8px;
   font-size: 1rem;
   font-family: inherit;
   resize: vertical;
-  transition: border-color 0.2s ease;
 }
 
 .textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #666666;
 }
 
 .submitButton {
   padding: 1rem 2rem;
-  background: #fcfcfc;
-  color: #525252;
+  background: #ffffff;
+  color: #000000;
   border: none;
   border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   min-width: 140px;
 }
 
 .submitButton:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 102, 102, 0.4);
 }
 
 .submitButton:disabled {
@@ -142,24 +135,24 @@
 }
 
 .error {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: #cccccc;
+  border: 1px solid #666666;
+  color: #000000;
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
 }
 
 .response {
-  background: #fff;
-  border: 1px solid #e9ecef;
+  background: #ffffff;
+  border: 1px solid #cccccc;
   border-radius: 12px;
   overflow: hidden;
 }
 
 .response > div {
   padding: 1.5rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #cccccc;
 }
 
 .response > div:last-child {
@@ -167,31 +160,31 @@
 }
 
 .explanation {
-  background: #f8f9fa;
-  color: #525252;
+  background: #cccccc;
+  color: #000000;
 }
 
 .explanation h3 {
   margin-bottom: 0.5rem;
-  color: #495057;
+  color: #000000;
 }
 
 .commands {
-  background: #fff3cd;
+  background: #cccccc;
 }
 
 .commands h3 {
   margin-bottom: 1rem;
-  color: #856404;
+  color: #000000;
 }
 
 .command {
-  background: #fff;
-  color: #525252;
+  background: #ffffff;
+  color: #000000;
   padding: 1rem;
   border-radius: 6px;
   margin-bottom: 0.5rem;
-  border: 1px solid #ffeaa7;
+  border: 1px solid #cccccc;
 }
 
 .command:last-child {
@@ -201,11 +194,11 @@
 .command strong {
   display: block;
   margin-bottom: 0.5rem;
-  color: #856404;
+  color: #000000;
 }
 
 .command pre {
-  background: #f8f9fa;
+  background: #cccccc;
   padding: 0.5rem;
   border-radius: 4px;
   font-size: 0.9rem;
@@ -215,15 +208,15 @@
 
 .results h3 {
   margin-bottom: 1rem;
-  color: #495057;
+  color: #000000;
 }
 
 .result {
-  background: #fff;
+  background: #ffffff;
   border-radius: 6px;
   margin-bottom: 1rem;
   overflow: hidden;
-  border: 1px solid #dee2e6;
+  border: 1px solid #cccccc;
 }
 
 .result:last-child {
@@ -231,11 +224,11 @@
 }
 
 .success {
-  border-left: 4px solid #28a745;
+  border-left: 4px solid #333333;
 }
 
 .failure {
-  border-left: 4px solid #dc3545;
+  border-left: 4px solid #666666;
 }
 
 .resultHeader {
@@ -243,13 +236,13 @@
   justify-content: space-between;
   align-items: left;
   padding: 0.75rem 1rem;
-  background: #f8f9fa;
-  border-bottom: 1px solid #dee2e6;
+  background: #cccccc;
+  border-bottom: 1px solid #cccccc;
 }
 
 .commandName {
   font-weight: 600;
-  color: #495057;
+  color: #000000;
 }
 
 .status {
@@ -259,8 +252,8 @@
 .resultData {
   padding: 1rem;
   margin: 0;
-  background: #f8f9fa;
-  color: #525252;
+  background: #cccccc;
+  color: #000000;
   font-size: 0.9rem;
   overflow-x: auto;
 }
@@ -268,21 +261,21 @@
 .errorMessage {
   padding: 1rem;
   margin: 0;
-  color: #dc3545;
+  color: #000000;
 }
 
 .expected {
-  background: #d1ecf1;
+  background: #cccccc;
 }
 
 .expected h3 {
   margin-bottom: 0.5rem;
-  color: #0c5460;
+  color: #000000;
 }
 
 .expected p {
   margin: 0;
-  color: #0c5460;
+  color: #000000;
 }
 
 @media (max-width: 768px) {

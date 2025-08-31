@@ -5,10 +5,10 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ===============================================
--- MAIN SESSIONS TABLE
+-- MAIN CHAT CONTEXT TABLE
 -- ===============================================
 
-CREATE TABLE IF NOT EXISTS user_sessions (
+CREATE TABLE IF NOT EXISTS chat_context (
     -- Primary key
     id SERIAL PRIMARY KEY,
     
@@ -38,43 +38,43 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 -- ===============================================
 
 -- Primary lookup index
-CREATE INDEX IF NOT EXISTS idx_sessions_session_id 
-ON user_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_context_session_id 
+ON chat_context(session_id);
+
+-- Session name index for searching
+CREATE INDEX IF NOT EXISTS idx_chat_context_session_name 
+ON chat_context(session_name);
 
 -- Cleanup and maintenance indexes
-CREATE INDEX IF NOT EXISTS idx_sessions_last_accessed 
-ON user_sessions(last_accessed);
+CREATE INDEX IF NOT EXISTS idx_chat_context_last_accessed 
+ON chat_context(last_accessed);
 
-CREATE INDEX IF NOT EXISTS idx_sessions_created_at 
-ON user_sessions(created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_context_created_at 
+ON chat_context(created_at);
 
 -- User-based queries (if using user_id)
-CREATE INDEX IF NOT EXISTS idx_sessions_user_id 
-ON user_sessions(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_chat_context_user_id 
+ON chat_context(user_id) WHERE user_id IS NOT NULL;
 
 -- Session type filtering
-CREATE INDEX IF NOT EXISTS idx_sessions_type 
-ON user_sessions(session_type);
+CREATE INDEX IF NOT EXISTS idx_chat_context_type 
+ON chat_context(session_type);
 
 -- ===============================================
 -- JSONB INDEXES FOR CONTEXT QUERIES
 -- ===============================================
 
 -- Index for conversation history queries
-CREATE INDEX IF NOT EXISTS idx_sessions_conversation_history 
-ON user_sessions USING GIN ((context->'conversation_history'));
+CREATE INDEX IF NOT EXISTS idx_chat_context_conversation_history 
+ON chat_context USING GIN ((context->'conversation_history'));
 
 -- Index for scene state queries
-CREATE INDEX IF NOT EXISTS idx_sessions_scene_state 
-ON user_sessions USING GIN ((context->'scene_state'));
-
--- Index for searching within interactions
-CREATE INDEX IF NOT EXISTS idx_sessions_interactions 
-ON user_sessions USING GIN ((context->'conversation_history'));
+CREATE INDEX IF NOT EXISTS idx_chat_context_scene_state 
+ON chat_context USING GIN ((context->'scene_state'));
 
 -- Index for user preferences
-CREATE INDEX IF NOT EXISTS idx_sessions_user_preferences 
-ON user_sessions USING GIN ((context->'user_preferences'));
+CREATE INDEX IF NOT EXISTS idx_chat_context_user_preferences 
+ON chat_context USING GIN ((context->'user_preferences'));
 
 -- ===============================================
 -- HELPER FUNCTIONS
@@ -91,7 +91,7 @@ $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-update last_accessed on any update
 CREATE TRIGGER trigger_update_last_accessed
-    BEFORE UPDATE ON user_sessions
+    BEFORE UPDATE ON chat_context
     FOR EACH ROW
     EXECUTE FUNCTION update_last_accessed();
 
@@ -123,7 +123,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add validation constraint to table
-ALTER TABLE user_sessions 
+ALTER TABLE chat_context 
 ADD CONSTRAINT valid_session_context 
 CHECK (validate_session_context(context));
 
@@ -143,7 +143,7 @@ BEGIN
     cutoff_date := NOW() - (max_age_days || ' days')::INTERVAL;
     
     -- Delete expired sessions
-    DELETE FROM user_sessions 
+    DELETE FROM chat_context 
     WHERE last_accessed < cutoff_date;
     
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
@@ -169,12 +169,12 @@ BEGIN
         FROM (
             SELECT id, user_id,
                    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY last_accessed DESC) as rn
-            FROM user_sessions
+            FROM chat_context
             WHERE user_id IS NOT NULL
         ) ranked
         WHERE rn > max_sessions_per_user
     )
-    DELETE FROM user_sessions 
+    DELETE FROM chat_context 
     WHERE id IN (SELECT id FROM sessions_to_delete);
     
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
@@ -198,7 +198,7 @@ SELECT
     MIN(created_at) as oldest_session,
     MAX(last_accessed) as most_recent_activity,
     AVG(jsonb_array_length(context->'conversation_history')) as avg_conversation_length
-FROM user_sessions;
+FROM chat_context;
 
 -- View for recent activity
 CREATE OR REPLACE VIEW recent_sessions AS
@@ -211,7 +211,7 @@ SELECT
     created_at,
     last_accessed,
     EXTRACT(EPOCH FROM (last_accessed - created_at))/60 as duration_minutes
-FROM user_sessions
+FROM chat_context
 WHERE last_accessed > NOW() - INTERVAL '24 hours'
 ORDER BY last_accessed DESC;
 
@@ -227,7 +227,7 @@ SELECT
         context, 
         '$.conversation_history[*].execution_results[*] ? (@.success == true)'
     ) as successful_commands
-FROM user_sessions
+FROM chat_context
 WHERE context @@ '$.conversation_history[*].execution_results[*].success ? (@ == true)';
 */
 
@@ -236,7 +236,7 @@ WHERE context @@ '$.conversation_history[*].execution_results[*].success ? (@ ==
 SELECT 
     session_id,
     context->'scene_state'->'actors' as scene_actors
-FROM user_sessions
+FROM chat_context
 WHERE context->'scene_state'->'actors' @> '[{"actor_class": "PointLight"}]';
 */
 
@@ -248,7 +248,7 @@ SELECT
         context,
         '$.conversation_history[*].execution_results[*] ? (@.success == false)'
     ) as failed_commands
-FROM user_sessions
+FROM chat_context
 WHERE context @@ '$.conversation_history[*].execution_results[*].success ? (@ == false)';
 */
 
@@ -257,14 +257,14 @@ WHERE context @@ '$.conversation_history[*].execution_results[*].success ? (@ ==
 -- ===============================================
 
 -- Enable RLS
-ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_context ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can only access their own sessions
-CREATE POLICY user_sessions_policy ON user_sessions
+CREATE POLICY chat_context_policy ON chat_context
     FOR ALL USING (auth.uid()::TEXT = user_id);
 
 -- Policy: Service role can access all sessions (for cleanup, etc.)
-CREATE POLICY service_role_sessions_policy ON user_sessions
+CREATE POLICY service_role_chat_context_policy ON chat_context
     FOR ALL USING (auth.role() = 'service_role');
 
 -- ===============================================
@@ -292,7 +292,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER validate_context_before_write
-    BEFORE INSERT OR UPDATE ON user_sessions
+    BEFORE INSERT OR UPDATE ON chat_context
     FOR EACH ROW
     EXECUTE FUNCTION validate_context_trigger();
 
@@ -302,7 +302,7 @@ CREATE TRIGGER validate_context_before_write
 
 -- Insert sample session (uncomment to use)
 /*
-INSERT INTO user_sessions (session_id, context, user_id, session_type) VALUES (
+INSERT INTO chat_context (session_id, context, user_id, session_type) VALUES (
     'sample_session_001',
     '{
         "session_id": "sample_session_001",
@@ -349,7 +349,7 @@ BEGIN
     SELECT cleanup_sessions_by_count(50) INTO oversized_count;
     
     -- Analyze table for performance
-    ANALYZE user_sessions;
+    ANALYZE chat_context;
     
     result_text := format(
         'Maintenance completed: %s expired sessions deleted, %s excess sessions deleted',
@@ -365,15 +365,16 @@ $$ LANGUAGE plpgsql;
 -- COMMENTS FOR DOCUMENTATION
 -- ===============================================
 
-COMMENT ON TABLE user_sessions IS 'Stores complete session contexts for Unreal MCP conversations including chat history and scene state';
-COMMENT ON COLUMN user_sessions.session_id IS 'Unique session identifier, URL-safe string';
-COMMENT ON COLUMN user_sessions.context IS 'Complete session data as JSON including conversation_history, scene_state, preferences';
-COMMENT ON COLUMN user_sessions.last_accessed IS 'Automatically updated timestamp for cleanup purposes';
+COMMENT ON TABLE chat_context IS 'Stores complete chat session contexts for Unreal MCP conversations including chat history and scene state';
+COMMENT ON COLUMN chat_context.session_id IS 'Unique session identifier, URL-safe string';
+COMMENT ON COLUMN chat_context.session_name IS 'Human-readable name for the chat session';
+COMMENT ON COLUMN chat_context.context IS 'Complete session data as JSON including conversation_history, scene_state, preferences';
+COMMENT ON COLUMN chat_context.last_accessed IS 'Automatically updated timestamp for cleanup purposes';
 
 -- ===============================================
 -- GRANTS (adjust based on your security model)
 -- ===============================================
 
 -- Grant necessary permissions to application user
--- GRANT SELECT, INSERT, UPDATE, DELETE ON user_sessions TO your_app_user;
--- GRANT USAGE ON SEQUENCE user_sessions_id_seq TO your_app_user;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON chat_context TO your_app_user;
+-- GRANT USAGE ON SEQUENCE chat_context_id_seq TO your_app_user;

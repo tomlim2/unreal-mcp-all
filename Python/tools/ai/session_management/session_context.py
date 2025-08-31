@@ -151,6 +151,7 @@ class SessionContext:
     scene_state: SceneState = field(default_factory=SceneState)
     user_preferences: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    session_name: Optional[str] = None
     
     def add_message(self, role: str, content: str, commands: List[Dict[str, Any]] = None, 
                    execution_results: List[Dict[str, Any]] = None):
@@ -245,7 +246,8 @@ class SessionContext:
             'conversation_history': [msg.to_dict() for msg in self.conversation_history],
             'scene_state': self.scene_state.to_dict(),
             'user_preferences': self.user_preferences,
-            'metadata': self.metadata
+            'metadata': self.metadata,
+            'session_name': self.session_name
         }
     
     @classmethod
@@ -258,5 +260,6 @@ class SessionContext:
             conversation_history=[ChatMessage.from_dict(msg) for msg in data.get('conversation_history', [])],
             scene_state=SceneState.from_dict(data.get('scene_state', {})),
             user_preferences=data.get('user_preferences', {}),
-            metadata=data.get('metadata', {})
+            metadata=data.get('metadata', {}),
+            session_name=data.get('session_name')
         )
