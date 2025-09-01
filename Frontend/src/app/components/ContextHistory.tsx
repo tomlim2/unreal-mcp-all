@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { ApiService, Session, SessionContext } from '../services';
 import MessageItem from './MessageItem';
@@ -26,7 +26,11 @@ interface ContextHistoryProps {
   apiService: ApiService;
 }
 
-export default function ContextHistory({ apiService }: ContextHistoryProps) {
+export interface ContextHistoryRef {
+  refreshContext: () => void;
+}
+
+const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ apiService }, ref) => {
   const [context, setContext] = useState<SessionContext | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +48,16 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
   const invalidateAllCache = () => {
     contextCache.current.clear();
   };
+
+  // Expose refresh function to parent component
+  useImperativeHandle(ref, () => ({
+    refreshContext: () => {
+      if (sessionId) {
+        invalidateSessionCache(sessionId);
+        fetchSessionContext(sessionId);
+      }
+    }
+  }), [sessionId]);
 
   useEffect(() => {
     if (sessionId) {
@@ -185,4 +199,8 @@ export default function ContextHistory({ apiService }: ContextHistoryProps) {
       </div> */}
     </div>
   );
-}
+});
+
+ContextHistory.displayName = 'ContextHistory';
+
+export default ContextHistory;

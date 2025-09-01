@@ -92,6 +92,7 @@ class SessionManager:
         now = datetime.now()
         session_context = SessionContext(
             session_id=session_id,
+            session_name="New Session",
             created_at=now,
             last_accessed=now
         )

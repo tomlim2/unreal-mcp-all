@@ -14,12 +14,10 @@
 
 .sessionItem.active {
   background-color: #cccccc;
-  border-left: 4px solid #333333;
 }
 
 .sessionId {
   font-family: 'Inter', monospace;
-  font-weight: bold;
   color: #333333;
   margin-bottom: 4px;
 }

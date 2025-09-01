@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import styles from './ContextHistory.module.css';
+import styles from './MessageItem.module.css';
 
 interface ChatMessage {
   timestamp: string;
@@ -31,9 +31,23 @@ export default function MessageItem({ message, sessionName, index, sessionId }: 
   const [showAssistant, setShowAssistant] = useState(false);
 
   const isAssistant = message.role === 'assistant';
+  
+  // Determine success/failure status for assistant messages
+  const getAssistantStatus = () => {
+    if (!message.execution_results || message.execution_results.length === 0) {
+      return { status: 'failure', text: 'Failed' };
+    }
+    
+    const hasFailures = message.execution_results.some(result => !result.success);
+    return hasFailures 
+      ? { status: 'failure', text: 'Failed' }
+      : { status: 'success', text: 'Success' };
+  };
 
-  // If it's an assistant message and toggle is off, show only the header with toggle button
+  // If it's an assistant message and toggle is off, show only the header with status and toggle button
   if (isAssistant && !showAssistant) {
+    const { status, text } = getAssistantStatus();
+    
     return (
       <div key={keyPrefix} className={`${styles.message} ${styles[message.role]}`}>
         <div className={styles.messageHeader}>
@@ -41,15 +55,15 @@ export default function MessageItem({ message, sessionName, index, sessionId }: 
           {sessionName && (
             <span className={styles.sessionName}>{sessionName}</span>
           )}
-          <span className={styles.timestamp}>
-            {new Date(message.timestamp).toLocaleString()}
+          <span className={`${styles.status} ${styles[status]}`}>
+            {status === 'success' ? '✅' : '❌'} {text}
           </span>
           <button
             onClick={() => setShowAssistant(!showAssistant)}
             className={styles.toggleButton}
-            title="Show assistant message"
+            title="Show assistant message details"
           >
-            ⬆
+            ⬇
           </button>
         </div>
       </div>
@@ -63,17 +77,19 @@ export default function MessageItem({ message, sessionName, index, sessionId }: 
         {sessionName && (
           <span className={styles.sessionName}>{sessionName}</span>
         )}
-        <span className={styles.timestamp}>
-          {new Date(message.timestamp).toLocaleString()}
-        </span>
-        {isAssistant && (
-          <button
-            onClick={() => setShowAssistant(!showAssistant)}
-            className={styles.toggleButton}
-            title="Hide assistant message"
-          >
-            ⬇
-          </button>
+{isAssistant && (
+          <>
+            <span className={`${styles.status} ${styles[getAssistantStatus().status]}`}>
+              {getAssistantStatus().status === 'success' ? '✅' : '❌'} {getAssistantStatus().text}
+            </span>
+            <button
+              onClick={() => setShowAssistant(!showAssistant)}
+              className={styles.toggleButton}
+              title="Hide assistant message"
+            >
+              ⬆
+            </button>
+          </>
         )}
       </div>
       <div className={styles.content}>{message.content}</div>

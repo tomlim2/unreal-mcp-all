@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, RefObject } from 'react';
 import styles from './UnrealAIChat.module.css';
 import { useSessionStore } from '../store/sessionStore';
 import { ApiService } from '../services';
+import { ContextHistoryRef } from './ContextHistory';
 
 interface UnrealLlmChatProps {
   apiService: ApiService;
+  contextHistoryRef: RefObject<ContextHistoryRef>;
 }
 
-export default function UnrealLlmChat({ apiService }: UnrealLlmChatProps) {
+export default function UnrealLlmChat({ apiService, contextHistoryRef }: UnrealLlmChatProps) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +33,11 @@ export default function UnrealLlmChat({ apiService }: UnrealLlmChatProps) {
       );
       
       console.log('AI Response:', data);
+      
+      // Refresh context history after successful execution
+      if (contextHistoryRef.current) {
+        contextHistoryRef.current.refreshContext();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
