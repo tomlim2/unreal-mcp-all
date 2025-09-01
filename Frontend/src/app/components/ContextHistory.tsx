@@ -156,6 +156,7 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ api
             {context.conversation_history
               .slice()
               .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+              .slice(-2) // Show only the last 1 message
               .map((message, index) => (
                 <MessageItem
                   key={index}
@@ -167,36 +168,6 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ api
           </div>
         )}
       </div>
-
-      {/* <div className={styles.section}>
-        <h4>Scene State</h4>
-        <div className={styles.sceneState}>
-          {context.scene_state.lights.length > 0 && (
-            <div className={styles.sceneItem}>
-              <strong>Lights ({context.scene_state.lights.length}):</strong>
-              {context.scene_state.lights.map((light, index) => (
-                <div key={index} className={styles.lightItem}>
-                  {light.name} - {light.light_type} (Intensity: {light.intensity})
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {context.scene_state.cesium_location && (
-            <div className={styles.sceneItem}>
-              <strong>Location:</strong> Lat: {context.scene_state.cesium_location.latitude}, 
-              Lng: {context.scene_state.cesium_location.longitude}
-            </div>
-          )}
-          
-          {Object.keys(context.scene_state.sky_settings).length > 0 && (
-            <div className={styles.sceneItem}>
-              <strong>Sky Settings:</strong>
-              <pre>{JSON.stringify(context.scene_state.sky_settings, null, 2)}</pre>
-            </div>
-          )}
-        </div>
-      </div> */}
     </div>
   );
 });
