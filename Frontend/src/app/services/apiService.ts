@@ -5,6 +5,11 @@ interface SessionsResponse {
   error?: string;
 }
 
+interface SessionIdsResponse {
+  session_ids: string[];
+  error?: string;
+}
+
 export function createApiService(
   sessionId: string | null,
   setSessionId: (sessionId: string | null) => void,
@@ -23,6 +28,38 @@ export function createApiService(
         return data.sessions || [];
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch sessions");
+        throw err;
+      }
+    },
+
+    fetchSessionIds: async (): Promise<string[]> => {
+      try {
+        const response = await fetch("/api/session-ids");
+        const data: SessionIdsResponse = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        return data.session_ids || [];
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch session IDs");
+        throw err;
+      }
+    },
+
+    fetchSessionDetails: async (sessionId: string): Promise<Session> => {
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}`);
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        return data;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch session details");
         throw err;
       }
     },

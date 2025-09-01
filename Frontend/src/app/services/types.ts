@@ -71,6 +71,8 @@ export interface SessionContext {
 export interface ApiService {
   // Session management
   fetchSessions: () => Promise<Session[]>;
+  fetchSessionIds: () => Promise<string[]>;
+  fetchSessionDetails: (sessionId: string) => Promise<Session>;
   createSession: (sessionName: string) => Promise<{ session_id: string; session_name: string }>;
   deleteSession: (sessionId: string) => Promise<void>;
   

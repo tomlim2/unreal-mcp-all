@@ -12,13 +12,30 @@ interface SessionControllerProps {
 }
 
 export default function SessionController({ apiService, onSessionsLoaded }: SessionControllerProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionIds, setSessionIds] = useState<string[]>([]);
+  const [sessionDetails, setSessionDetails] = useState<Map<string, Session>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionName, setSessionName] = useState("");
   const [creating, setCreating] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const { sessionId, setSessionId } = useSessionStore();
+
+  // Computed sessions array from IDs and details
+  const sessions: Session[] = sessionIds.map(id => {
+    const details = sessionDetails.get(id);
+    if (details) {
+      return details;
+    }
+    // Return minimal session if details not loaded yet
+    return {
+      session_id: id,
+      session_name: undefined,
+      created_at: '',
+      last_accessed: '',
+      interaction_count: 0
+    };
+  });
 
   useEffect(() => {
     fetchSessions(true); // Initial load with loading state
@@ -32,14 +49,19 @@ export default function SessionController({ apiService, onSessionsLoaded }: Sess
       }
       setError(null);
 
-      const sessions = await apiService.fetchSessions();
-      setSessions(sessions);
-      console.log('SessionController loaded sessions:', sessions.length);
+      // Phase 1: Get session IDs quickly
+      const ids = await apiService.fetchSessionIds();
+      setSessionIds(ids);
+      console.log('SessionController loaded session IDs:', ids.length);
       
-      // Notify parent that sessions are loaded
+      // Notify parent that sessions are loaded (IDs available)
       if (onSessionsLoaded) {
         onSessionsLoaded(true);
       }
+      
+      // Phase 2: Load details for visible/important sessions in background
+      await loadSessionDetails(ids.slice(0, 10)); // Load first 10 sessions
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch sessions");
       if (onSessionsLoaded) {
@@ -50,6 +72,33 @@ export default function SessionController({ apiService, onSessionsLoaded }: Sess
         setLoading(false);
       }
     }
+  };
+
+  const loadSessionDetails = async (idsToLoad: string[]) => {
+    const detailsMap = new Map(sessionDetails);
+    
+    // Load details for sessions we don't have yet
+    const promises = idsToLoad
+      .filter(id => !detailsMap.has(id))
+      .map(async (id) => {
+        try {
+          const details = await apiService.fetchSessionDetails(id);
+          return { id, details };
+        } catch (err) {
+          console.warn(`Failed to load details for session ${id}:`, err);
+          return null;
+        }
+      });
+    
+    const results = await Promise.all(promises);
+    
+    results.forEach(result => {
+      if (result) {
+        detailsMap.set(result.id, result.details);
+      }
+    });
+    
+    setSessionDetails(detailsMap);
   };
 
   const addSessions = async () => {
@@ -113,8 +162,13 @@ export default function SessionController({ apiService, onSessionsLoaded }: Sess
     }
   };
 
-  const handleSessionSelect = (selectedSessionId: string) => {
+  const handleSessionSelect = async (selectedSessionId: string) => {
     setSessionId(selectedSessionId);
+    
+    // Load details for selected session if not already loaded
+    if (!sessionDetails.has(selectedSessionId)) {
+      await loadSessionDetails([selectedSessionId]);
+    }
   };
 
 

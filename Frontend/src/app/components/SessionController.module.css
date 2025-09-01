@@ -13,6 +13,7 @@
   text-align: center;
   padding: 40px;
   color: #666666;
+  font-size: 0.75rem;
 }
 
 .error {
@@ -21,6 +22,7 @@
   padding: 16px;
   color: #000000;
   text-align: center;
+  font-size: 0.75rem;
 }
 
 .retryButton {
