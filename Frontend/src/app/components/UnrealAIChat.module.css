@@ -8,7 +8,7 @@
 
 .title {
   color: #ffffff;
-  font-size: 2rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-align: left;
   margin-bottom: 0.5rem;
@@ -19,7 +19,7 @@
   text-align: left;
   color: #ffffff;
   margin-bottom: 1rem;
-  font-size: 1.1rem;
+  font-size: 0.75rem;
 }
 
 .sessionStatus {
@@ -29,7 +29,7 @@
   background: #333333;
   border: 1px solid #666666;
   padding: 0.75rem 1rem;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .sessionLabel {
@@ -43,14 +43,13 @@
   right: .1rem;
   padding: 1.5rem;
   background: #cccccc;
-  border-radius: 12px;
-  border: 1px solid #666666;
+  border: none;
 }
 
 .examples h3 {
   margin-bottom: 1rem;
   color: #000000;
-  font-size: 1rem;
+  font-size: 0.75rem;
 }
 
 .exampleButtons {
@@ -64,7 +63,7 @@
   border: none;
   padding: 0.25rem 0;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   color: #666666;
   text-align: left;
   text-decoration: underline;
@@ -77,8 +76,6 @@
   text-decoration-color: #666666;
 }
 
-.form {
-}
 
 .inputGroup {
   display: flex;
@@ -89,8 +86,9 @@
 .textarea {
   flex: 1;
   padding: 1rem;
-  border: 2px solid #cccccc;
-  font-size: 1rem;
+  border: none;
+  background: #f5f5f5;
+  font-size: 0.75rem;
   font-family: inherit;
   resize: vertical;
 }
@@ -101,10 +99,10 @@
 
 .submitButton {
   padding: 1rem 2rem;
-  background: #ffffff;
-  color: #000000;
+  background: #000000;
+  color: #ffffff;
   border: none;
-  font-size: 1rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   min-width: 140px;
@@ -121,10 +119,9 @@
 
 .error {
   background: #cccccc;
-  border: 1px solid #666666;
+  border: none;
   color: #000000;
   padding: 1rem;
-  border-radius: 8px;
   margin-bottom: 1rem;
 }
 
@@ -132,7 +129,7 @@
   text-align: center;
   padding: 2rem;
   background: #cccccc;
-  border: 1px solid #666666;
+  border: none;
   margin-bottom: 1rem;
   color: #000000;
   font-style: italic;

@@ -24,13 +24,14 @@ interface ChatMessage {
 
 interface ContextHistoryProps {
   apiService: ApiService;
+  sessionsLoaded?: boolean;
 }
 
 export interface ContextHistoryRef {
   refreshContext: () => void;
 }
 
-const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ apiService }, ref) => {
+const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ apiService, sessionsLoaded = true }, ref) => {
   const [context, setContext] = useState<SessionContext | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,19 +55,20 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ api
     refreshContext: () => {
       if (sessionId) {
         invalidateSessionCache(sessionId);
-        fetchSessionContext(sessionId);
+        fetchSessionContext(sessionId, true); // Force refresh but avoid loading blink
       }
     }
   }), [sessionId]);
 
   useEffect(() => {
-    if (sessionId) {
+    // Only fetch context if sessions are loaded and sessionId exists
+    if (sessionsLoaded && sessionId) {
       fetchSessionContext(sessionId);
     } else {
       setContext(null);
       setError(null);
     }
-  }, [sessionId]);
+  }, [sessionId, sessionsLoaded]);
 
   // Auto-scroll to bottom when context changes
   useEffect(() => {
@@ -75,16 +77,21 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ api
     }
   }, [context]);
 
-  const fetchSessionContext = async (id: string) => {
-    // Check cache first
-    const cachedContext = contextCache.current.get(id);
-    if (cachedContext) {
-      setContext(cachedContext);
-      setError(null);
-      return; // No loading state for cached data
+  const fetchSessionContext = async (id: string, forceRefresh = false) => {
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cachedContext = contextCache.current.get(id);
+      if (cachedContext) {
+        setContext(cachedContext);
+        setError(null);
+        return; // No loading state for cached data
+      }
     }
 
-    setLoading(true);
+    // Only show loading state if there's no existing context (prevents blinking)
+    if (!context || context.session_id !== id) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -104,6 +111,14 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ api
     }
   };
 
+
+  if (!sessionsLoaded) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>Loading sessions...</div>
+      </div>
+    );
+  }
 
   if (!sessionId) {
     return (

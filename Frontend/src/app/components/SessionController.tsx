@@ -8,9 +8,10 @@ import styles from "./SessionController.module.css";
 
 interface SessionControllerProps {
   apiService: ApiService;
+  onSessionsLoaded?: (loaded: boolean) => void;
 }
 
-export default function SessionController({ apiService }: SessionControllerProps) {
+export default function SessionController({ apiService, onSessionsLoaded }: SessionControllerProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,21 +21,34 @@ export default function SessionController({ apiService }: SessionControllerProps
   const { sessionId, setSessionId } = useSessionStore();
 
   useEffect(() => {
-    fetchSessions();
+    fetchSessions(true); // Initial load with loading state
   }, []);
 
-  const fetchSessions = async () => {
+  const fetchSessions = async (isInitialLoad = false) => {
     try {
-      setLoading(true);
+      // Only show loading state on initial load to prevent blinking
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       setError(null);
 
       const sessions = await apiService.fetchSessions();
       setSessions(sessions);
       console.log('SessionController loaded sessions:', sessions.length);
+      
+      // Notify parent that sessions are loaded
+      if (onSessionsLoaded) {
+        onSessionsLoaded(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch sessions");
+      if (onSessionsLoaded) {
+        onSessionsLoaded(false);
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
 
@@ -55,9 +69,9 @@ export default function SessionController({ apiService }: SessionControllerProps
     try {
       const result = await apiService.createSession(sessionName);
 
-      // Clear input and refresh sessions
+      // Clear input and refresh sessions without loading state
       setSessionName("");
-      await fetchSessions();
+      await fetchSessions(false); // No loading state to prevent blinking
 
       // Set the newly created session as active using server-generated ID
       if (result.session_id) {
@@ -90,7 +104,7 @@ export default function SessionController({ apiService }: SessionControllerProps
         setSessionId(null);
       }
       
-      await fetchSessions();
+      await fetchSessions(false); // No loading state to prevent blinking
       
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete session");
@@ -117,7 +131,7 @@ export default function SessionController({ apiService }: SessionControllerProps
       <div className={styles.container}>
         <div className={styles.error}>
           Error: {error}
-          <button onClick={fetchSessions} className={styles.retryButton}>
+          <button onClick={() => fetchSessions(false)} className={styles.retryButton}>
             Retry
           </button>
         </div>
@@ -128,7 +142,7 @@ export default function SessionController({ apiService }: SessionControllerProps
   return (
     <div className={styles.container}>
       <div className={styles.sessionControls}>
-        <button onClick={fetchSessions} className={styles.refreshButton}>
+        <button onClick={() => fetchSessions(false)} className={styles.refreshButton}>
           Refresh Sessions
         </button>
 

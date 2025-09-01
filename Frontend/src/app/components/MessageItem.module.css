@@ -1,6 +1,6 @@
 .message {
   padding: 15px 20px;
-  margin: 0;
+  margin: 8px 0;
   max-width: 85%;
   word-wrap: break-word;
   border: none;
@@ -37,7 +37,7 @@
 }
 
 .sessionName {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #666666;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   background: #cccccc;
@@ -46,7 +46,7 @@
 }
 
 .role {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: bold;
   padding: 4px 8px;
   text-transform: uppercase;
@@ -69,7 +69,7 @@
 }
 
 .timestamp {
-  font-size: 11px;
+  font-size: 0.75rem;
   opacity: 0.7;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
@@ -90,10 +90,9 @@
   background: rgba(0, 0, 0, 0.1);
   color: inherit;
   border: none;
-  border-radius: 50%;
   width: 20px;
   height: 20px;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -109,10 +108,9 @@
 }
 
 .status {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   padding: 3px 8px;
-  border-radius: 12px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   display: flex;
   align-items: center;
@@ -120,15 +118,15 @@
 }
 
 .status.success {
-  background-color: rgba(51, 51, 51, 0.1);
+  background-color: #e0e0e0;
   color: #333333;
-  border: 1px solid rgba(51, 51, 51, 0.3);
+  border: none;
 }
 
 .status.failure {
-  background-color: rgba(102, 102, 102, 0.1);
+  background-color: #cccccc;
   color: #666666;
-  border: 1px solid rgba(102, 102, 102, 0.3);
+  border: none;
 }
 
 .message.user .toggleButton {
@@ -162,20 +160,20 @@
   margin-top: 16px;
   padding: 16px;
   background-color: #cccccc;
-  border: 1px solid #666666;
+  border: none;
 }
 
 .commands strong {
   display: block;
   margin-bottom: 8px;
   color: #000000;
-  font-size: 14px;
+  font-size: 0.75rem;
 }
 
 .command {
   margin: 8px 0;
   background: #ffffff;
-  border: 1px solid #cccccc;
+  border: none;
   overflow: hidden;
 }
 
@@ -184,9 +182,9 @@
   padding: 8px 12px;
   background-color: #cccccc;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 13px;
+  font-size: 0.75rem;
   color: #000000;
-  border-bottom: 1px solid #cccccc;
+  border: none;
   width: 100%;
   font-weight: 600;
 }
@@ -195,7 +193,7 @@
   margin: 0;
   padding: 12px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.4;
   color: #000000;
   background: #ffffff;
@@ -206,33 +204,33 @@
   margin-top: 16px;
   padding: 16px;
   background-color: #cccccc;
-  border: 1px solid #666666;
+  border: none;
 }
 
 .results strong {
   display: block;
   margin-bottom: 8px;
   color: #000000;
-  font-size: 14px;
+  font-size: 0.75rem;
 }
 
 .result {
   margin: 8px 0;
   overflow: hidden;
-  border: 1px solid #cccccc;
+  border: none;
 }
 
 .result.success {
-  border-color: #333333;
+  background: #f5f5f5;
 }
 
 .result.failure {
-  border-color: #666666;
+  background: #e0e0e0;
 }
 
 .resultHeader {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 600;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
@@ -240,20 +238,20 @@
 .result.success .resultHeader {
   background-color: #cccccc;
   color: #000000;
-  border-bottom: 1px solid #cccccc;
+  border: none;
 }
 
 .result.failure .resultHeader {
   background-color: #666666;
   color: #ffffff;
-  border-bottom: 1px solid #666666;
+  border: none;
 }
 
 .resultData {
   margin: 0;
   padding: 12px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.4;
   color: #000000;
   background: #ffffff;
@@ -265,5 +263,5 @@
   color: #000000;
   background: #ffffff;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
 }

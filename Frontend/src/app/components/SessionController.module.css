@@ -17,7 +17,7 @@
 
 .error {
   background-color: #cccccc;
-  border: 1px solid #666666;
+  border: none;
   padding: 16px;
   color: #000000;
   text-align: center;
@@ -30,7 +30,7 @@
   color: #ffffff;
   border: none;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .retryButton:hover {
@@ -39,7 +39,8 @@
 
 .sessionList {
   margin: 20px 0;
-  border: 1px solid #cccccc;
+  border: none;
+  background: #f5f5f5;
   max-height: 400px;
   overflow-y: auto;
 }
@@ -58,7 +59,7 @@
   color: #ffffff;
   border: none;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 0.75rem;
   width: 100%;
 }
 
@@ -81,16 +82,16 @@
 
 .sessionNameInput {
   padding: 12px;
-  border: 1px solid #cccccc;
-  font-size: 14px;
+  border: none;
+  background: #f5f5f5;
+  font-size: 0.75rem;
   resize: vertical;
   font-family: inherit;
 }
 
 .sessionNameInput:focus {
   outline: none;
-  border-color: #666666;
-  box-shadow: 0 0 0 2px rgba(102, 102, 102, 0.2);
+  background: #e0e0e0;
 }
 
 .sessionNameInput:disabled {
@@ -111,7 +112,7 @@
 }
 
 .charCount {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #666666;
   text-align: right;
 }
