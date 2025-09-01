@@ -70,14 +70,32 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         # Build system prompt with session context
         system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context)
         logger.info(f"Processing natural language input: {user_input}")
+        
+        # Build messages list including conversation history
+        messages = []
+        
+        # Add conversation history as proper messages
+        if session_context and session_context.conversation_history:
+            recent_messages = session_context.conversation_history[-4:]  # Last 4 messages (2 turns)
+            for msg in recent_messages:
+                if msg.role in ['user', 'assistant']:
+                    messages.append({
+                        "role": msg.role,
+                        "content": msg.content
+                    })
+        
+        # Add current user input as the final message
+        messages.append({
+            "role": "user", 
+            "content": f"{system_prompt}\n\nUser request: {user_input}"
+        })
+        
         # Get AI response
         response = client.messages.create(
             model='claude-3-haiku-20240307',
             max_tokens=1024,
             temperature=0.1,
-            messages=[
-                {"role": "user", "content": f"{system_prompt}\n\nUser request: {user_input}"}
-            ]
+            messages=messages
         )
         ai_response = response.content[0].text
         logger.info(f"AI response for '{user_input}': {ai_response}")
@@ -222,13 +240,8 @@ For random elements use timestamp+suffix for unique IDs:
 - Return ONLY valid JSON with literal numbers (no Math.random, no code)
 - Commands are processed by modular handler system for consistency"""
 
-    # Add session context if available
+    # Add session context if available (only scene state, not conversation history)
     if session_context:
-        # Add conversation history
-        conversation_summary = session_context.get_conversation_summary(max_messages=5)
-        if conversation_summary and conversation_summary != "No previous conversation history.":
-            base_prompt += f"\n\n## CONVERSATION HISTORY\n{conversation_summary}"
-        
         # Add scene state
         scene_summary = session_context.get_scene_summary()
         if scene_summary and scene_summary != "No scene state tracked yet.":
