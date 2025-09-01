@@ -1,133 +1,58 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSessionStore } from "../store/sessionStore";
-import { ApiService, Session } from "../services";
+import { useState } from "react";
+import { Session } from "../services";
 import SessionItem from "./SessionItem";
 import styles from "./SessionController.module.css";
 
 interface SessionControllerProps {
-  apiService: ApiService;
-  onSessionsLoaded?: (loaded: boolean) => void;
+  sessions: Session[];
+  loading: boolean;
+  error: string | null;
+  activeSessionId: string | null;
+  onSessionSelect: (sessionId: string) => void;
+  onSessionCreate: (sessionName: string) => Promise<{ session_id?: string }>;
+  onSessionDelete: (sessionId: string) => Promise<void>;
+  onRefresh: () => void;
 }
 
-export default function SessionController({ apiService, onSessionsLoaded }: SessionControllerProps) {
-  const [sessionIds, setSessionIds] = useState<string[]>([]);
-  const [sessionDetails, setSessionDetails] = useState<Map<string, Session>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function SessionController({ 
+  sessions, 
+  loading, 
+  error, 
+  activeSessionId, 
+  onSessionSelect, 
+  onSessionCreate, 
+  onSessionDelete, 
+  onRefresh 
+}: SessionControllerProps) {
   const [sessionName, setSessionName] = useState("");
   const [creating, setCreating] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const { sessionId, setSessionId } = useSessionStore();
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  // Computed sessions array from IDs and details
-  const sessions: Session[] = sessionIds.map(id => {
-    const details = sessionDetails.get(id);
-    if (details) {
-      return details;
-    }
-    // Return minimal session if details not loaded yet
-    return {
-      session_id: id,
-      session_name: undefined,
-      created_at: '',
-      last_accessed: '',
-      interaction_count: 0
-    };
-  });
-
-  useEffect(() => {
-    fetchSessions(true); // Initial load with loading state
-  }, []);
-
-  const fetchSessions = async (isInitialLoad = false) => {
-    try {
-      // Only show loading state on initial load to prevent blinking
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-      setError(null);
-
-      // Phase 1: Get session IDs quickly
-      const ids = await apiService.fetchSessionIds();
-      setSessionIds(ids);
-      console.log('SessionController loaded session IDs:', ids.length);
-      
-      // Notify parent that sessions are loaded (IDs available)
-      if (onSessionsLoaded) {
-        onSessionsLoaded(true);
-      }
-      
-      // Phase 2: Load details for visible/important sessions in background
-      await loadSessionDetails(ids.slice(0, 10)); // Load first 10 sessions
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch sessions");
-      if (onSessionsLoaded) {
-        onSessionsLoaded(false);
-      }
-    } finally {
-      if (isInitialLoad) {
-        setLoading(false);
-      }
-    }
-  };
-
-  const loadSessionDetails = async (idsToLoad: string[]) => {
-    const detailsMap = new Map(sessionDetails);
-    
-    // Load details for sessions we don't have yet
-    const promises = idsToLoad
-      .filter(id => !detailsMap.has(id))
-      .map(async (id) => {
-        try {
-          const details = await apiService.fetchSessionDetails(id);
-          return { id, details };
-        } catch (err) {
-          console.warn(`Failed to load details for session ${id}:`, err);
-          return null;
-        }
-      });
-    
-    const results = await Promise.all(promises);
-    
-    results.forEach(result => {
-      if (result) {
-        detailsMap.set(result.id, result.details);
-      }
-    });
-    
-    setSessionDetails(detailsMap);
-  };
+  // Display error from parent or local error
+  const displayError = error || localError;
 
   const addSessions = async () => {
     if (!sessionName.trim()) {
-      setError("Please enter a session name");
+      setLocalError("Please enter a session name");
       return;
     }
 
     if (sessionName.length > 50) {
-      setError("Session name must be 50 characters or less");
+      setLocalError("Session name must be 50 characters or less");
       return;
     }
 
     setCreating(true);
-    setError(null);
+    setLocalError(null);
 
     try {
-      const result = await apiService.createSession(sessionName);
-
-      // Clear input and refresh sessions without loading state
+      await onSessionCreate(sessionName);
       setSessionName("");
-      await fetchSessions(false); // No loading state to prevent blinking
-
-      // Set the newly created session as active using server-generated ID
-      if (result.session_id) {
-        setSessionId(result.session_id);
-      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create session");
+      setLocalError(err instanceof Error ? err.message : "Failed to create session");
     } finally {
       setCreating(false);
     }
@@ -143,31 +68,14 @@ export default function SessionController({ apiService, onSessionsLoaded }: Sess
     }
 
     setDeletingSessionId(sessionIdToDelete);
-    setError(null);
+    setLocalError(null);
 
     try {
-      await apiService.deleteSession(sessionIdToDelete);
-
-      // If the deleted session was currently selected, clear selection
-      if (sessionId === sessionIdToDelete) {
-        setSessionId(null);
-      }
-      
-      await fetchSessions(false); // No loading state to prevent blinking
-      
+      await onSessionDelete(sessionIdToDelete);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete session");
+      setLocalError(err instanceof Error ? err.message : "Failed to delete session");
     } finally {
       setDeletingSessionId(null);
-    }
-  };
-
-  const handleSessionSelect = async (selectedSessionId: string) => {
-    setSessionId(selectedSessionId);
-    
-    // Load details for selected session if not already loaded
-    if (!sessionDetails.has(selectedSessionId)) {
-      await loadSessionDetails([selectedSessionId]);
     }
   };
 
@@ -180,12 +88,15 @@ export default function SessionController({ apiService, onSessionsLoaded }: Sess
     );
   }
 
-  if (error) {
+  if (displayError) {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          Error: {error}
-          <button onClick={() => fetchSessions(false)} className={styles.retryButton}>
+          Error: {displayError}
+          <button onClick={() => {
+            setLocalError(null);
+            onRefresh();
+          }} className={styles.retryButton}>
             Retry
           </button>
         </div>
@@ -196,7 +107,7 @@ export default function SessionController({ apiService, onSessionsLoaded }: Sess
   return (
     <div className={styles.container}>
       <div className={styles.sessionControls}>
-        <button onClick={() => fetchSessions(false)} className={styles.refreshButton}>
+        <button onClick={onRefresh} className={styles.refreshButton}>
           Refresh Sessions
         </button>
 
@@ -234,8 +145,8 @@ export default function SessionController({ apiService, onSessionsLoaded }: Sess
             <SessionItem
               key={session.session_id}
               session={session}
-              isActive={sessionId === session.session_id}
-              onSelect={() => handleSessionSelect(session.session_id)}
+              isActive={activeSessionId === session.session_id}
+              onSelect={() => onSessionSelect(session.session_id)}
               onDelete={deleteSpecificSession}
               isDeleting={deletingSessionId === session.session_id}
             />

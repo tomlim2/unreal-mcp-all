@@ -1,51 +1,47 @@
 "use client";
 
-import { useState, RefObject } from "react";
+import { useState } from "react";
 import styles from "./UnrealAIChat.module.css";
-import { useSessionStore } from "../store/sessionStore";
-import { ApiService } from "../services";
-import { ContextHistoryRef } from "./ContextHistory";
 
 interface UnrealLlmChatProps {
-  apiService: ApiService;
-  contextHistoryRef: RefObject<ContextHistoryRef>;
+  loading: boolean;
+  error: string | null;
+  sessionId: string | null;
+  onSubmit: (prompt: string, context: string) => Promise<unknown>;
+  onRefreshContext: () => void;
 }
 
 export default function UnrealLlmChat({
-  apiService,
-  contextHistoryRef,
+  loading,
+  error,
+  sessionId,
+  onSubmit,
+  onRefreshContext,
 }: UnrealLlmChatProps) {
   const [prompt, setPrompt] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const { sessionId } = useSessionStore();
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
 
-    setLoading(true);
-    setError(null);
+    setSubmitting(true);
 
     try {
       console.log("Session ID:", sessionId);
-      const data = await apiService.sendMessage(
+      const data = await onSubmit(
         prompt,
         "User is working with Unreal Engine project with dynamic sky system"
       );
 
       console.log("AI Response:", data);
-
-      // Refresh context history after successful execution
-      if (contextHistoryRef.current) {
-        contextHistoryRef.current.refreshContext();
-      }
+      onRefreshContext();
+      setPrompt(""); // Clear the input after successful submission
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      // Error is handled by parent component
+      console.error('Submit failed:', err);
     } finally {
-      setLoading(false);
-      setPrompt(""); // Clear the input after submission
+      setSubmitting(false);
     }
   };
 
@@ -78,7 +74,7 @@ export default function UnrealLlmChat({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  if (!loading && prompt.trim()) {
+                  if (!loading && !submitting && prompt.trim()) {
                     const form = e.currentTarget.form;
                     if (form) {
                       form.requestSubmit();
@@ -92,10 +88,10 @@ export default function UnrealLlmChat({
             />
             <button
               type="submit"
-              disabled={loading || !prompt.trim()}
+              disabled={loading || submitting || !prompt.trim()}
               className={styles.submitButton}
             >
-              {loading ? "Processing..." : "Execute"}
+              {loading || submitting ? "Processing..." : "Execute"}
             </button>
           </div>
         </form>
@@ -121,7 +117,7 @@ export default function UnrealLlmChat({
         </div>
       )}
 
-      {loading && (
+      {(loading || submitting) && (
         <div className={styles.loading}>
           <p>Processing your request...</p>
         </div>
