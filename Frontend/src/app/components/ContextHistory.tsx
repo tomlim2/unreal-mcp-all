@@ -102,12 +102,13 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({
             {context.conversation_history
               .slice()
               .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-              .slice(-10) // Show only the last 1 message
-              .map((message, index) => (
+              .slice(-10) // Show only the last 10 messages
+              .map((message, index, sortedMessages) => (
                 <MessageItem
                   key={index}
                   message={message}
                   index={index}
+                  previousMessage={index > 0 ? sortedMessages[index - 1] : undefined}
                 />
               ))}
             <div ref={messagesEndRef} />

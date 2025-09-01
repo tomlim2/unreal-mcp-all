@@ -24,13 +24,20 @@ interface MessageItemProps {
   sessionName?: string;
   index: number;
   sessionId?: string;
+  previousMessage?: ChatMessage;
 }
 
-export default function MessageItem({ message, sessionName, index, sessionId }: MessageItemProps) {
+export default function MessageItem({ message, sessionName, index, sessionId, previousMessage }: MessageItemProps) {
   const keyPrefix = sessionId ? `${sessionId}-${index}` : index;
-  const [showAssistant, setShowAssistant] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const isAssistant = message.role === 'assistant';
+  const isUserWithAssistantResponse = previousMessage && previousMessage.role === 'user' && isAssistant;
+  
+  // Skip rendering user messages if the next message will combine them
+  if (message.role === 'user') {
+    return null;
+  }
   
   // Determine success/failure status for assistant messages
   const getAssistantStatus = () => {
@@ -44,55 +51,56 @@ export default function MessageItem({ message, sessionName, index, sessionId }: 
       : { status: 'success', text: 'Success' };
   };
 
-  // If it's an assistant message and toggle is off, show only the header with status and toggle button
-  if (isAssistant && !showAssistant) {
-    const { status, text } = getAssistantStatus();
+  // If it's an assistant message and toggle is off, show combined user+assistant header
+  if (isAssistant && !showDetails) {
+    const { status } = getAssistantStatus();
     
     return (
-      <div key={keyPrefix} className={`${styles.message} ${styles[message.role]}`}>
+      <div key={keyPrefix} className={`${styles.message} ${styles.combined}`}>
         <div className={styles.messageHeader}>
-          <span className={styles.role}>{message.role.toUpperCase()}</span>
           {sessionName && (
             <span className={styles.sessionName}>{sessionName}</span>
           )}
-          <span className={`${styles.status} ${styles[status]}`}>
-            {status === 'success' ? '✅' : '❌'} {text}
-          </span>
-          <button
-            onClick={() => setShowAssistant(!showAssistant)}
-            className={styles.toggleButton}
-            title="Show assistant message details"
-          >
-            ⬇
-          </button>
         </div>
+        {/* Show user trigger content as clickable button */}
+        {isUserWithAssistantResponse && previousMessage && (
+          <div 
+            className={`${styles.triggerContent} ${styles[status]}`}
+            onClick={() => setShowDetails(!showDetails)}
+            title="Show details"
+          >
+            {previousMessage.content}
+          </div>
+        )}
       </div>
     );
   }
 
+  const { status } = getAssistantStatus();
+  
   return (
-    <div key={keyPrefix} className={`${styles.message} ${styles[message.role]}`}>
+    <div key={keyPrefix} className={`${styles.message} ${styles.combined}`}>
       <div className={styles.messageHeader}>
-        <span className={styles.role}>{message.role.toUpperCase()}</span>
         {sessionName && (
           <span className={styles.sessionName}>{sessionName}</span>
         )}
-{isAssistant && (
-          <>
-            <span className={`${styles.status} ${styles[getAssistantStatus().status]}`}>
-              {getAssistantStatus().status === 'success' ? '✅' : '❌'} {getAssistantStatus().text}
-            </span>
-            <button
-              onClick={() => setShowAssistant(!showAssistant)}
-              className={styles.toggleButton}
-              title="Hide assistant message"
-            >
-              ⬆
-            </button>
-          </>
-        )}
       </div>
-      <div className={styles.content}>{message.content}</div>
+      
+      {/* Show user trigger content as clickable button */}
+      {isUserWithAssistantResponse && previousMessage && (
+        <div 
+          className={`${styles.triggerContent} ${styles[status]}`}
+          onClick={() => setShowDetails(!showDetails)}
+          title="Hide details"
+        >
+          {previousMessage.content}
+        </div>
+      )}
+      
+      {/* Show assistant response */}
+      <div className={styles.responseContent}>
+        {message.content}
+      </div>
       
       {message.commands && message.commands.length > 0 && (
         <div className={styles.commands}>
