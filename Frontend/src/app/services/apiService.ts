@@ -114,7 +114,7 @@ export function createApiService(
       }
     },
 
-    sendMessage: async (prompt: string, context?: string): Promise<AIResponse> => {
+    sendMessage: async (prompt: string, context?: string, model?: string): Promise<AIResponse> => {
       try {
         setError(null);
         
@@ -126,6 +126,11 @@ export function createApiService(
         // Include session ID if we have one
         if (sessionId) {
           requestBody.session_id = sessionId;
+        }
+
+        // Include model if provided
+        if (model) {
+          requestBody.model = model;
         }
         
         const response = await fetch('/api/mcp', {

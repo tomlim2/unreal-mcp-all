@@ -38,25 +38,11 @@ logger = logging.getLogger("UnrealMCP")
 # Import session management
 from .session_management import get_session_manager, SessionContext
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None) -> Dict[str, Any]:
+# Import model providers
+from .model_providers import get_model_provider, get_default_model, get_available_models
+
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, model: str = None) -> Dict[str, Any]:
     try:
-        if not ANTHROPIC_AVAILABLE:
-            return {
-                "error": "Anthropic SDK not installed. Run: pip install anthropic",
-                "explanation": "Natural language processing unavailable", 
-                "commands": [],
-                "executionResults": []
-            }
-        api_key = os.getenv('ANTHROPIC_API_KEY')
-        if not api_key or api_key == 'your-api-key-here':
-            return {
-                "error": "ANTHROPIC_API_KEY environment variable not set",
-                "explanation": "Please configure your Anthropic API key",
-                "commands": [],
-                "executionResults": []
-            }
-        # Initialize Anthropic client
-        client = anthropic.Anthropic(api_key=api_key)
         # Get session manager and session context if session_id provided
         session_manager = None
         session_context = None
@@ -67,9 +53,38 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         else:
             logger.info("No session ID provided, processing without session context")
         
+        # Determine which model to use
+        selected_model = model
+        if not selected_model and session_context:
+            # Use session's preferred model
+            selected_model = session_context.get_preferred_model()
+        if not selected_model:
+            # Fall back to default model
+            selected_model = get_default_model()
+        
+        logger.info(f"Using model: {selected_model}")
+        
+        # Get the model provider
+        provider = get_model_provider(selected_model)
+        if not provider:
+            # Try to fall back to any available model
+            available_models = get_available_models()
+            if available_models:
+                fallback_model = available_models[0]
+                provider = get_model_provider(fallback_model)
+                selected_model = fallback_model
+                logger.warning(f"Model {selected_model} not available, using {fallback_model}")
+            else:
+                return {
+                    "error": f"No AI models available. Configure ANTHROPIC_API_KEY or GOOGLE_API_KEY",
+                    "explanation": "Natural language processing unavailable",
+                    "commands": [],
+                    "executionResults": []
+                }
+        
         # Build system prompt with session context
         system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context)
-        logger.info(f"Processing natural language input: {user_input}")
+        logger.info(f"Processing natural language input with {provider.get_model_name()}: {user_input}")
         
         # Build messages list including conversation history
         messages = []
@@ -87,19 +102,18 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         # Add current user input as the final message
         messages.append({
             "role": "user", 
-            "content": f"{system_prompt}\n\nUser request: {user_input}"
+            "content": f"User request: {user_input}"
         })
         
-        # Get AI response
-        response = client.messages.create(
-            model='claude-3-haiku-20240307',
+        # Generate AI response using the selected provider
+        ai_response = provider.generate_response(
+            messages=messages,
+            system_prompt=system_prompt,
             max_tokens=1024,
-            temperature=0.1,
-            messages=messages
+            temperature=0.1
         )
-        ai_response = response.content[0].text
-        logger.info(f"AI response for '{user_input}': {ai_response}")
-        print(f"DEBUG: AI response for '{user_input}': {ai_response}")
+        logger.info(f"AI response from {provider.get_model_name()} for '{user_input}': {ai_response}")
+        print(f"DEBUG: AI response from {provider.get_model_name()} for '{user_input}': {ai_response}")
 
         # Parse AI response
         try:
@@ -147,8 +161,14 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             "executionResults": execution_results
         }
         
-        # Update session with this interaction if session_id provided
+        # Update session with this interaction and model preference if session_id provided
         if session_manager and session_context:
+            # Update preferred model if explicitly provided
+            if model and model != session_context.get_preferred_model():
+                session_context.set_preferred_model(model)
+                session_manager.save_session(session_context)
+                logger.info(f"Updated preferred model for session {session_id} to {model}")
+            
             session_manager.add_interaction(session_id, user_input, result)
             logger.debug(f"Updated session {session_id} with interaction")
         
@@ -167,10 +187,10 @@ def register_nlp_tools(mcp: FastMCP):
     pass
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, model: str = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id)
+        return _process_natural_language_impl(user_input, context, session_id, model)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {

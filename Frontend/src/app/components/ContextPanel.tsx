@@ -27,6 +27,10 @@ export default function ContextPanel() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   
+  // Model selection state
+  const [selectedModel, setSelectedModel] = useState<'gemini' | 'gemini-2' | 'claude'>('gemini-2');
+  const [availableModels] = useState<string[]>(['gemini', 'gemini-2', 'claude']);
+  
   const contextHistoryRef = useRef<ContextHistoryRef>(null);
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
 
@@ -65,6 +69,13 @@ export default function ContextPanel() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, sessionsLoaded]);
+
+  // Load preferred model from session context
+  useEffect(() => {
+    if (sessionContext && sessionContext.preferred_model) {
+      setSelectedModel(sessionContext.preferred_model as 'gemini' | 'gemini-2' | 'claude');
+    }
+  }, [sessionContext]);
 
   const fetchSessions = async (isInitialLoad = false) => {
     try {
@@ -181,12 +192,12 @@ export default function ContextPanel() {
     await fetchSessions(false);
   };
 
-  const handleChatSubmit = async (prompt: string, context: string) => {
+  const handleChatSubmit = async (prompt: string, context: string, model?: string) => {
     setChatLoading(true);
     setChatError(null);
 
     try {
-      const data = await apiService.sendMessage(prompt, context);
+      const data = await apiService.sendMessage(prompt, context, model);
       
       // Refresh context after successful execution
       if (sessionId) {
@@ -209,6 +220,11 @@ export default function ContextPanel() {
       contextCache.current.delete(sessionId);
       fetchSessionContext(sessionId, true);
     }
+  };
+
+  const handleModelChange = (model: 'gemini' | 'gemini-2' | 'claude') => {
+    setSelectedModel(model);
+    // The model preference will be saved when the next message is sent
   };
 
   return (
@@ -241,8 +257,11 @@ export default function ContextPanel() {
         loading={chatLoading}
         error={chatError}
         sessionId={sessionId}
+        selectedModel={selectedModel}
+        availableModels={availableModels}
         onSubmit={handleChatSubmit}
         onRefreshContext={refreshContext}
+        onModelChange={handleModelChange}
       />
     </div>
   );

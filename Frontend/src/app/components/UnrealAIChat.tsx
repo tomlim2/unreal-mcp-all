@@ -7,16 +7,22 @@ interface UnrealLlmChatProps {
   loading: boolean;
   error: string | null;
   sessionId: string | null;
-  onSubmit: (prompt: string, context: string) => Promise<unknown>;
+  selectedModel: 'gemini' | 'gemini-2' | 'claude';
+  availableModels: string[];
+  onSubmit: (prompt: string, context: string, model?: string) => Promise<unknown>;
   onRefreshContext: () => void;
+  onModelChange: (model: 'gemini' | 'gemini-2' | 'claude') => void;
 }
 
 export default function UnrealLlmChat({
   loading,
   error,
   sessionId,
+  selectedModel,
+  availableModels,
   onSubmit,
   onRefreshContext,
+  onModelChange,
 }: UnrealLlmChatProps) {
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,7 +37,8 @@ export default function UnrealLlmChat({
       console.log("Session ID:", sessionId);
       const data = await onSubmit(
         prompt,
-        "User is working with Unreal Engine project with dynamic sky system"
+        "User is working with Unreal Engine project with dynamic sky system",
+        selectedModel
       );
 
       console.log("AI Response:", data);
@@ -95,6 +102,28 @@ export default function UnrealLlmChat({
             </button>
           </div>
         </form>
+		<div className={styles.modelSwitcher}>
+        <label htmlFor="model-select" className={styles.modelLabel}>
+          AI Model:
+        </label>
+        <select
+          id="model-select"
+          value={selectedModel}
+          onChange={(e) => onModelChange(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
+          className={styles.modelSelect}
+          disabled={loading || submitting}
+        >
+          {availableModels.includes('gemini') && (
+            <option value="gemini">gemini-1.5-flash</option>
+          )}
+          {availableModels.includes('gemini-2') && (
+            <option value="gemini-2">gemini-2.5-flash</option>
+          )}
+          {availableModels.includes('claude') && (
+            <option value="claude">claude-3-haiku-20240307</option>
+          )}
+        </select>
+      </div>
       </div>
       <div className={styles.examples}>
         <h3>Examples:</h3>

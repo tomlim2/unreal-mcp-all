@@ -28,6 +28,7 @@ export interface AIResponse {
 export interface SessionContext {
   session_id: string;
   session_name?: string;
+  preferred_model?: string;
   conversation_history: Array<{
     timestamp: string;
     role: 'user' | 'assistant' | 'system';
@@ -77,7 +78,7 @@ export interface ApiService {
   deleteSession: (sessionId: string) => Promise<void>;
   
   // Chat functionality
-  sendMessage: (prompt: string, context?: string) => Promise<AIResponse>;
+  sendMessage: (prompt: string, context?: string, model?: string) => Promise<AIResponse>;
   
   // Context history
   fetchSessionContext: (sessionId: string) => Promise<SessionContext>;

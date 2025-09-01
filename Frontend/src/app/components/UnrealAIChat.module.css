@@ -37,6 +37,51 @@
   font-family: 'Inter', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
+.modelSwitcher {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #2a2a2a;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  width: 800px;
+  margin: 0 auto 1rem auto;
+}
+
+.modelLabel {
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.modelSelect {
+  background: #333333;
+  border: 1px solid #555555;
+  color: #ffffff;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.modelSelect:hover {
+  border-color: #666666;
+}
+
+.modelSelect:focus {
+  border-color: #007acc;
+}
+
+.modelSelect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .examples {
   position: fixed;
   bottom: 3.2rem;
