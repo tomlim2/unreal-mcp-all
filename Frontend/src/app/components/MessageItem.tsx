@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './MessageItem.module.css';
 
 interface ChatMessage {
@@ -30,6 +30,11 @@ interface MessageItemProps {
 export default function MessageItem({ message, sessionName, index, sessionId, previousMessage }: MessageItemProps) {
   const keyPrefix = sessionId ? `${sessionId}-${index}` : index;
   const [showDetails, setShowDetails] = useState(false);
+
+  // Reset showDetails when sessionId changes
+  useEffect(() => {
+    setShowDetails(false);
+  }, [sessionId]);
 
   const isAssistant = message.role === 'assistant';
   const isUserWithAssistantResponse = previousMessage && previousMessage.role === 'user' && isAssistant;

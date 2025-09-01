@@ -39,10 +39,10 @@
 
 .examples {
   position: fixed;
-  bottom: .1rem;
-  right: .1rem;
+  bottom: 3.2rem;
+  right: 3.2rem;
   padding: 1.5rem;
-  background: #cccccc;
+  background: #f0f0f0;
   border: none;
 }
 
@@ -79,8 +79,6 @@
 
 .inputGroup {
   display: flex;
-  gap: 1rem;
-  /* margin-top: 1rem; */
 }
 
 .textarea {
