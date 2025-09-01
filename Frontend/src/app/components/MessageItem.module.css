@@ -30,9 +30,7 @@
 
 .messageHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
   gap: 12px;
 }
 
@@ -140,6 +138,7 @@
 
 .content {
   line-height: 1.5;
+  margin-top: 12px;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
