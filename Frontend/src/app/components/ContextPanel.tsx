@@ -27,7 +27,6 @@ export default function ContextPanel() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);  
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
-  const modelLoadedSessions = useRef<Set<string>>(new Set());
 
   // Create API service with dependencies
   const apiService = createApiService(sessionId, setSessionId, setError);

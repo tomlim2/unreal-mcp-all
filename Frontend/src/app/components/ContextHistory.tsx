@@ -80,7 +80,6 @@ const ContextHistory = ({
             {context.conversation_history
               .slice()
               .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-              .slice(-10) // Show only the last 10 messages
               .map((message, index, sortedMessages) => (
                 <MessageItem
                   key={index}
