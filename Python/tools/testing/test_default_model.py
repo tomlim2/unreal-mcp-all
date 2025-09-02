@@ -19,7 +19,7 @@ def test_default_model():
             user_input="Set the time to noon",
             context="Testing default model",
             session_id=None,
-            model=None  # Use default
+            llm_model=None  # Use default
         )
         
         if result.get('error'):

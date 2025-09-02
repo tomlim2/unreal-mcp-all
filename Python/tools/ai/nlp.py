@@ -41,7 +41,7 @@ from .session_management import get_session_manager, SessionContext
 # Import model providers
 from .model_providers import get_model_provider, get_default_model, get_available_models
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, model: str = None) -> Dict[str, Any]:
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None) -> Dict[str, Any]:
     try:
         # Get session manager and session context if session_id provided
         session_manager = None
@@ -54,16 +54,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             logger.info("No session ID provided, processing without session context")
         
         # Determine which model to use
-        selected_model = model
-        if not selected_model and session_context:
-            # Use session's preferred model
-            selected_model = session_context.get_llm_model()
-        if not selected_model:
-            # Fall back to default model
-            selected_model = get_default_model()
-        
+        selected_model = llm_model
         logger.info(f"Using model: {selected_model}")
-        
         # Get the model provider
         provider = get_model_provider(selected_model)
         if not provider:
@@ -168,19 +160,19 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             logger.debug(f"Updated session {session_id} with interaction")
             
             # Then update preferred model if explicitly provided (after interaction is saved)
-            if model:
+            if llm_model:
                 current_model = session_context.get_llm_model()
-                logger.info(f"Current model: {current_model}, Requested model: {model}")
+                logger.info(f"Current model: {current_model}, Requested model: {llm_model}")
                 
-                if model != current_model:
+                if llm_model != current_model:
                     try:
                         # Get fresh session context after interaction was added
                         updated_session = session_manager.get_session(session_id)
                         if updated_session:
-                            logger.info(f"Updating model from {updated_session.get_llm_model()} to {model}")
-                            updated_session.set_llm_model(model)
+                            logger.info(f"Updating model from {updated_session.get_llm_model()} to {llm_model}")
+                            updated_session.set_llm_model(llm_model)
                             success = session_manager.update_session(updated_session)
-                            logger.info(f"Updated preferred model for session {session_id} to {model}, success: {success}")
+                            logger.info(f"Updated preferred model for session {session_id} to {llm_model}, success: {success}")
                             
                             # Verify the update
                             verification_session = session_manager.get_session(session_id)
@@ -191,7 +183,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     except Exception as save_error:
                         logger.error(f"Error saving model preference: {save_error}")
                 else:
-                    logger.info(f"Model already set to {model}, no update needed")
+                    logger.info(f"Model already set to {llm_model}, no update needed")
         
         return result
     except Exception as e:
@@ -208,10 +200,10 @@ def register_nlp_tools(mcp: FastMCP):
     pass
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, model: str = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id, model)
+        return _process_natural_language_impl(user_input, context, session_id, llm_model)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {

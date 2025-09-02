@@ -42,7 +42,7 @@ def test_model_switching():
                     user_input=test_input,
                     context=test_context,
                     session_id=None,  # No session for testing
-                    model=model_name
+                    llm_model=model_name
                 )
                 
                 # Check result
@@ -67,7 +67,7 @@ def test_model_switching():
                 user_input=test_input,
                 context=test_context,
                 session_id=None,
-                model=None  # Use default
+                llm_model=None  # Use default
             )
             
             if result.get('error'):

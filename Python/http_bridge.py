@@ -365,6 +365,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             'success': True,
                             'session_id': session_context.session_id,
                             'session_name': session_name,
+                            'llm_model': session_context.llm_model,
                             'created_at': session_context.created_at.isoformat(),
                         }
                         logger.info(f"Created session {session_context.session_id} with name '{session_name}'")
@@ -393,7 +394,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     
                     user_input = request_data.get('prompt', '')
                     context = request_data.get('context', 'User is working with Unreal Engine project')
-                    model = request_data.get('model')  # Optional model parameter
+                    llm_model = request_data.get('llm_model')  # Optional model parameter
                     
                     if not user_input:
                         self._send_error("Missing 'prompt' field")
@@ -402,7 +403,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Extract session ID from request - preserve if provided
                     session_id = request_data.get('session_id')
                     logger.info(f"Session ID from request: {session_id}")
-                    logger.info(f"Model from request: {model}")
+                    logger.info(f"Model from request: {llm_model}")
                     
                     if session_id:
                         # Use the provided session ID (don't validate format strictly)
@@ -413,8 +414,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         logger.info(f"No session ID provided, generated new one: {session_id}")
                     
                     # Process natural language with session context and model preference
-                    logger.info(f"Calling NLP function with input: {user_input[:50]}... using model: {model or 'default'}")
-                    result = process_natural_language(user_input, context, session_id, model)
+                    logger.info(f"Calling NLP function with input: {user_input[:50]}... using model: {llm_model or 'default'}")
+                    result = process_natural_language(user_input, context, session_id, llm_model)
                     logger.info(f"NLP response: {result}")
                     
                     # Include session_id in response for frontend

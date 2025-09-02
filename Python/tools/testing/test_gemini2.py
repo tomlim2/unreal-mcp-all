@@ -19,7 +19,7 @@ def test_gemini2():
             user_input="Create a bright red light",
             context="Testing new model",
             session_id=None,
-            model="gemini-2"
+            llm_model="gemini-2"
         )
         
         if result.get('error'):

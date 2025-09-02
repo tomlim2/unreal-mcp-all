@@ -120,7 +120,9 @@ export function createApiService(
         
         const requestBody: Record<string, unknown> = {
           prompt,
-          context: context || 'User is working with Unreal Engine project with dynamic sky system'
+          context: context || 'User is working with Unreal Engine project with dynamic sky system',
+          llm_model: model,
+          session_id: sessionId
         };
         
         // Include session ID if we have one
@@ -146,13 +148,10 @@ export function createApiService(
         }
 
         const data: AIResponse = await response.json();
-        
-        // Only update session ID if we got a successful response with a session_id
-        // and we don't have a specific session selected
+
         if (data.session_id && !data.error && !sessionId) {
           setSessionId(data.session_id);
         }
-        
         return data;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'An error occurred';
