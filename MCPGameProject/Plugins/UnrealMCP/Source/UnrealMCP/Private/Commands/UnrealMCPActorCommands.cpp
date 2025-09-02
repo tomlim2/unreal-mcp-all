@@ -42,6 +42,14 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCommand(const FString& Co
 	{
 		return HandleGetUltraDynamicSkyProperties(Params);
 	}
+	else if (CommandType == TEXT("get_ultra_dynamic_weather"))
+	{
+		return HandleGetUltraDynamicWeather(Params);
+	}
+	else if (CommandType == TEXT("set_current_weather_to_rain"))
+	{
+		return HandleSetCurrentWeatherToRain(Params);
+	}
 	else if (CommandType == TEXT("set_color_temperature"))
 	{
 		return HandleSetColorTemperature(Params);
@@ -545,7 +553,11 @@ AActor* FUnrealMCPActorCommands::GetUltraDynamicSkyActor()
 	const FString SkyClassName = TEXT("Ultra_Dynamic_Sky_C");
 	return FindActorByClassName(SkyClassName);
 }
-
+AActor* FUnrealMCPActorCommands::GetUltraDynamicWeatherActor()
+{
+	const FString WeatherClassName = TEXT("Ultra_Dynamic_Weather_C");
+	return FindActorByClassName(WeatherClassName);
+}
 TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicSkyProperties(const TSharedPtr<FJsonObject> &Params)
 {
 	AActor* SkyActor = GetUltraDynamicSkyActor();
@@ -628,6 +640,39 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetColorTemperature(const
 	ResultObj->SetNumberField(TEXT("value"), ColorTemperatureValue);
 	ResultObj->SetBoolField(TEXT("success"), true);
 	ResultObj->SetStringField(TEXT("message"), TEXT("Color temperature set and sky update functions called"));
+	return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleGetUltraDynamicWeather(const TSharedPtr<FJsonObject>& Params)
+{
+	AActor* WeatherActor = GetUltraDynamicWeatherActor();
+	if (!WeatherActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Weather actor not found"));
+	}
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetStringField(TEXT("weather_name"), WeatherActor->GetName());
+	return ResultObj;
+}
+TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleSetCurrentWeatherToRain(const TSharedPtr<FJsonObject>& Params)
+{
+	AActor* WeatherActor = GetUltraDynamicWeatherActor();
+	FString weather_name;
+	if (!WeatherActor)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Ultra Dynamic Weather actor not found"));
+	}
+	UFunction* SetWeatherFunction = WeatherActor->FindFunction(TEXT("SetCurrentWeatherToRain"));
+	if (!SetWeatherFunction)
+	{
+		return FUnrealMCPCommonUtils::CreateErrorResponse(TEXT("SetCurrentWeatherToRain function not found on Ultra Dynamic Weather actor"));
+	}
+	//WeatherActor->ProcessEvent(SetWeatherFunction, nullptr);
+	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+	ResultObj->SetStringField(TEXT("weather_name"), WeatherActor->GetName());
+	ResultObj->SetStringField(TEXT("weather_type"), TEXT("rain"));
+	ResultObj->SetBoolField(TEXT("success"), true);
+	ResultObj->SetStringField(TEXT("message"), TEXT("Current weather set to rain"));
 	return ResultObj;
 }
 

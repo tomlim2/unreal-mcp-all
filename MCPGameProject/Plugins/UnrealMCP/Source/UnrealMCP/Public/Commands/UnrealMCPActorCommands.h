@@ -34,7 +34,10 @@ private:
     TSharedPtr<FJsonObject> HandleSetTimeOfDay(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleSetColorTemperature(const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleGetUltraDynamicSkyProperties(const TSharedPtr<FJsonObject>& Params);
-
+    TSharedPtr<FJsonObject> HandleGetUltraDynamicWeather(const TSharedPtr<FJsonObject>& Params);
+    // Ultra Dynamic Weather specific commands
+    AActor* GetUltraDynamicWeatherActor();
+    TSharedPtr<FJsonObject> HandleSetCurrentWeatherToRain(const TSharedPtr<FJsonObject>& Params);
     // Cesium specific commands
 	AActor* GetCesiumGeoreferenceActor();
     TSharedPtr<FJsonObject> HandleGetCesiumProperties(const TSharedPtr<FJsonObject>& Params);
