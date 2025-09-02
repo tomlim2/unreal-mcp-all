@@ -15,6 +15,7 @@ class FUnrealMCPActorCommands;
 class FUnrealMCPEditorCommands;
 class FUnrealMCPBlueprintCommands;
 class FUnrealMCPBlueprintNodeCommands;
+class FUnrealMCPRenderingCommands;
 
 // Forward declarations for Blueprint API classes
 class UEdGraph;
@@ -76,13 +77,15 @@ private:
 	TSharedPtr<FUnrealMCPEditorCommands> EditorCommands;
 	TSharedPtr<FUnrealMCPBlueprintCommands> BlueprintCommands;
 	TSharedPtr<FUnrealMCPBlueprintNodeCommands> BlueprintNodeCommands;
+	TSharedPtr<FUnrealMCPRenderingCommands> RenderingCommands;
 
 	// Command handlers
 	TSharedPtr<FJsonObject> HandleLevelCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleAssetCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleEditorCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
 	TSharedPtr<FJsonObject> HandleBlueprintCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
-    
+    TSharedPtr<FJsonObject> HandleRenderingCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
+
     // Blueprint node command handler
     TSharedPtr<FJsonObject> HandleBlueprintNodeCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
     

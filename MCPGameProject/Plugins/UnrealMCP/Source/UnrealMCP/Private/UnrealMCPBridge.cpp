@@ -267,6 +267,10 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
             {
                 ResultJson = BlueprintNodeCommands->HandleCommand(CommandType, Params);
             }
+			else if (CommandType == TEXT("take_highresshot"))
+			{
+				ResultJson = RenderingCommands->HandleCommand(CommandType, Params);
+			}
             else
             {
                 ResponseJson->SetStringField(TEXT("status"), TEXT("error"));
@@ -346,4 +350,9 @@ TSharedPtr<FJsonObject> UUnrealMCPBridge::HandleBlueprintNodeCommand(const FStri
 {
     // This is a temporary pass-through to the new BlueprintNodeCommands handler
     return BlueprintNodeCommands->HandleCommand(CommandType, Params);
+}
+
+TSharedPtr<FJsonObject> UUnrealMCPBridge::HandleRenderingCommand(const FString &CommandType, const TSharedPtr<FJsonObject> &Params)
+{
+	return RenderingCommands->HandleCommand(CommandType, Params);
 }
