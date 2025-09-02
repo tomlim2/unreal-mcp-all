@@ -96,7 +96,7 @@ export default function UnrealLlmChat({
               disabled={loading || submitting || !prompt.trim()}
               className={styles.submitButton}
             >
-              {loading || submitting ? "Processing..." : "Execute"}
+              {loading || submitting ? "Processing your request..." : "Execute"}
             </button>
           </div>
         </form>
@@ -131,18 +131,6 @@ export default function UnrealLlmChat({
           ))}
         </div>
       </div>
-      {error && (
-        <div className={styles.error}>
-          <h3>❌ Error</h3>
-          <p>{error}</p>
-        </div>
-      )}
-
-      {(loading || submitting) && (
-        <div className={styles.loading}>
-          <p>Processing your request...</p>
-        </div>
-      )}
     </>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { SessionContext } from '../services';
 import MessageItem from './MessageItem';
 import styles from './ContextHistory.module.css';
@@ -11,16 +12,21 @@ interface ContextHistoryProps {
   sessionsLoaded: boolean;
 }
 
-export interface ContextHistoryRef {
-  refreshContext: () => void;
-}
-
 const ContextHistory = ({ 
   context, 
   loading, 
   error, 
   sessionsLoaded, 
 }: ContextHistoryProps) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [context?.conversation_history]);
   if (!sessionsLoaded) {
     return (
       <div className={styles.container}>
@@ -88,6 +94,7 @@ const ContextHistory = ({
                   previousMessage={index > 0 ? sortedMessages[index - 1] : undefined}
                 />
               ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>

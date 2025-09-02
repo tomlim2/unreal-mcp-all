@@ -14,7 +14,6 @@ export default function ContextPanel() {
   
   // Centralized session management state
   const [sessionInfo, setSessionInfo] = useState<any[]>([]);
-  const [sessionDetails, setSessionDetails] = useState<Map<string, Session>>(new Map());
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   
