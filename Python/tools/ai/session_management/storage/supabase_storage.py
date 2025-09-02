@@ -58,6 +58,7 @@ class SupabaseStorage(BaseStorage):
             data = {
                 'session_id': session_context.session_id,
                 'session_name': getattr(session_context, 'session_name', None),
+                'llm_model': getattr(session_context, 'llm_model', 'gemini-2'),
                 'context': json.dumps(session_context.to_dict()),
                 'created_at': session_context.created_at.isoformat(),
                 'last_accessed': session_context.last_accessed.isoformat()
@@ -92,6 +93,10 @@ class SupabaseStorage(BaseStorage):
                 if session_data.get('session_name'):
                     context_dict['session_name'] = session_data['session_name']
                 
+                # Add llm_model to context if available
+                if session_data.get('llm_model'):
+                    context_dict['llm_model'] = session_data['llm_model']
+                
                 # Update last_accessed timestamp
                 self.supabase.table(datatable_user_sessions_name)\
                     .update({'last_accessed': datetime.now().isoformat()})\
@@ -117,6 +122,7 @@ class SupabaseStorage(BaseStorage):
             data = {
                 'context': json.dumps(session_context.to_dict()),
                 'session_name': getattr(session_context, 'session_name', None),
+                'llm_model': getattr(session_context, 'llm_model', 'gemini-2'),
                 'last_accessed': session_context.last_accessed.isoformat()
             }
             

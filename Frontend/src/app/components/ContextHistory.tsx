@@ -1,48 +1,26 @@
 'use client';
 
-import { useRef, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { SessionContext } from '../services';
 import MessageItem from './MessageItem';
 import styles from './ContextHistory.module.css';
-
 
 interface ContextHistoryProps {
   context: SessionContext | null;
   loading: boolean;
   error: string | null;
   sessionsLoaded: boolean;
-  sessionId: string | null;
 }
 
 export interface ContextHistoryRef {
   refreshContext: () => void;
 }
 
-const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({ 
+const ContextHistory = ({ 
   context, 
   loading, 
   error, 
   sessionsLoaded, 
-  sessionId 
-}, ref) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Expose refresh function to parent component (now handled by parent)
-  useImperativeHandle(ref, () => ({
-    refreshContext: () => {
-      // This will be handled by the parent component
-      console.log('refreshContext called - handled by parent');
-    }
-  }), []);
-
-  // Auto-scroll to bottom when context changes
-  useEffect(() => {
-    if (context && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [context]);
-
-
+}: ContextHistoryProps) => {
   if (!sessionsLoaded) {
     return (
       <div className={styles.container}>
@@ -51,7 +29,7 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({
     );
   }
 
-  if (!sessionId) {
+  if (!context?.session_id) {
     return (
       <div className={styles.container}>
         <div className={styles.placeholder}>
@@ -111,13 +89,12 @@ const ContextHistory = forwardRef<ContextHistoryRef, ContextHistoryProps>(({
                   previousMessage={index > 0 ? sortedMessages[index - 1] : undefined}
                 />
               ))}
-            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
     </div>
   );
-});
+};
 
 ContextHistory.displayName = 'ContextHistory';
 

@@ -57,7 +57,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         selected_model = model
         if not selected_model and session_context:
             # Use session's preferred model
-            selected_model = session_context.get_preferred_model()
+            selected_model = session_context.get_llm_model()
         if not selected_model:
             # Fall back to default model
             selected_model = get_default_model()
@@ -163,14 +163,35 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         
         # Update session with this interaction and model preference if session_id provided
         if session_manager and session_context:
-            # Update preferred model if explicitly provided
-            if model and model != session_context.get_preferred_model():
-                session_context.set_preferred_model(model)
-                session_manager.save_session(session_context)
-                logger.info(f"Updated preferred model for session {session_id} to {model}")
-            
+            # First add the interaction
             session_manager.add_interaction(session_id, user_input, result)
             logger.debug(f"Updated session {session_id} with interaction")
+            
+            # Then update preferred model if explicitly provided (after interaction is saved)
+            if model:
+                current_model = session_context.get_llm_model()
+                logger.info(f"Current model: {current_model}, Requested model: {model}")
+                
+                if model != current_model:
+                    try:
+                        # Get fresh session context after interaction was added
+                        updated_session = session_manager.get_session(session_id)
+                        if updated_session:
+                            logger.info(f"Updating model from {updated_session.get_llm_model()} to {model}")
+                            updated_session.set_llm_model(model)
+                            success = session_manager.update_session(updated_session)
+                            logger.info(f"Updated preferred model for session {session_id} to {model}, success: {success}")
+                            
+                            # Verify the update
+                            verification_session = session_manager.get_session(session_id)
+                            if verification_session:
+                                logger.info(f"Verification: model is now {verification_session.get_llm_model()}")
+                        else:
+                            logger.warning(f"Could not retrieve session {session_id} for model update")
+                    except Exception as save_error:
+                        logger.error(f"Error saving model preference: {save_error}")
+                else:
+                    logger.info(f"Model already set to {model}, no update needed")
         
         return result
     except Exception as e:

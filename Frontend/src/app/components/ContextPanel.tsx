@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSessionStore } from "../store/sessionStore";
 import { createApiService, Session, SessionContext } from "../services";
 import SessionController from "./SessionController";
-import ContextHistory, { ContextHistoryRef } from "./ContextHistory";
+import ContextHistory from "./ContextHistory";
 import UnrealAIChat from "./UnrealAIChat";
 import styles from "./ContextPanel.module.css";
 
@@ -13,135 +13,57 @@ export default function ContextPanel() {
   const [error, setError] = useState<string | null>(null);
   
   // Centralized session management state
-  const [sessionIds, setSessionIds] = useState<string[]>([]);
+  const [sessionInfo, setSessionInfo] = useState<any[]>([]);
   const [sessionDetails, setSessionDetails] = useState<Map<string, Session>>(new Map());
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   
   // Session context state
-  const [sessionContext, setSessionContext] = useState<SessionContext | null>(null);
+  const [messageInfo, setMessageInfo] = useState<SessionContext | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
   
   // Chat state
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-  
-  // Model selection state
-  const [selectedModel, setSelectedModel] = useState<'gemini' | 'gemini-2' | 'claude'>('gemini-2');
-  const [availableModels] = useState<string[]>(['gemini', 'gemini-2', 'claude']);
-  
-  const contextHistoryRef = useRef<ContextHistoryRef>(null);
+  const [chatError, setChatError] = useState<string | null>(null);  
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
+  const modelLoadedSessions = useRef<Set<string>>(new Set());
 
   // Create API service with dependencies
   const apiService = createApiService(sessionId, setSessionId, setError);
 
-  // Computed sessions array from IDs and details
-  const sessions: Session[] = sessionIds.map(id => {
-    const details = sessionDetails.get(id);
-    if (details) {
-      return details;
-    }
-    // Return minimal session if details not loaded yet
-    return {
-      session_id: id,
-      session_name: undefined,
-      created_at: '',
-      last_accessed: '',
-      interaction_count: 0
-    };
-  });
-
-  // Load sessions on component mount
   useEffect(() => {
-    fetchSessions(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    firstFetchSessions();
   }, []);
 
-  // Load session context when sessionId changes
-  useEffect(() => {
-    if (sessionsLoaded && sessionId) {
-      fetchSessionContext(sessionId);
-    } else {
-      setSessionContext(null);
-      setContextError(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, sessionsLoaded]);
+  const firstFetchSessions = async () => {
+    setSessionsLoading(true);
+    const sessionInfo = await updateSessionSelectorInfo();
+    if (sessionInfo.length > 0 && !sessionId) {
+		handleSessionSelect(sessionInfo[0].session_id);
+	}
+    setSessionsLoading(false);
+    setSessionsLoaded(true);
+  }
 
-  // Load preferred model from session context
-  useEffect(() => {
-    if (sessionContext && sessionContext.preferred_model) {
-      setSelectedModel(sessionContext.preferred_model as 'gemini' | 'gemini-2' | 'claude');
-    }
-  }, [sessionContext]);
-
-  const fetchSessions = async (isInitialLoad = false) => {
-    try {
-      if (isInitialLoad) {
-        setSessionsLoading(true);
-      }
-      setError(null);
-
-      // Phase 1: Get session IDs quickly
-      const ids = await apiService.fetchSessionIds();
-      setSessionIds(ids);
-      console.log('ContextPanel loaded session IDs:', ids.length);
-      
-      setSessionsLoaded(true);
-      
-      // Phase 2: Load details for visible/important sessions in background
-      await loadSessionDetails(ids.slice(0, 10));
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch sessions");
-      setSessionsLoaded(false);
-    } finally {
-      if (isInitialLoad) {
-        setSessionsLoading(false);
-      }
-    }
-  };
-
-  const loadSessionDetails = async (idsToLoad: string[]) => {
-    const detailsMap = new Map(sessionDetails);
-    
-    const promises = idsToLoad
-      .filter(id => !detailsMap.has(id))
-      .map(async (id) => {
-        try {
-          const details = await apiService.fetchSessionDetails(id);
-          return { id, details };
-        } catch (err) {
-          console.warn(`Failed to load details for session ${id}:`, err);
-          return null;
-        }
-      });
-    
-    const results = await Promise.all(promises);
-    
-    results.forEach(result => {
-      if (result) {
-        detailsMap.set(result.id, result.details);
-      }
-    });
-    
-    setSessionDetails(detailsMap);
-  };
+  const updateSessionSelectorInfo = async () => {
+	const sessionInfo = await apiService.fetchSessionIds();
+	setSessionInfo(sessionInfo);
+	return sessionInfo;
+  }
 
   const fetchSessionContext = async (id: string, forceRefresh = false) => {
     // Check cache first (unless forcing refresh)
     if (!forceRefresh) {
       const cachedContext = contextCache.current.get(id);
       if (cachedContext) {
-        setSessionContext(cachedContext);
+        setMessageInfo(cachedContext);
         setContextError(null);
         return;
       }
     }
 
-    if (!sessionContext || sessionContext.session_id !== id) {
+    if (!messageInfo || messageInfo.session_id !== id) {
       setContextLoading(true);
     }
     setContextError(null);
@@ -153,10 +75,10 @@ export default function ContextPanel() {
         contextCache.current.set(id, context);
       }
       
-      setSessionContext(context);
+      setMessageInfo(context);
     } catch (err) {
       setContextError(err instanceof Error ? err.message : 'Failed to fetch session context');
-      setSessionContext(null);
+      setMessageInfo(null);
     } finally {
       setContextLoading(false);
     }
@@ -164,32 +86,27 @@ export default function ContextPanel() {
 
   const handleSessionSelect = async (selectedSessionId: string) => {
     setSessionId(selectedSessionId);
-    
-    // Load details for selected session if not already loaded
-    if (!sessionDetails.has(selectedSessionId)) {
-      await loadSessionDetails([selectedSessionId]);
-    }
+    const context = await apiService.fetchSessionContext(selectedSessionId);
+    setMessageInfo(context);
   };
 
   const handleSessionCreate = async (sessionName: string) => {
     const result = await apiService.createSession(sessionName);
-    await fetchSessions(false);
-    
+    await updateSessionSelectorInfo();
     if (result.session_id) {
       setSessionId(result.session_id);
+	  handleSessionSelect(result.session_id);
     }
-    
     return result;
   };
 
   const handleSessionDelete = async (sessionIdToDelete: string) => {
     await apiService.deleteSession(sessionIdToDelete);
-    
+    await updateSessionSelectorInfo();
     if (sessionId === sessionIdToDelete) {
       setSessionId(null);
+	  firstFetchSessions();
     }
-    
-    await fetchSessions(false);
   };
 
   const handleChatSubmit = async (prompt: string, context: string, model?: string) => {
@@ -199,10 +116,13 @@ export default function ContextPanel() {
     try {
       const data = await apiService.sendMessage(prompt, context, model);
       
-      // Refresh context after successful execution
+      // Refresh context after successful execution (with small delay to ensure DB update)
       if (sessionId) {
         contextCache.current.delete(sessionId);
-        await fetchSessionContext(sessionId, true);
+        // Small delay to ensure database has been updated with model preference
+        setTimeout(async () => {
+          await fetchSessionContext(sessionId, true);
+        }, 100);
       }
       
       return data;
@@ -222,11 +142,6 @@ export default function ContextPanel() {
     }
   };
 
-  const handleModelChange = (model: 'gemini' | 'gemini-2' | 'claude') => {
-    setSelectedModel(model);
-    // The model preference will be saved when the next message is sent
-  };
-
   return (
     <div className={styles.contextPanel}>
       {error && (
@@ -236,32 +151,27 @@ export default function ContextPanel() {
         </div>
       )}
       <SessionController 
-        sessions={sessions}
+        sessionInfo={sessionInfo}
         loading={sessionsLoading}
         error={error}
         activeSessionId={sessionId}
         onSessionSelect={handleSessionSelect}
         onSessionCreate={handleSessionCreate}
         onSessionDelete={handleSessionDelete}
-        onRefresh={() => fetchSessions(false)}
       />
       <ContextHistory 
-        ref={contextHistoryRef}
-        context={sessionContext}
+        context={messageInfo}
         loading={contextLoading}
         error={contextError}
         sessionsLoaded={sessionsLoaded}
-        sessionId={sessionId}
       />
       <UnrealAIChat 
         loading={chatLoading}
         error={chatError}
         sessionId={sessionId}
-        selectedModel={selectedModel}
-        availableModels={availableModels}
+        llmFromDb={messageInfo?.llm_model || 'gemini-2'}
         onSubmit={handleChatSubmit}
         onRefreshContext={refreshContext}
-        onModelChange={handleModelChange}
       />
     </div>
   );

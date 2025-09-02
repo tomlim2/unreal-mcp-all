@@ -27,8 +27,8 @@ export interface AIResponse {
 
 export interface SessionContext {
   session_id: string;
-  session_name?: string;
-  preferred_model?: string;
+  session_name: string;
+  llm_model: 'gemini' | 'gemini-2' | 'claude';
   conversation_history: Array<{
     timestamp: string;
     role: 'user' | 'assistant' | 'system';
@@ -72,7 +72,7 @@ export interface SessionContext {
 export interface ApiService {
   // Session management
   fetchSessions: () => Promise<Session[]>;
-  fetchSessionIds: () => Promise<string[]>;
+  fetchSessionIds: () => Promise<any[]>;
   fetchSessionDetails: (sessionId: string) => Promise<Session>;
   createSession: (sessionName: string) => Promise<{ session_id: string; session_name: string }>;
   deleteSession: (sessionId: string) => Promise<void>;

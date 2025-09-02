@@ -84,6 +84,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         sessions_data.append({
                             'session_id': session.session_id,
                             'session_name': session.session_name,
+                            'llm_model': session.llm_model,
                             'created_at': session.created_at.isoformat() if session.created_at else None,
                             'last_accessed': session.last_accessed.isoformat() if session.last_accessed else None,
                             'interaction_count': interaction_count
@@ -121,8 +122,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                                            reverse=True)
                     
                     # Extract just the session IDs in sorted order
-                    session_ids = [session.session_id for session in sessions_sorted]
-                    
+                    session_ids = [{'session_id': session.session_id,'session_name': session.session_name} for session in sessions_sorted]
                     response = {'session_ids': session_ids}
                     response_json = json.dumps(response)
                     self.wfile.write(response_json.encode('utf-8'))

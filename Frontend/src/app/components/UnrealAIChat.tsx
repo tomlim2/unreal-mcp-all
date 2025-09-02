@@ -1,32 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./UnrealAIChat.module.css";
 
 interface UnrealLlmChatProps {
   loading: boolean;
   error: string | null;
   sessionId: string | null;
-  selectedModel: 'gemini' | 'gemini-2' | 'claude';
-  availableModels: string[];
+  llmFromDb: 'gemini' | 'gemini-2' | 'claude';
   onSubmit: (prompt: string, context: string, model?: string) => Promise<unknown>;
   onRefreshContext: () => void;
-  onModelChange: (model: 'gemini' | 'gemini-2' | 'claude') => void;
 }
 
 export default function UnrealLlmChat({
   loading,
   error,
   sessionId,
-  selectedModel,
-  availableModels,
+  llmFromDb,
   onSubmit,
   onRefreshContext,
-  onModelChange,
 }: UnrealLlmChatProps) {
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
+  const [selectedLlm, setSelectedLlm] = useState<'gemini' | 'gemini-2' | 'claude'>(llmFromDb);
+  useEffect(() => {
+    setSelectedLlm(llmFromDb);
+  }, [llmFromDb]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
@@ -34,11 +33,10 @@ export default function UnrealLlmChat({
     setSubmitting(true);
 
     try {
-      console.log("Session ID:", sessionId);
       const data = await onSubmit(
         prompt,
-        "User is working with Unreal Engine project with dynamic sky system",
-        selectedModel
+        "User is a creative cinema director",
+        selectedLlm
       );
 
       console.log("AI Response:", data);
@@ -104,24 +102,18 @@ export default function UnrealLlmChat({
         </form>
 		<div className={styles.modelSwitcher}>
         <label htmlFor="model-select" className={styles.modelLabel}>
-          AI Model:
+          AI Model: {sessionId && `(Session: ${sessionId.slice(-8)})`}
         </label>
         <select
           id="model-select"
-          value={selectedModel}
-          onChange={(e) => onModelChange(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
+          value={selectedLlm}
+          onChange={(e) => setSelectedLlm(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
           className={styles.modelSelect}
           disabled={loading || submitting}
         >
-          {availableModels.includes('gemini') && (
-            <option value="gemini">gemini-1.5-flash</option>
-          )}
-          {availableModels.includes('gemini-2') && (
+			<option value="gemini">gemini-1.5-flash</option>
             <option value="gemini-2">gemini-2.5-flash</option>
-          )}
-          {availableModels.includes('claude') && (
             <option value="claude">claude-3-haiku-20240307</option>
-          )}
         </select>
       </div>
       </div>

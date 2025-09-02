@@ -93,6 +93,7 @@ class SessionManager:
         session_context = SessionContext(
             session_id=session_id,
             session_name="New Session",
+            llm_model="gemini-2",
             created_at=now,
             last_accessed=now
         )

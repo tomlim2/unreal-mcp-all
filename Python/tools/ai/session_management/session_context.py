@@ -152,7 +152,7 @@ class SessionContext:
     user_preferences: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
     session_name: Optional[str] = None
-    preferred_model: str = 'gemini-2'  # Default to Gemini 2.5 Flash model
+    llm_model: str = 'gemini-2'  # Default to Gemini 2.5 Flash model
     
     def add_message(self, role: str, content: str, commands: List[Dict[str, Any]] = None, 
                    execution_results: List[Dict[str, Any]] = None):
@@ -238,14 +238,14 @@ class SessionContext:
         
         return "\n".join(summary_parts) if summary_parts else "No scene state tracked yet."
     
-    def set_preferred_model(self, model: str):
+    def set_llm_model(self, model: str):
         """Set the user's preferred model for this session."""
-        self.preferred_model = model
+        self.llm_model = model
         self.last_accessed = datetime.now()
     
-    def get_preferred_model(self) -> str:
+    def get_llm_model(self) -> str:
         """Get the user's preferred model for this session."""
-        return self.preferred_model
+        return self.llm_model
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -258,7 +258,7 @@ class SessionContext:
             'user_preferences': self.user_preferences,
             'metadata': self.metadata,
             'session_name': self.session_name,
-            'preferred_model': self.preferred_model
+            'llm_model': self.llm_model
         }
     
     @classmethod
@@ -273,5 +273,5 @@ class SessionContext:
             user_preferences=data.get('user_preferences', {}),
             metadata=data.get('metadata', {}),
             session_name=data.get('session_name'),
-            preferred_model=data.get('preferred_model', 'gemini-2')
+            llm_model=data.get('llm_model', 'gemini-2')
         )

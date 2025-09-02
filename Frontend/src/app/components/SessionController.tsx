@@ -1,38 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { Session } from "../services";
 import SessionItem from "./SessionItem";
 import styles from "./SessionController.module.css";
 
 interface SessionControllerProps {
-  sessions: Session[];
+  sessionInfo: any[];
   loading: boolean;
   error: string | null;
   activeSessionId: string | null;
   onSessionSelect: (sessionId: string) => void;
   onSessionCreate: (sessionName: string) => Promise<{ session_id?: string }>;
   onSessionDelete: (sessionId: string) => Promise<void>;
-  onRefresh: () => void;
 }
 
 export default function SessionController({ 
-  sessions, 
+  sessionInfo, 
   loading, 
   error, 
   activeSessionId, 
   onSessionSelect, 
   onSessionCreate, 
   onSessionDelete, 
-  onRefresh 
 }: SessionControllerProps) {
   const [sessionName, setSessionName] = useState("");
   const [creating, setCreating] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-
-  // Display error from parent or local error
-  const displayError = error || localError;
 
   const addSessions = async () => {
     if (!sessionName.trim()) {
@@ -60,7 +54,7 @@ export default function SessionController({
 
   const deleteSpecificSession = async (sessionIdToDelete: string) => {
     // Ask for confirmation
-    const sessionToDelete = sessions.find(s => s.session_id === sessionIdToDelete);
+    const sessionToDelete = sessionInfo.find(s => s.session_id === sessionIdToDelete);
     const sessionDisplayName = sessionToDelete?.session_name || `Session ${sessionIdToDelete.slice(0, 8)}`;
     
     if (!window.confirm(`Are you sure you want to delete "${sessionDisplayName}" and all its conversation history? This action cannot be undone.`)) {
@@ -88,29 +82,10 @@ export default function SessionController({
     );
   }
 
-  if (displayError) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.error}>
-          Error: {displayError}
-          <button onClick={() => {
-            setLocalError(null);
-            onRefresh();
-          }} className={styles.retryButton}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={styles.container}>
       <div className={styles.sessionControls}>
-        <button onClick={onRefresh} className={styles.refreshButton}>
-          Refresh Sessions
-        </button>
-
         <div className={styles.addSessionForm}>
           <textarea
             value={sessionName}
@@ -138,13 +113,14 @@ export default function SessionController({
         </div>
       </div>
       <div className={styles.sessionList}>
-        {sessions.length === 0 ? (
-          <div className={styles.noSessions}>No sessions found (total: {sessions.length})</div>
+        {sessionInfo.length === 0 ? (
+          <div className={styles.noSessions}>No sessions found (total: {sessionInfo.length})</div>
         ) : (
-          sessions.map((session) => (
+          sessionInfo.map((session) => (
             <SessionItem
               key={session.session_id}
-              session={session}
+              sessionId={session.session_id}
+              sessionName={session.session_name}
               isActive={activeSessionId === session.session_id}
               onSelect={() => onSessionSelect(session.session_id)}
               onDelete={deleteSpecificSession}

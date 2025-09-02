@@ -4,7 +4,8 @@ import { Session } from "../services";
 import styles from "./SessionItem.module.css";
 
 interface SessionItemProps {
-  session: Session;
+  sessionId: string;
+  sessionName: string;
   isActive: boolean;
   onSelect: () => void;
   onDelete?: (sessionId: string) => void;
@@ -12,7 +13,8 @@ interface SessionItemProps {
 }
 
 export default function SessionItem({
-  session,
+  sessionId,
+  sessionName,
   isActive,
   onSelect,
   onDelete,
@@ -25,15 +27,15 @@ export default function SessionItem({
     >
       <div className={styles.sessionItemHeader}>
         <div className={styles.sessionId}>
-          {session.session_name ||
-            `Session ${session.session_id.slice(0, 8)}`}
+          {sessionName ||
+            `Session ${sessionName.slice(0, 8)}`}
         </div>
         {onDelete && (
           <button
             className={styles.sessionItemDelete}
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(session.session_id);
+              onDelete(sessionId);
             }}
             disabled={isDeleting}
             title="Delete session"
