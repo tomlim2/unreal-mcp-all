@@ -66,6 +66,8 @@ export default function UnrealLlmChat({
     "Show me all MM control lights",
     "Make MainLight red and move it to 100,100,150",
     "Delete the light named MainLight",
+    "Take a high-resolution screenshot",
+    "Make it rain and take a screenshot",
   ];
 
   return (

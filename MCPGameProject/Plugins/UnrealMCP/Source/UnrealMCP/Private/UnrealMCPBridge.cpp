@@ -55,6 +55,7 @@
 #include "Commands/UnrealMCPEditorCommands.h"
 #include "Commands/UnrealMCPBlueprintCommands.h"
 #include "Commands/UnrealMCPBlueprintNodeCommands.h"
+#include "Commands/UnrealMCPRenderingCommands.h"
 #include "Commands/UnrealMCPCommonUtils.h"
 
 // Default settings
@@ -78,6 +79,7 @@ void UUnrealMCPBridge::Initialize(FSubsystemCollectionBase& Collection)
     EditorCommands = MakeShared<FUnrealMCPEditorCommands>();
     BlueprintCommands = MakeShared<FUnrealMCPBlueprintCommands>();
     BlueprintNodeCommands = MakeShared<FUnrealMCPBlueprintNodeCommands>();
+    RenderingCommands = MakeShared<FUnrealMCPRenderingCommands>();
 
     // Start the server automatically
     StartServer();

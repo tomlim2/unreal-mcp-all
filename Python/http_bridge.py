@@ -8,8 +8,10 @@ import json
 import logging
 import os
 import asyncio
+import mimetypes
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
+from pathlib import Path
 import threading
 from typing import Dict, Any, Optional
 
@@ -24,8 +26,67 @@ from tools.ai.session_management.utils.session_helpers import extract_session_id
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MCPHttpBridge")
 
+# Global cache for screenshot paths from C++ responses
+_screenshot_path_cache = {}
+
+def cache_screenshot_path(filename: str, file_path: str):
+    """Cache a screenshot file path from C++ response for later retrieval."""
+    global _screenshot_path_cache
+    _screenshot_path_cache[filename] = file_path
+    logger.info(f"Cached screenshot path: {filename} -> {file_path}")
+
 class MCPBridgeHandler(BaseHTTPRequestHandler):
     """HTTP request handler for MCP bridge"""
+    
+    def _resolve_screenshot_path(self, filename: str) -> Path:
+        """Resolve screenshot file path using multiple methods in order of preference."""
+        # Method 1: Check if we have cached path from C++ response
+        if filename in _screenshot_path_cache:
+            cached_path = Path(_screenshot_path_cache[filename])
+            if cached_path.exists():
+                logger.info(f"Found screenshot using cached C++ response: {cached_path}")
+                return cached_path
+            else:
+                # Remove stale cache entry
+                del _screenshot_path_cache[filename]
+        
+        # Method 2: Use UNREAL_PROJECT_PATH environment variable
+        unreal_project_path = os.getenv("UNREAL_PROJECT_PATH")
+        if unreal_project_path:
+            project_path = Path(unreal_project_path)
+            if project_path.exists() and project_path.is_dir():
+                screenshot_path = project_path / "Saved" / "Screenshots" / filename
+                if screenshot_path.exists():
+                    logger.info(f"Found screenshot using UNREAL_PROJECT_PATH: {screenshot_path}")
+                    return screenshot_path
+        
+        # Method 3: Auto-discovery - search for .uproject files
+        current_dir = Path(__file__).parent.parent
+        for search_path in [current_dir, current_dir.parent]:
+            # Look for .uproject files
+            uproject_files = list(search_path.glob("*.uproject"))
+            if uproject_files:
+                project_dir = uproject_files[0].parent
+                screenshot_path = project_dir / "Saved" / "Screenshots" / filename
+                if screenshot_path.exists():
+                    logger.info(f"Found screenshot using auto-discovery: {screenshot_path}")
+                    return screenshot_path
+            
+            # Look for subdirectories with .uproject files
+            for subdir in search_path.iterdir():
+                if subdir.is_dir():
+                    uproject_files = list(subdir.glob("*.uproject"))
+                    if uproject_files:
+                        project_dir = uproject_files[0].parent
+                        screenshot_path = project_dir / "Saved" / "Screenshots" / filename
+                        if screenshot_path.exists():
+                            logger.info(f"Found screenshot using auto-discovery in {subdir}: {screenshot_path}")
+                            return screenshot_path
+        
+        # Method 4: Fallback to legacy hardcoded path
+        legacy_path = current_dir / "MCPGameProject" / "Saved" / "Screenshots" / filename
+        logger.warning(f"Using fallback legacy path (may not exist): {legacy_path}")
+        return legacy_path
     
     def do_OPTIONS(self):
         """Handle CORS preflight requests"""
@@ -131,6 +192,71 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 except Exception as e:
                     logger.error(f"Error listing session IDs: {e}")
                     self._send_error(f"Error listing session IDs: {e}")
+                    return
+            
+            elif path.startswith('/screenshots/'):
+                # Handle screenshot file serving
+                try:
+                    # Extract filename from path: /screenshots/{filename}
+                    filename = path[len('/screenshots/'):]
+                    filename = unquote(filename)  # Decode URL encoding
+                    
+                    # Validate filename for security
+                    if not filename or '..' in filename or '/' in filename or '\\' in filename:
+                        self.send_response(400)
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.send_header('Content-Type', 'application/json')
+                        self.end_headers()
+                        self._send_error("Invalid filename")
+                        return
+                    
+                    # Construct file path using multi-method resolution
+                    screenshot_path = self._resolve_screenshot_path(filename)
+                    
+                    # Check if file exists
+                    if not screenshot_path.exists() or not screenshot_path.is_file():
+                        self.send_response(404)
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.send_header('Content-Type', 'application/json')
+                        self.end_headers()
+                        self._send_error(f"Screenshot not found: {filename}")
+                        return
+                    
+                    # Get file stats
+                    file_size = screenshot_path.stat().st_size
+                    
+                    # Determine MIME type
+                    mime_type, _ = mimetypes.guess_type(str(screenshot_path))
+                    if mime_type is None:
+                        mime_type = 'application/octet-stream'
+                    
+                    # Send response headers
+                    self.send_response(200)
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Type', mime_type)
+                    self.send_header('Content-Length', str(file_size))
+                    self.send_header('Cache-Control', 'public, max-age=3600')  # Cache for 1 hour
+                    self.end_headers()
+                    
+                    # Send file content
+                    with open(screenshot_path, 'rb') as f:
+                        chunk_size = 8192
+                        while True:
+                            chunk = f.read(chunk_size)
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                    
+                    logger.info(f"Served screenshot: {filename} ({file_size} bytes)")
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error serving screenshot {filename}: {e}")
+                    self.send_response(500)
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self._send_error(f"Error serving screenshot: {e}")
                     return
             
             # Handle other GET requests (404)

@@ -2,9 +2,24 @@
 
 #include "CoreMinimal.h"
 #include "Json.h"
+#include "Engine/EngineTypes.h"
 
 /**
- * Handler class for Actor-related MCP commands
+ * Data structure for screenshot completion tracking
+ */
+struct FScreenshotCompletionData
+{
+    FString FilePath;
+    FString Filename;
+    FString Format;
+    FString ScreenshotDir;
+    double ResolutionMultiplier;
+    bool bIncludeUI;
+    bool bUIWasHidden;
+};
+
+/**
+ * Handler class for Rendering-related MCP commands
  */
 class UNREALMCP_API FUnrealMCPRenderingCommands
 {

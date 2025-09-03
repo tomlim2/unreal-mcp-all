@@ -128,9 +128,25 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
                 {result.command} - {result.success ? '✅ Success' : '❌ Failed'}
               </div>
               {result.success ? (
-                <pre className={styles.resultData}>
-                  {JSON.stringify(result.result, null, 2)}
-                </pre>
+                <div>
+                  <pre className={styles.resultData}>
+                    {JSON.stringify(result.result, null, 2)}
+                  </pre>
+                  {/* Display screenshot if available */}
+                  {result.result && typeof result.result === 'object' && 'image_url' in result.result && (
+                    <div className={styles.screenshotContainer}>
+                      <img 
+                        src={result.result.image_url as string} 
+                        alt="Screenshot" 
+                        className={styles.screenshot}
+                        onError={(e) => {
+                          console.error('Failed to load screenshot:', result.result.image_url);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className={styles.errorMessage}>{result.error}</div>
               )}

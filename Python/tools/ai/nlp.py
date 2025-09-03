@@ -283,7 +283,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - location/rotation/scale: Optional Vector3 objects {{"x": number, "y": number, "z": number}}
 
 **Screenshot Commands:**
-- resolution_multiplier: Optional float 1.0-8.0 (default: 2.0 for 2x resolution)
+- resolution_multiplier: Optional float 1.0-8.0 (default: 1.0 for native resolution)
 - format: Optional string "png", "jpg", "exr" (default: "png")
 - filename: Optional string (auto-generated if not provided)
 - include_ui: Optional boolean (default: false)

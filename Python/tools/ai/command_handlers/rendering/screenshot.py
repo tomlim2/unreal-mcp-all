@@ -22,7 +22,7 @@ class ScreenshotCommandHandler(BaseCommandHandler):
     - take_highresshot: Capture high-resolution screenshot with configurable settings
     
     Input Constraints:
-    - resolution_multiplier: Optional float (1.0-8.0), defaults to 2.0 for 2x resolution
+    - resolution_multiplier: Optional float (1.0-8.0), defaults to 1.0 resolution
     - filename: Optional string, auto-generated if not provided
     - format: Optional string ('png', 'jpg', 'exr'), defaults to 'png'
     - include_ui: Optional boolean, defaults to false
@@ -84,7 +84,7 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         
         if command_type == "take_highresshot":
             # Apply defaults
-            processed.setdefault("resolution_multiplier", 2.0)
+            processed.setdefault("resolution_multiplier", 1.0)
             processed.setdefault("format", "png")
             processed.setdefault("include_ui", False)
             processed.setdefault("capture_hdr", False)
@@ -105,5 +105,31 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         
         if response and response.get("status") == "error":
             raise Exception(response.get("error", "Unknown Unreal screenshot error"))
+        
+        # Enhance response with image URL for screenshot commands
+        if command_type == "take_highresshot" and response and response.get("success") == "true":
+            filename = response.get("filename")
+            file_path = response.get("file_path")
+            
+            if filename:
+                # Cache the file path for http_bridge to use
+                if file_path:
+                    try:
+                        # Import from project root
+                        import sys
+                        from pathlib import Path
+                        sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+                        from http_bridge import cache_screenshot_path
+                        cache_screenshot_path(filename, file_path)
+                    except (ImportError, Exception) as e:
+                        logger.warning(f"Could not cache screenshot path: {e}")
+                
+                # Add image URL that frontend can use to display the screenshot
+                # Assumes http_bridge.py is running on localhost:8080
+                import os
+                bridge_port = int(os.getenv("HTTP_BRIDGE_PORT", "8080"))
+                image_url = f"http://127.0.0.1:{bridge_port}/screenshots/{filename}"
+                response["image_url"] = image_url
+                logger.info(f"Screenshot saved: {filename}, accessible at: {image_url}")
         
         return response
