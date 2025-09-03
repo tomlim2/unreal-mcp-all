@@ -7,8 +7,8 @@ transformation, and property queries for any actor type.
 
 import logging
 from typing import Dict, Any, List
-from .main import BaseCommandHandler
-from ..nlp_schema_validator import ValidatedCommand
+from ..main import BaseCommandHandler
+from ...nlp_schema_validator import ValidatedCommand
 
 logger = logging.getLogger("UnrealMCP")
 

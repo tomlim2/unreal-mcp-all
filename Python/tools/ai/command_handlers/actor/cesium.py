@@ -7,8 +7,8 @@ Supports setting and retrieving latitude/longitude coordinates for real-world po
 
 import logging
 from typing import Dict, Any, List
-from .main import BaseCommandHandler
-from ..nlp_schema_validator import ValidatedCommand
+from ..main import BaseCommandHandler
+from ...nlp_schema_validator import ValidatedCommand
 
 logger = logging.getLogger("UnrealMCP")
 

@@ -7,8 +7,8 @@ Supports creating, updating, deleting, and querying cinematic lighting controls.
 
 import logging
 from typing import Dict, Any, List
-from .main import BaseCommandHandler
-from ..nlp_schema_validator import (
+from ..main import BaseCommandHandler
+from ...nlp_schema_validator import (
     validate_command, 
     normalize_light_parameters,
     ValidatedCommand

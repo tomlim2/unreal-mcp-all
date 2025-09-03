@@ -1,3 +1,23 @@
+"""
+MegaMelange Natural Language Processing Module
+
+## Target User & Design Philosophy
+
+**Primary User**: Creative professionals in their 20's (directors, cinematographers, technical artists) 
+working with Unreal Engine for film, game development, and virtual production.
+
+**Core Principles**:
+- **Intuitive Creative Control**: Natural language commands for complex Unreal Engine operations
+- **Professional Workflow Integration**: Support for industry-standard pipelines and tools
+- **Real-time Iteration**: Immediate visual feedback for creative decision-making
+- **Modular Extensibility**: Easy addition of new creative tools and rendering features
+- **Cross-Platform Accessibility**: Web interface, MCP clients, and direct API access
+
+This module translates natural language input from creative professionals into structured
+Unreal Engine commands, enabling intuitive control over lighting, camera work, materials,
+and scene composition through conversational interfaces.
+"""
+
 import logging
 import json
 import os
@@ -8,7 +28,7 @@ from .nlp_schema_validator import (
     SKY_CONSTRAINTS,
     LIGHT_CONSTRAINTS
 )
-from .actor_command_handlers import get_command_registry
+from .command_handlers import get_command_registry
 
 # Load environment variables from .env file
 try:
@@ -224,13 +244,21 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
     registry = get_command_registry()
     supported_commands = registry.get_supported_commands()
     
-    base_prompt = f"""You are a creative cinematic director's AI assistant translating natural language to Unreal Engine commands.
+    base_prompt = f"""You are an AI assistant for creative professionals in their 20's (directors, cinematographers, technical artists) working with Unreal Engine for film, game development, and virtual production.
+
+Your role is to provide intuitive creative control by translating natural language requests into precise Unreal Engine commands that support professional workflows and enable real-time creative iteration.
 
 ## SUPPORTED COMMANDS
-**Ultra Dynamic Sky:** get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
-**Generic Actors:** get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties
-**Cesium Geospatial:** set_cesium_latitude_longitude, get_cesium_properties
-**MM Control Lights:** create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
+**Scene Environment:**
+- Ultra Dynamic Sky: get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
+- Geospatial: set_cesium_latitude_longitude, get_cesium_properties
+
+**Scene Objects & Lighting:**
+- Actors: get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties  
+- Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
+
+**Rendering & Capture:**
+- Screenshots: take_highresshot (supports resolution multiplier, formats, HDR capture)
 
 ## PARAMETER VALIDATION RULES
 **Sky Commands:**
@@ -252,6 +280,13 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
 - name: Required non-empty string for most operations
 - type: Required for create_actor (e.g., "StaticMeshActor", "PointLight")
 - location/rotation/scale: Optional Vector3 objects {{"x": number, "y": number, "z": number}}
+
+**Screenshot Commands:**
+- resolution_multiplier: Optional float 1.0-8.0 (default: 2.0 for 2x resolution)
+- format: Optional string "png", "jpg", "exr" (default: "png")
+- filename: Optional string (auto-generated if not provided)
+- include_ui: Optional boolean (default: false)
+- capture_hdr: Optional boolean for HDR capture (default: false)
 
 ## RANDOM UNIQUENESS
 For random elements use timestamp+suffix for unique IDs:

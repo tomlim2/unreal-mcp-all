@@ -131,16 +131,18 @@ class CommandRegistry:
     def _initialize_default_handlers(self):
         """Register default command handlers."""
         # Import handlers here to avoid circular imports
-        from .uds import UDSCommandHandler
-        from .cesium import CesiumCommandHandler
-        from .light import LightCommandHandler
-        from .actor import ActorCommandHandler
+        from .actor.uds import UDSCommandHandler
+        from .actor.cesium import CesiumCommandHandler
+        from .actor.light import LightCommandHandler
+        from .actor.actor import ActorCommandHandler
+        from .rendering.screenshot import ScreenshotCommandHandler
         
         handlers = [
             UDSCommandHandler(),
             CesiumCommandHandler(), 
             LightCommandHandler(),
-            ActorCommandHandler()
+            ActorCommandHandler(),
+            ScreenshotCommandHandler()
         ]
         
         for handler in handlers:
