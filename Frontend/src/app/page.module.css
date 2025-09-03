@@ -79,7 +79,8 @@ a.primary {
 }
 
 a.secondary {
-  background: #f5f5f5;
+  background: #2a2a2a;
+  color: #ffffff;
   min-width: 158px;
 }
 

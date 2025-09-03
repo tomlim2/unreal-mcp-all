@@ -29,8 +29,8 @@
 }
 
 .message.combined {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: #2a2a2a;
+  color: #ffffff;
   width: 100%;
 }
 
@@ -147,8 +147,8 @@
 
 .triggerContent {
   padding: 12px;
-  background-color: #ffffff;
-  color: #000000;
+  background-color: #2a2a2a;
+  color: #ffffff;
   font-size: 0.75rem;
   border: none;
   line-height: 1.5;
@@ -157,14 +157,14 @@
 }
 
 .triggerContent:hover {
-  background-color: #f5f5f5;
+  background-color: #3a3a3a;
 }
 
 .responseContent {
   margin-top: 8px;
   padding: 12px;
-  background-color: #e0e0e0;
-  color: #000000;
+  background-color: #1a1a1a;
+  color: #ffffff;
   font-size: 0.75rem;
   border: none;
   line-height: 1.5;
@@ -173,20 +173,20 @@
 .commands {
   margin-top: 16px;
   padding: 16px;
-  background-color: #cccccc;
+  background-color: #1a1a1a;
   border: none;
 }
 
 .commands strong {
   display: block;
   margin-bottom: 8px;
-  color: #000000;
+  color: #ffffff;
   font-size: 0.75rem;
 }
 
 .command {
   margin: 8px 0;
-  background: #ffffff;
+  background: #2a2a2a;
   border: none;
   overflow: hidden;
 }
@@ -194,10 +194,10 @@
 .command code {
   display: inline-block;
   padding: 8px 12px;
-  background-color: #cccccc;
+  background-color: #1a1a1a;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 0.75rem;
-  color: #000000;
+  color: #ffffff;
   border: none;
   width: 100%;
   font-weight: 600;
@@ -209,22 +209,22 @@
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 0.75rem;
   line-height: 1.4;
-  color: #000000;
-  background: #ffffff;
+  color: #ffffff;
+  background: #2a2a2a;
   overflow-x: auto;
 }
 
 .results {
   margin-top: 16px;
   padding: 16px;
-  background-color: #cccccc;
+  background-color: #1a1a1a;
   border: none;
 }
 
 .results strong {
   display: block;
   margin-bottom: 8px;
-  color: #000000;
+  color: #ffffff;
   font-size: 0.75rem;
 }
 
@@ -235,11 +235,11 @@
 }
 
 .result.success {
-  background: #f5f5f5;
+  background: #2a2a2a;
 }
 
 .result.failure {
-  background: #e0e0e0;
+  background: #1a1a1a;
 }
 
 .resultHeader {
@@ -250,8 +250,8 @@
 }
 
 .result.success .resultHeader {
-  background-color: #cccccc;
-  color: #000000;
+  background-color: #1a1a1a;
+  color: #ffffff;
   border: none;
 }
 
@@ -267,15 +267,15 @@
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 0.75rem;
   line-height: 1.4;
-  color: #000000;
-  background: #ffffff;
+  color: #ffffff;
+  background: #2a2a2a;
   overflow-x: auto;
 }
 
 .errorMessage {
   padding: 12px;
-  color: #000000;
-  background: #ffffff;
+  color: #ffffff;
+  background: #2a2a2a;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 0.75rem;
 }
@@ -283,8 +283,8 @@
 .screenshotContainer {
   margin-top: 12px;
   padding: 12px;
-  background: #f5f5f5;
-  border: 1px solid #cccccc;
+  background: #2a2a2a;
+  border: 1px solid #666666;
   border-radius: 4px;
 }
 

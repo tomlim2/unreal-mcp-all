@@ -1,5 +1,6 @@
 .container {
   background-color: #000000;
+  color: #ffffff;
   padding: 20px;
   max-width: 600px;
   margin: 0;
@@ -17,10 +18,10 @@
 }
 
 .error {
-  background-color: #cccccc;
-  border: none;
+  background-color: #2a2a2a;
+  border: 1px solid #666666;
   padding: 16px;
-  color: #000000;
+  color: #ffffff;
   text-align: center;
   font-size: 0.75rem;
 }
@@ -42,7 +43,7 @@
 .sessionList {
   margin: 20px 0;
   border: none;
-  background: #f5f5f5;
+  background: #2a2a2a;
   max-height: 400px;
   overflow-y: auto;
 }
@@ -85,8 +86,8 @@
 .sessionNameInput {
   padding: 12px;
   border: none;
-  background: #f5f5f5;
-  color: #000000;
+  background: #2a2a2a;
+  color: #ffffff;
   font-size: 0.75rem;
   resize: vertical;
   font-family: inherit;
@@ -94,17 +95,17 @@
 
 .sessionNameInput:focus {
   outline: none;
-  background: #e0e0e0;
+  background: #404040;
 }
 
 .sessionNameInput:disabled {
-  background-color: #cccccc;
+  background-color: #1a1a1a;
   color: #666666;
   cursor: not-allowed;
 }
 
 .refreshButton:disabled {
-  background-color: #cccccc;
+  background-color: #1a1a1a;
   color: #666666;
   cursor: not-allowed;
 }
@@ -130,7 +131,7 @@
 }
 
 .deleteButton:disabled {
-  background-color: #cccccc !important;
+  background-color: #1a1a1a !important;
   color: #666666 !important;
 }
 
