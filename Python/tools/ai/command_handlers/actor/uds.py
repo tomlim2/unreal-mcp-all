@@ -55,26 +55,6 @@ def map_temperature_description(description: str, current_temp: float = 6500.0) 
 
 
 class UDSCommandHandler(BaseCommandHandler):
-    """Handler for Ultra Dynamic Sky commands (time, color temperature, sky properties).
-    
-    Purpose: Control Ultra Dynamic Sky blueprint in Unreal Engine for lighting and time simulation
-    
-    Supported Commands:
-    - get_ultra_dynamic_sky: Retrieve current sky state (no parameters)
-    - set_time_of_day: Set time using HHMM format (0-2400) 
-    - set_color_temperature: Set color temperature (1500-15000K or descriptive strings)
-    
-    Input Constraints:
-    - time_of_day: Integer 0-2400 (HHMM format, e.g., 1200 = noon)
-    - color_temperature: Float 1500-15000 OR string ('warm', 'cool', 'warmer', 'cooler')
-    - sky_name: Optional string (default: 'Ultra_Dynamic_Sky_C_0')
-    
-    Special Behavior:
-    - String color temperatures require current value lookup for relative adjustments
-    - 'warmer' = current - 500K, 'cooler' = current + 500K
-    - Automatic sky_name defaulting via normalize_sky_parameters()
-    """
-    
     def get_supported_commands(self) -> List[str]:
         return ["get_ultra_dynamic_sky", "set_time_of_day", "set_color_temperature"]
     

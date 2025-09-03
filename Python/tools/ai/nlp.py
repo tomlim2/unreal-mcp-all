@@ -251,6 +251,7 @@ Your role is to provide intuitive creative control by translating natural langua
 ## SUPPORTED COMMANDS
 **Scene Environment:**
 - Ultra Dynamic Sky: get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
+- Ultra Dynamic Weather: get_ultra_dynamic_weather, set_current_weather_to_rain
 - Geospatial: set_cesium_latitude_longitude, get_cesium_properties
 
 **Scene Objects & Lighting:**
@@ -308,7 +309,6 @@ For random elements use timestamp+suffix for unique IDs:
 - Return ONLY valid JSON with literal numbers (no Math.random, no code)
 - Commands are processed by modular handler system for consistency"""
 
-    # Add session context if available (only scene state, not conversation history)
     if session_context:
         # Add scene state
         scene_summary = session_context.get_scene_summary()

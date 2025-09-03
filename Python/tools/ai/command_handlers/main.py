@@ -132,6 +132,7 @@ class CommandRegistry:
         """Register default command handlers."""
         # Import handlers here to avoid circular imports
         from .actor.uds import UDSCommandHandler
+        from .actor.udw import UDWCommandHandler
         from .actor.cesium import CesiumCommandHandler
         from .actor.light import LightCommandHandler
         from .actor.actor import ActorCommandHandler
@@ -139,6 +140,7 @@ class CommandRegistry:
         
         handlers = [
             UDSCommandHandler(),
+            UDWCommandHandler(),
             CesiumCommandHandler(), 
             LightCommandHandler(),
             ActorCommandHandler(),

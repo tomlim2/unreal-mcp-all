@@ -179,7 +179,9 @@ def validate_sky_command(command_type: str, params: Dict[str, Any]) -> Validated
     elif command_type == "get_ultra_dynamic_sky":
         # No required parameters for get command
         pass
-    
+    elif command_type == "get_ultra_dynamic_weather":
+        # No required parameters for get command
+        pass
     return ValidatedCommand(
         type=command_type,
         params=params,

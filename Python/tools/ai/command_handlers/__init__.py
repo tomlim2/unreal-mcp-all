@@ -13,6 +13,7 @@ Usage:
 
 from .main import BaseCommandHandler, CommandRegistry, get_command_registry
 from .actor.uds import UDSCommandHandler
+from .actor.udw import UDWCommandHandler
 from .actor.cesium import CesiumCommandHandler
 from .actor.light import LightCommandHandler
 from .actor.actor import ActorCommandHandler
@@ -23,6 +24,7 @@ __all__ = [
     'CommandRegistry', 
     'get_command_registry',
     'UDSCommandHandler',
+    'UDWCommandHandler',
     'CesiumCommandHandler',
     'LightCommandHandler', 
     'ActorCommandHandler',
