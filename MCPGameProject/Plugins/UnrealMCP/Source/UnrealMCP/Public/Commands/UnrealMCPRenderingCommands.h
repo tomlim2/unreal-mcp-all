@@ -28,6 +28,12 @@ public:
     TSharedPtr<FJsonObject> HandleCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
 
 private:
-    // Specific actor command handlers
+    // Screenshot command handlers
     TSharedPtr<FJsonObject> HandleTakeHighResShot(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleSynchronousScreenshot(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleAsynchronousHighResScreenshot(const TSharedPtr<FJsonObject>& Params);
+    
+    // Utility methods for file detection
+    bool IsFileReady(const FString& FilePath);
+    FString FindLatestScreenshotFile(const FString& ScreenshotDir);
 };
