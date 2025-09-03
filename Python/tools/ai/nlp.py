@@ -259,7 +259,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
 **Rendering & Capture:**
-- Screenshots: take_highresshot (supports resolution multiplier, formats, HDR capture)
+- Screenshots: take_highresshot (execute screenshot command)
 
 ## PARAMETER VALIDATION RULES
 **Sky Commands:**
@@ -283,11 +283,10 @@ Your role is to provide intuitive creative control by translating natural langua
 - location/rotation/scale: Optional Vector3 objects {{"x": number, "y": number, "z": number}}
 
 **Screenshot Commands:**
-- resolution_multiplier: Optional float 1.0-8.0 (default: 1.0 for native resolution)
-- format: Optional string "png", "jpg", "exr" (default: "png")
-- filename: Optional string (auto-generated if not provided)
-- include_ui: Optional boolean (default: false)
-- capture_hdr: Optional boolean for HDR capture (default: false)
+- take_highresshot: Execute screenshot command
+  - resolution_multiplier: Optional float 1.0-8.0 (default: 1.0)
+  - include_ui: Optional boolean (default: false)
+  - Returns: success confirmation
 
 ## RANDOM UNIQUENESS
 For random elements use timestamp+suffix for unique IDs:
@@ -337,7 +336,12 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     
     # Use command registry for unified execution
     registry = get_command_registry()
-    return registry.execute_command(command, unreal)
+    result = registry.execute_command(command, unreal)
+    
+    # Screenshot commands now use synchronous execution - no special handling needed
+    # The C++ HandleTakeHighResShot now calls HandleImmediateScreenshot which waits for completion
+    
+    return result
 
 def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
     """Execute a command using MCP's tool system (legacy compatibility wrapper)."""

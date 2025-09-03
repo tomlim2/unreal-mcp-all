@@ -1,8 +1,7 @@
 """
-Screenshot and high-resolution rendering command handler.
+Screenshot command handler.
 
-Handles Unreal Engine screenshot and rendering capture operations including
-high-resolution shots, viewport captures, and rendering configuration.
+Handles Unreal Engine screenshot operations.
 """
 
 import logging
@@ -14,23 +13,17 @@ logger = logging.getLogger("UnrealMCP")
 
 
 class ScreenshotCommandHandler(BaseCommandHandler):
-    """Handler for screenshot and rendering capture commands.
-    
-    Purpose: High-resolution screenshot and viewport capture functionality
+    """Handler for screenshot commands.
     
     Supported Commands:
-    - take_highresshot: Capture high-resolution screenshot with configurable settings
+    - take_highresshot: Execute screenshot command
     
     Input Constraints:
-    - resolution_multiplier: Optional float (1.0-8.0), defaults to 1.0 resolution
-    - filename: Optional string, auto-generated if not provided
-    - format: Optional string ('png', 'jpg', 'exr'), defaults to 'png'
+    - resolution_multiplier: Optional float (1.0-8.0), defaults to 1.0
     - include_ui: Optional boolean, defaults to false
-    - capture_hdr: Optional boolean, defaults to false for HDR capture
     
     Output:
-    - Saves screenshot to project's Saved/Screenshots/ directory
-    - Returns file path and capture settings in response
+    - Returns success confirmation when command executes
     """
     
     def get_supported_commands(self) -> List[str]:
@@ -49,27 +42,9 @@ class ScreenshotCommandHandler(BaseCommandHandler):
                 elif multiplier < 1.0 or multiplier > 8.0:
                     errors.append("resolution_multiplier must be between 1.0 and 8.0")
             
-            if "format" in params:
-                format_val = params["format"]
-                if not isinstance(format_val, str):
-                    errors.append("format must be a string")
-                elif format_val.lower() not in ["png", "jpg", "jpeg", "exr"]:
-                    errors.append("format must be 'png', 'jpg', 'jpeg', or 'exr'")
-            
-            if "filename" in params:
-                filename = params["filename"]
-                if not isinstance(filename, str):
-                    errors.append("filename must be a string")
-                elif not filename.strip():
-                    errors.append("filename cannot be empty")
-            
             if "include_ui" in params:
                 if not isinstance(params["include_ui"], bool):
                     errors.append("include_ui must be a boolean")
-            
-            if "capture_hdr" in params:
-                if not isinstance(params["capture_hdr"], bool):
-                    errors.append("capture_hdr must be a boolean")
         
         return ValidatedCommand(
             type=command_type,
@@ -85,15 +60,11 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         if command_type == "take_highresshot":
             # Apply defaults
             processed.setdefault("resolution_multiplier", 1.0)
-            processed.setdefault("format", "png")
             processed.setdefault("include_ui", False)
-            processed.setdefault("capture_hdr", False)
             
-            # Normalize format
-            if "format" in processed:
-                processed["format"] = processed["format"].lower()
-                if processed["format"] == "jpeg":
-                    processed["format"] = "jpg"
+            # Remove filename parameter - let Unreal handle naming
+            if "filename" in processed:
+                del processed["filename"]
         
         return processed
     
@@ -104,32 +75,6 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         response = connection.send_command(command_type, params)
         
         if response and response.get("status") == "error":
-            raise Exception(response.get("error", "Unknown Unreal screenshot error"))
-        
-        # Enhance response with image URL for screenshot commands
-        if command_type == "take_highresshot" and response and response.get("success") == "true":
-            filename = response.get("filename")
-            file_path = response.get("file_path")
-            
-            if filename:
-                # Cache the file path for http_bridge to use
-                if file_path:
-                    try:
-                        # Import from project root
-                        import sys
-                        from pathlib import Path
-                        sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-                        from http_bridge import cache_screenshot_path
-                        cache_screenshot_path(filename, file_path)
-                    except (ImportError, Exception) as e:
-                        logger.warning(f"Could not cache screenshot path: {e}")
-                
-                # Add image URL that frontend can use to display the screenshot
-                # Assumes http_bridge.py is running on localhost:8080
-                import os
-                bridge_port = int(os.getenv("HTTP_BRIDGE_PORT", "8080"))
-                image_url = f"http://127.0.0.1:{bridge_port}/screenshots/{filename}"
-                response["image_url"] = image_url
-                logger.info(f"Screenshot saved: {filename}, accessible at: {image_url}")
+            raise Exception(response.get("error", f"Unknown Unreal {command_type} error"))
         
         return response
