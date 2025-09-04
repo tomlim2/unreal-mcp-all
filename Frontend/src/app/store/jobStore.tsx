@@ -55,7 +55,7 @@ function jobReducer(state: JobState, action: JobAction): JobState {
 
     case 'UPDATE_JOB': {
       const updatedJob = action.payload;
-      const isCompleted = updatedJob.status === 'completed' || updatedJob.status === 'failed';
+      const isCompleted = updatedJob.status === 'completed' || updatedJob.status === 'failed' || updatedJob.status === 'cancelled';
       
       return {
         ...state,
@@ -127,7 +127,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
     hasActiveJobs: () => state.activeJobs.length > 0,
     getActiveJobs: () => state.activeJobs.map(id => state.jobs[id]).filter(Boolean),
     getCompletedJobs: () => Object.values(state.jobs).filter(
-      job => job.status === 'completed' || job.status === 'failed'
+      job => job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled'
     ),
   };
 

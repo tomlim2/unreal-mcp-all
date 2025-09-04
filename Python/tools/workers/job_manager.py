@@ -49,6 +49,7 @@ class Job:
     params: Dict[str, Any]
     result: Optional[JobResult] = None
     error: Optional[str] = None
+    progress: float = 0.0
     created_at: datetime = None
     updated_at: datetime = None
 
@@ -68,6 +69,7 @@ class Job:
             'params': self.params,
             'result': asdict(self.result) if self.result else None,
             'error': self.error,
+            'progress': self.progress,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
@@ -109,6 +111,7 @@ class JobManager:
                     'session_id': session_id,
                     'status': JobStatus.PENDING.value,
                     'params': params,
+                    'progress': job.progress,
                     'created_at': job.created_at.isoformat(),
                     'updated_at': job.updated_at.isoformat()
                 }).execute()
@@ -192,6 +195,35 @@ class JobManager:
                 
             except Exception as e:
                 logger.error(f"Failed to update job {job_id} in database: {e}")
+        
+        return True
+
+    def update_job_progress(self, job_id: str, progress: float) -> bool:
+        """Update job progress percentage (0-100)."""
+        job = self.get_job(job_id)
+        if not job:
+            logger.error(f"Job {job_id} not found")
+            return False
+        
+        # Update job object
+        job.progress = progress
+        job.updated_at = datetime.now()
+        
+        # Update in database if using Supabase
+        if self.supabase:
+            try:
+                update_data = {
+                    'progress': progress,
+                    'updated_at': job.updated_at.isoformat()
+                }
+                
+                self.supabase.table(self.jobs_table).update(update_data).eq('job_id', job_id).execute()
+                
+                logger.debug(f"Updated job {job_id} progress to {progress}%")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Failed to update job {job_id} progress in database: {e}")
         
         return True
 

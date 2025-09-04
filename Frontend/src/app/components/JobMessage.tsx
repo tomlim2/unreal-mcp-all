@@ -61,9 +61,9 @@ const JobMessage: React.FC<JobMessageProps> = ({
   ].filter(Boolean).join(' ');
 
   const canCancel = job.status === 'pending' || job.status === 'processing';
-  const canRetry = job.status === 'failed';
+  const canRetry = job.status === 'failed' || job.status === 'cancelled';
   const canDownload = job.status === 'completed' && job.result?.download_url;
-  const canRemove = job.status === 'completed' || job.status === 'failed';
+  const canRemove = job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled';
 
   return (
     <div className={containerClasses}>

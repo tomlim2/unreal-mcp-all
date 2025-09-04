@@ -24,12 +24,18 @@ export class JobManager {
    */
   async startScreenshotJob(parameters: Record<string, unknown> = {}): Promise<Job | null> {
     try {
+      // Extract session_id from parameters if present
+      const { session_id, ...cleanParameters } = parameters;
+      
       const response = await fetch(`http://localhost:${this.httpBridgePort}/api/screenshot/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(parameters),
+        body: JSON.stringify({
+          parameters: cleanParameters,
+          session_id: session_id || null
+        }),
       });
 
       if (!response.ok) {

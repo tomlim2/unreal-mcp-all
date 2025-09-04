@@ -25,6 +25,11 @@
   background: #fef2f2;
 }
 
+.jobMessage.cancelled {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
 .header {
   display: flex;
   align-items: center;

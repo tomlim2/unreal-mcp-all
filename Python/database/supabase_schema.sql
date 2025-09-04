@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS screenshot_jobs (
     params JSONB DEFAULT '{}',
     result JSONB DEFAULT NULL,
     error TEXT DEFAULT NULL,
+    progress REAL DEFAULT 0.0 CHECK (progress >= 0.0 AND progress <= 100.0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

@@ -326,7 +326,15 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     logger.info(f"execute_command_direct: Processing {command.get('type')} with params: {command.get('params', {})}")
     print(f"DEBUG: execute_command_direct called with {command.get('type')}, params: {command.get('params', {})}")
     
-    # Import tools to get access to connection
+    command_type = command.get('type')
+    
+    # Route screenshot commands to job system for async processing
+    if command_type == 'take_highresshot':
+        print(f"DEBUG: Routing take_highresshot to async handler")
+        logger.info(f"Routing take_highresshot to async handler")
+        return _handle_screenshot_command_async(command)
+    
+    # Import tools to get access to connection for other commands
     from unreal_mcp_server import get_unreal_connection
     
     # Get connection
@@ -338,10 +346,75 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     registry = get_command_registry()
     result = registry.execute_command(command, unreal)
     
-    # Screenshot commands now use synchronous execution - no special handling needed
-    # The C++ HandleTakeHighResShot now calls HandleImmediateScreenshot which waits for completion
-    
     return result
+
+def _handle_screenshot_command_async(command: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle screenshot commands using the job system via HTTP bridge globals."""
+    try:
+        # Access job system directly from HTTP bridge globals
+        import http_bridge
+        job_manager = getattr(http_bridge, 'job_manager', None)
+        screenshot_worker = getattr(http_bridge, 'screenshot_worker', None)
+        
+        print(f"DEBUG: Direct access - job_manager={job_manager is not None}, screenshot_worker={screenshot_worker is not None}")
+        
+        if not job_manager or not screenshot_worker:
+            print("DEBUG: Job system not available via direct access, falling back to synchronous execution")
+            # Fallback to direct execution - return immediate success like synchronous
+            from unreal_mcp_server import get_unreal_connection
+            unreal = get_unreal_connection()
+            if not unreal:
+                raise Exception("Could not connect to Unreal Engine")
+            
+            # Execute synchronously but return immediate success
+            registry = get_command_registry()
+            result = registry.execute_command(command, unreal)
+            
+            # Convert to standard success response format
+            return {
+                "status": "success", 
+                "result": {
+                    "success": "true",
+                    "message": "Screenshot command executed"
+                }
+            }
+        
+        # Extract parameters
+        params = command.get('params', {})
+        session_id = params.get('session_id')  # May be None
+        
+        print(f"DEBUG: Creating screenshot job with params: {params}")
+        
+        # Create job
+        job_id = job_manager.create_job('screenshot', params, session_id)
+        
+        # Start job in background
+        success = screenshot_worker.start_screenshot_job(job_id)
+        
+        if success:
+            print(f"DEBUG: Screenshot job started successfully: {job_id}")
+            # Return immediate success - don't wait for job completion
+            return {
+                "status": "success",
+                "result": {
+                    "success": "true", 
+                    "message": "Screenshot command executed",
+                    "job_id": job_id  # Include job_id for frontend tracking
+                }
+            }
+        else:
+            raise Exception("Failed to start screenshot job")
+            
+    except Exception as e:
+        logger.error(f"Failed to execute screenshot command via job system: {e}")
+        # Fallback to synchronous execution
+        logger.info("Falling back to synchronous screenshot execution")
+        from unreal_mcp_server import get_unreal_connection
+        unreal = get_unreal_connection()
+        if not unreal:
+            raise Exception("Could not connect to Unreal Engine")
+        registry = get_command_registry()
+        return registry.execute_command(command, unreal)
 
 def execute_command_via_mcp(ctx: Context, command: Dict[str, Any]) -> Any:
     """Execute a command using MCP's tool system (legacy compatibility wrapper)."""

@@ -276,7 +276,7 @@ export default function UnrealLlmChat({
               onRetry={handleJobRetry}
               onDownload={handleJobDownload}
               onRemove={handleJobRemove}
-              showActions={job.status === 'failed' || job.status === 'completed'}
+              showActions={job.status === 'failed' || job.status === 'completed' || job.status === 'cancelled'}
             />
           ))}
         </div>

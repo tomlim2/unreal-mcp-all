@@ -33,6 +33,12 @@
   border: 1px solid #fca5a5;
 }
 
+.cancelled {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
 .icon {
   width: 1rem;
   height: 1rem;
@@ -62,6 +68,10 @@
 
 .error {
   color: #dc2626;
+}
+
+.cancelled {
+  color: #64748b;
 }
 
 .clock {

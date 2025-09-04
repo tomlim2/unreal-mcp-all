@@ -33,6 +33,11 @@ logger = logging.getLogger("MCPHttpBridge")
 job_manager = None
 screenshot_worker = None
 
+def get_job_system():
+    """Get the job system components (job_manager, screenshot_worker)."""
+    global job_manager, screenshot_worker
+    return job_manager, screenshot_worker
+
 class MCPBridgeHandler(BaseHTTPRequestHandler):
     """HTTP request handler for MCP bridge"""
     
@@ -57,7 +62,37 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             parsed_url = urlparse(self.path)
             path = parsed_url.path
             
-            if path == '/sessions':
+            if path == '/health':
+                # Handle health check request
+                response = {
+                    'status': 'healthy',
+                    'service': 'MCP HTTP Bridge',
+                    'version': '1.0.0',
+                    'timestamp': '2025-09-04T06:38:00.000Z'
+                }
+                response_json = json.dumps(response)
+                self.wfile.write(response_json.encode('utf-8'))
+                return
+                
+            elif path == '/test-job-system':
+                # Test job system availability
+                job_manager, screenshot_worker = get_job_system()
+                response = {
+                    'job_system_status': {
+                        'job_manager_available': job_manager is not None,
+                        'screenshot_worker_available': screenshot_worker is not None,
+                        'both_available': job_manager is not None and screenshot_worker is not None
+                    },
+                    'debug_info': {
+                        'job_manager_type': str(type(job_manager)) if job_manager else None,
+                        'screenshot_worker_type': str(type(screenshot_worker)) if screenshot_worker else None,
+                    }
+                }
+                response_json = json.dumps(response)
+                self.wfile.write(response_json.encode('utf-8'))
+                return
+            
+            elif path == '/sessions':
                 # Handle sessions list request with pagination support
                 try:
                     # Parse query parameters for pagination
@@ -384,6 +419,95 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 self._send_error("No request data")
                 return
                 
+            # Parse URL path for REST endpoints
+            parsed_url = urlparse(self.path)
+            path = parsed_url.path
+            
+            # Handle REST-style screenshot job endpoints
+            if path == '/api/screenshot/start':
+                # POST /api/screenshot/start - Create new screenshot job
+                try:
+                    request_data = json.loads(post_data.decode('utf-8')) if post_data else {}
+                    logger.info(f"Starting screenshot job with params: {request_data}")
+                    
+                    if not job_manager or not screenshot_worker:
+                        self._send_error("Job infrastructure not available")
+                        return
+                    
+                    # Extract parameters
+                    params = request_data.get('parameters', {})
+                    session_id = request_data.get('session_id')
+                    
+                    # Create job with unique ID
+                    job_id = job_manager.create_job('screenshot', params, session_id)
+                    
+                    # Start the job in background
+                    success = screenshot_worker.start_screenshot_job(job_id)
+                    
+                    if success:
+                        response = {
+                            'success': True,
+                            'job_id': job_id,
+                            'message': 'Screenshot job started successfully'
+                        }
+                    else:
+                        response = {
+                            'success': False,
+                            'error': 'Failed to start screenshot job'
+                        }
+                    
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except json.JSONDecodeError as e:
+                    self._send_error(f"Invalid JSON: {e}")
+                    return
+                except Exception as e:
+                    logger.error(f"Error creating screenshot job: {e}")
+                    self._send_error(f"Screenshot job creation error: {e}")
+                    return
+                    
+            elif path.startswith('/api/screenshot/cancel/'):
+                # POST /api/screenshot/cancel/{job_id} - Cancel screenshot job
+                path_parts = path.split('/')
+                if len(path_parts) == 5:
+                    job_id = path_parts[4]
+                    try:
+                        logger.info(f"Canceling screenshot job: {job_id}")
+                        
+                        if not job_manager:
+                            self._send_error("Job manager not available")
+                            return
+                        
+                        # Cancel the job
+                        success = job_manager.cancel_job(job_id)
+                        
+                        if success:
+                            response = {
+                                'success': True,
+                                'job_id': job_id,
+                                'message': 'Screenshot job canceled successfully'
+                            }
+                        else:
+                            response = {
+                                'success': False,
+                                'error': 'Failed to cancel screenshot job or job not found'
+                            }
+                        
+                        response_json = json.dumps(response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+                        
+                    except Exception as e:
+                        logger.error(f"Error canceling screenshot job: {e}")
+                        self._send_error(f"Screenshot job cancellation error: {e}")
+                        return
+                else:
+                    self._send_error("Invalid cancel endpoint - job_id required")
+                    return
+            
+            # Parse JSON for action-based endpoints
             try:
                 request_data = json.loads(post_data.decode('utf-8'))
                 logger.info(f"Received HTTP request: {request_data}")
@@ -694,7 +818,10 @@ class MCPHttpBridge:
             job_manager = JobManager(supabase_client)
             
             # Initialize screenshot worker
+            print("DEBUG: About to get Unreal connection...")
             unreal_connection = get_unreal_connection()
+            print(f"DEBUG: Got Unreal connection: {unreal_connection}")
+            
             if unreal_connection:
                 screenshot_worker = ScreenshotWorker(
                     job_manager=job_manager,
@@ -702,8 +829,18 @@ class MCPHttpBridge:
                     project_path=os.getenv('UNREAL_PROJECT_PATH')
                 )
                 logger.info("Screenshot worker initialized successfully")
+                print("DEBUG: Screenshot worker initialized successfully with connection")
             else:
-                logger.warning("Could not get Unreal connection for screenshot worker")
+                logger.error("Could not get Unreal connection for screenshot worker - Unreal Engine may not be running")
+                print("DEBUG: No Unreal connection available")
+                # Initialize with None connection for testing
+                screenshot_worker = ScreenshotWorker(
+                    job_manager=job_manager,
+                    unreal_connection=None,
+                    project_path=os.getenv('UNREAL_PROJECT_PATH')
+                )
+                logger.warning("Screenshot worker initialized with no Unreal connection")
+                print("DEBUG: Screenshot worker initialized without connection")
                 
         except Exception as e:
             logger.error(f"Failed to initialize workers: {e}")
