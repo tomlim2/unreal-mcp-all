@@ -113,7 +113,7 @@ export interface ApiService {
   fetchSessionContext: (sessionId: string) => Promise<SessionContext>;
 
   // Job management
-  startScreenshotJob: (parameters?: Record<string, unknown>) => Promise<JobResponse>;
-  getJobStatus: (jobId: string) => Promise<Job>;
-  getJobResult: (jobId: string) => Promise<Job>;
+  startJob: (jobType: string, params: Record<string, any>) => Promise<any>;
+  getJobStatus: (jobId: string) => Promise<any>;
+  stopJob: (jobId: string) => Promise<any>;
 }

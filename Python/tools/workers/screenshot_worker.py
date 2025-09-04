@@ -14,6 +14,14 @@ from datetime import datetime
 
 from .job_manager import JobManager, JobStatus, JobResult
 
+# Import session management for database storage
+try:
+    from ..ai.session_management import get_session_manager
+    SESSION_MANAGEMENT_AVAILABLE = True
+except ImportError:
+    SESSION_MANAGEMENT_AVAILABLE = False
+    logger.warning("Session management not available - job results won't be saved to chat context")
+
 # Configure logging
 logger = logging.getLogger("ScreenshotWorker")
 
@@ -63,6 +71,9 @@ class ScreenshotWorker:
         self.job_manager.update_job_status(job_id, JobStatus.IN_PROGRESS)
         self.job_manager.update_job_progress(job_id, 10.0)  # 10% - job started
         
+        # Create initial job message in session if session_id available
+        self._update_session_job_status(job_id, 'running', 'Screenshot job is starting...', 10)
+        
         # Start background thread
         thread = threading.Thread(target=self._execute_screenshot_job, args=(job_id,))
         thread.daemon = True
@@ -74,12 +85,15 @@ class ScreenshotWorker:
     def _execute_screenshot_job(self, job_id: str):
         """Execute screenshot job in background thread with timestamp-based detection."""
         try:
+            print(f"DEBUG: Starting screenshot job execution for {job_id}")
             job = self.job_manager.get_job(job_id)
             if not job:
                 logger.error(f"Job {job_id} not found during execution")
+                print(f"DEBUG: Job {job_id} not found during execution")
                 return
             
             logger.info(f"Executing screenshot job {job_id} with params: {job.params}")
+            print(f"DEBUG: Executing screenshot job {job_id} with params: {job.params}")
             self.job_manager.update_job_progress(job_id, 20.0)  # 20% - preparing command
             
             # Record precise timestamp BEFORE executing command
@@ -111,16 +125,30 @@ class ScreenshotWorker:
             if result:
                 self.job_manager.update_job_progress(job_id, 100.0)  # 100% - completed
                 self.job_manager.update_job_status(job_id, JobStatus.COMPLETED, result=result)
+                
+                # Update session with completion and image URL
+                image_url = f"/api/screenshot/download/{job_id}" if result.download_url else None
+                self._update_session_job_status(job_id, 'completed', 
+                                              f"Screenshot completed successfully: {result.filename}", 
+                                              100, image_url)
+                
                 logger.info(f"Screenshot job {job_id} completed successfully: {result.filename}")
             else:
                 error_msg = "Screenshot file detection timeout or failed"
                 self.job_manager.update_job_status(job_id, JobStatus.FAILED, error=error_msg)
+                
+                # Update session with failure
+                self._update_session_job_status(job_id, 'failed', error_msg, 100)
+                
                 logger.error(f"Screenshot job {job_id} failed: {error_msg}")
                 
         except Exception as e:
             error_msg = f"Screenshot job execution error: {str(e)}"
             logger.error(f"Job {job_id} failed with exception: {error_msg}")
             self.job_manager.update_job_status(job_id, JobStatus.FAILED, error=error_msg)
+            
+            # Update session with exception failure
+            self._update_session_job_status(job_id, 'failed', error_msg, 100)
 
     def _get_screenshot_file_count(self) -> int:
         """Get current number of screenshot files across all screenshot directories."""
@@ -398,3 +426,35 @@ class ScreenshotWorker:
                 return file_path
         
         return None
+    
+    def _update_session_job_status(self, job_id: str, job_status: str, content: str, 
+                                  job_progress: int = None, image_url: str = None):
+        """Update job status in session conversation history."""
+        if not SESSION_MANAGEMENT_AVAILABLE:
+            return
+        
+        try:
+            # Get job to find session_id
+            job = self.job_manager.get_job(job_id)
+            if not job or not job.session_id:
+                logger.debug(f"No session_id found for job {job_id}, skipping session update")
+                return
+            
+            # Get session manager and update job status
+            session_manager = get_session_manager()
+            success = session_manager.update_job_status(
+                session_id=job.session_id,
+                job_id=job_id,
+                job_status=job_status,
+                content=content,
+                job_progress=job_progress,
+                image_url=image_url
+            )
+            
+            if success:
+                logger.info(f"Updated session {job.session_id} with job {job_id} status: {job_status}")
+            else:
+                logger.warning(f"Failed to update session {job.session_id} with job {job_id} status")
+                
+        except Exception as e:
+            logger.error(f"Error updating session for job {job_id}: {e}")

@@ -2,15 +2,17 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSessionStore } from "../store/sessionStore";
-import { JobProvider } from "../store/jobStore";
+import { JobProvider, useJobStore } from "../store/jobStore";
 import { createApiService, Session, SessionContext } from "../services";
+import { getJobUpdateService } from "../services/JobUpdateService";
 import SessionController from "./SessionController";
 import ContextHistory from "./ContextHistory";
 import UnrealAIChat from "./UnrealAIChat";
 import styles from "./ContextPanel.module.css";
 
-export default function ContextPanel() {
+function ContextPanelContent() {
   const { sessionId, setSessionId } = useSessionStore();
+  const jobStore = useJobStore();
   const [error, setError] = useState<string | null>(null);
   
   // Centralized session management state
@@ -27,6 +29,10 @@ export default function ContextPanel() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);  
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
+
+  // Job state
+  const [jobLoading, setJobLoading] = useState(false);
+  const [jobError, setJobError] = useState<string | null>(null);
 
   // Create API service with dependencies
   const apiService = createApiService(sessionId, setSessionId, setError);
@@ -141,39 +147,153 @@ export default function ContextPanel() {
     }
   };
 
+  // Job handlers using API service
+  const handleJobStart = async (jobType: string, params: Record<string, any>) => {
+    setJobLoading(true);
+    setJobError(null);
+
+    try {
+      const result = await apiService.startJob(jobType, params);
+      
+      // Start polling for job updates if we got a job_id
+      if (result.job_id) {
+        const jobUpdateService = getJobUpdateService();
+        
+        jobUpdateService.startPolling(
+          result.job_id,
+          // onUpdate: Update job store with progress
+          (job) => {
+            console.log('Job update received:', job);
+            jobStore.updateJob(job);
+            
+            // Refresh context to show updated job message
+            if (sessionId) {
+              contextCache.current.delete(sessionId);
+              fetchSessionContext(sessionId, true);
+            }
+          },
+          // onComplete: Job finished (success or failure)
+          (job) => {
+            console.log('Job completed:', job);
+            jobStore.updateJob(job);
+            
+            // Refresh context to show final job result with screenshot
+            if (sessionId) {
+              contextCache.current.delete(sessionId);
+              setTimeout(async () => {
+                await fetchSessionContext(sessionId, true);
+              }, 200); // Slightly longer delay for screenshot processing
+            }
+          },
+          // onError: Polling failed
+          (error) => {
+            console.error('Job polling error:', error);
+            setJobError(error);
+          }
+        );
+
+        // Add job to store for tracking
+        if (result.job) {
+          jobStore.addJob(result.job);
+        }
+      }
+      
+      // Refresh context to show new job message
+      if (sessionId) {
+        contextCache.current.delete(sessionId);
+        setTimeout(async () => {
+          await fetchSessionContext(sessionId, true);
+        }, 100);
+      }
+      
+      return result;
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "Failed to start job";
+      setJobError(error);
+      throw err;
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  const handleJobStatus = async (jobId: string) => {
+    try {
+      return await apiService.getJobStatus(jobId);
+    } catch (err) {
+      console.error('Job status error:', err);
+      throw err;
+    }
+  };
+
+  const handleJobStop = async (jobId: string) => {
+    setJobLoading(true);
+    setJobError(null);
+
+    try {
+      const result = await apiService.stopJob(jobId);
+      
+      // Refresh context to update job status
+      if (sessionId) {
+        contextCache.current.delete(sessionId);
+        setTimeout(async () => {
+          await fetchSessionContext(sessionId, true);
+        }, 100);
+      }
+      
+      return result;
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "Failed to stop job";
+      setJobError(error);
+      throw err;
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  return (
+    <div className={styles.contextPanel}>
+      {error && (
+        <div className={styles.globalError}>
+          <span>⚠️ {error}</span>
+          <button onClick={() => setError(null)}>×</button>
+        </div>
+      )}
+      <SessionController 
+        sessionInfo={sessionInfo}
+        loading={sessionsLoading}
+        error={error}
+        activeSessionId={sessionId}
+        onSessionSelect={handleSessionSelect}
+        onSessionCreate={handleSessionCreate}
+        onSessionDelete={handleSessionDelete}
+      />
+      <ContextHistory 
+        context={messageInfo}
+        loading={contextLoading}
+        error={contextError}
+        sessionsLoaded={sessionsLoaded}
+      />
+      <UnrealAIChat 
+        loading={chatLoading}
+        error={chatError}
+        sessionId={sessionId}
+        llmFromDb={messageInfo?.llm_model || 'gemini-2'}
+        onSubmit={handleChatSubmit}
+        onRefreshContext={refreshContext}
+        jobLoading={jobLoading}
+        jobError={jobError}
+        onJobStart={handleJobStart}
+        onJobStatus={handleJobStatus}
+        onJobStop={handleJobStop}
+      />
+    </div>
+  );
+}
+
+export default function ContextPanel() {
   return (
     <JobProvider>
-      <div className={styles.contextPanel}>
-        {error && (
-          <div className={styles.globalError}>
-            <span>⚠️ {error}</span>
-            <button onClick={() => setError(null)}>×</button>
-          </div>
-        )}
-        <SessionController 
-          sessionInfo={sessionInfo}
-          loading={sessionsLoading}
-          error={error}
-          activeSessionId={sessionId}
-          onSessionSelect={handleSessionSelect}
-          onSessionCreate={handleSessionCreate}
-          onSessionDelete={handleSessionDelete}
-        />
-        <ContextHistory 
-          context={messageInfo}
-          loading={contextLoading}
-          error={contextError}
-          sessionsLoaded={sessionsLoaded}
-        />
-        <UnrealAIChat 
-          loading={chatLoading}
-          error={chatError}
-          sessionId={sessionId}
-          llmFromDb={messageInfo?.llm_model || 'gemini-2'}
-          onSubmit={handleChatSubmit}
-          onRefreshContext={refreshContext}
-        />
-      </div>
+      <ContextPanelContent />
     </JobProvider>
   );
 }

@@ -61,6 +61,52 @@ from .session_management import get_session_manager, SessionContext
 # Import model providers
 from .model_providers import get_model_provider, get_default_model, get_available_models
 
+# Global job system cache for NLP module
+_local_job_manager = None
+_local_screenshot_worker = None
+
+def _get_or_create_job_system():
+    """Get or create a local job system for NLP module."""
+    global _local_job_manager, _local_screenshot_worker
+    
+    if _local_job_manager and _local_screenshot_worker:
+        return _local_job_manager, _local_screenshot_worker
+    
+    try:
+        # Import job system components
+        from ..workers import JobManager, ScreenshotWorker
+        from unreal_mcp_server import get_unreal_connection
+        
+        # Try to initialize Supabase for job storage
+        supabase_client = None
+        try:
+            # Try to import and initialize Supabase
+            from ..ai.session_management.storage.supabase_storage import SupabaseStorage
+            storage = SupabaseStorage()
+            if storage.health_check():
+                supabase_client = storage.client
+                logger.info("Using Supabase for local job system")
+        except Exception as e:
+            logger.info(f"Supabase not available for local job system: {e}")
+        
+        # Create job manager
+        _local_job_manager = JobManager(supabase_client)
+        
+        # Create screenshot worker
+        unreal_connection = get_unreal_connection()
+        _local_screenshot_worker = ScreenshotWorker(
+            job_manager=_local_job_manager,
+            unreal_connection=unreal_connection,
+            project_path=os.getenv('UNREAL_PROJECT_PATH')
+        )
+        
+        logger.info("Initialized local job system for NLP module")
+        return _local_job_manager, _local_screenshot_worker
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize local job system: {e}")
+        return None, None
+
 def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None) -> Dict[str, Any]:
     try:
         # Get session manager and session context if session_id provided
@@ -145,6 +191,13 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                 try:
                     logger.info(f"Executing command from NLP: {command}")
                     print(f"DEBUG: Executing command from NLP: {command}")
+                    
+                    # Add session_id to command parameters if available for job tracking
+                    if session_id and command.get('type') == 'take_highresshot':
+                        if 'params' not in command:
+                            command['params'] = {}
+                        command['params']['session_id'] = session_id
+                        logger.info(f"Added session_id {session_id} to screenshot command")
                     
                     # Commands are now validated by handler system in execute_command_direct
                     # No need for pre-validation here as handlers manage their own validation
@@ -261,6 +314,16 @@ Your role is to provide intuitive creative control by translating natural langua
 **Rendering & Capture:**
 - Screenshots: take_highresshot (execute screenshot command)
 
+**JOB SYSTEM & ASYNC PROCESSING**
+**Screenshot Jobs:**
+- take_highresshot creates BACKGROUND JOBS with async processing
+- Jobs progress through states: pending → running → completed/failed
+- Returns job_id immediately (not the actual screenshot)
+- Frontend polls for job status and displays progress bars
+- Completed jobs provide downloadable image URLs
+- Job results are automatically saved to session conversation history
+- Use session_id parameter to track jobs in chat context
+
 ## PARAMETER VALIDATION RULES
 **Sky Commands:**
 - time_of_day: Range 0-{SKY_CONSTRAINTS['TIME_RANGE']['max']} (HHMM format)
@@ -351,15 +414,25 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
 def _handle_screenshot_command_async(command: Dict[str, Any]) -> Dict[str, Any]:
     """Handle screenshot commands using the job system via HTTP bridge globals."""
     try:
-        # Access job system directly from HTTP bridge globals
-        import http_bridge
-        job_manager = getattr(http_bridge, 'job_manager', None)
-        screenshot_worker = getattr(http_bridge, 'screenshot_worker', None)
+        # First try to access job system from HTTP bridge
+        job_manager = None
+        screenshot_worker = None
         
-        print(f"DEBUG: Direct access - job_manager={job_manager is not None}, screenshot_worker={screenshot_worker is not None}")
+        try:
+            import http_bridge
+            job_manager, screenshot_worker = http_bridge.get_job_system()
+            print(f"DEBUG: HTTP bridge job system - job_manager={job_manager is not None}, screenshot_worker={screenshot_worker is not None}")
+        except Exception as e:
+            print(f"DEBUG: Could not access HTTP bridge job system: {e}")
+        
+        # If not available from HTTP bridge, initialize our own
+        if not job_manager or not screenshot_worker:
+            print("DEBUG: Initializing local job system for screenshot processing")
+            job_manager, screenshot_worker = _get_or_create_job_system()
+            print(f"DEBUG: Local job system - job_manager={job_manager is not None}, screenshot_worker={screenshot_worker is not None}")
         
         if not job_manager or not screenshot_worker:
-            print("DEBUG: Job system not available via direct access, falling back to synchronous execution")
+            print("DEBUG: Job system not available, falling back to synchronous execution")
             # Fallback to direct execution - return immediate success like synchronous
             from unreal_mcp_server import get_unreal_connection
             unreal = get_unreal_connection()
@@ -387,6 +460,17 @@ def _handle_screenshot_command_async(command: Dict[str, Any]) -> Dict[str, Any]:
         
         # Create job
         job_id = job_manager.create_job('screenshot', params, session_id)
+        
+        # Create initial job message in session if session_id available
+        if session_id:
+            try:
+                from .session_management import get_session_manager
+                session_manager = get_session_manager()
+                session_manager.create_job_message(session_id, job_id, 'pending', 
+                                                 f"Screenshot job {job_id} created and queued for processing...")
+                logger.info(f"Created initial job message for {job_id} in session {session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to create initial job message: {e}")
         
         # Start job in background
         success = screenshot_worker.start_screenshot_job(job_id)

@@ -207,6 +207,53 @@ class SessionContext:
                         result.get('result', {})
                     )
     
+    def add_job_message(self, job_id: str, job_status: str, content: str, 
+                       job_progress: Optional[int] = None, image_url: Optional[str] = None):
+        """Add a job status message to the conversation history."""
+        job_info = {
+            'job_status': job_status,
+            'job_progress': job_progress,
+            'image_url': image_url
+        }
+        
+        message = ChatMessage(
+            timestamp=datetime.now(),
+            role='job',
+            content=content,
+            job_id=job_id,
+            job_info=job_info
+        )
+        
+        self.conversation_history.append(message)
+        self.last_accessed = datetime.now()
+        
+        # Keep conversation history manageable (last 50 messages)
+        if len(self.conversation_history) > 50:
+            self.conversation_history = self.conversation_history[-50:]
+    
+    def update_job_message(self, job_id: str, job_status: str, content: str = None,
+                          job_progress: Optional[int] = None, image_url: Optional[str] = None):
+        """Update an existing job message or create new one if not found."""
+        # Find existing job message
+        for message in reversed(self.conversation_history):
+            if message.role == 'job' and message.job_id == job_id:
+                # Update existing message
+                message.job_info = message.job_info or {}
+                message.job_info['job_status'] = job_status
+                if job_progress is not None:
+                    message.job_info['job_progress'] = job_progress
+                if image_url:
+                    message.job_info['image_url'] = image_url
+                if content:
+                    message.content = content
+                message.timestamp = datetime.now()
+                self.last_accessed = datetime.now()
+                return
+        
+        # If not found, create new job message
+        self.add_job_message(job_id, job_status, content or f"Job {job_id} status: {job_status}", 
+                           job_progress, image_url)
+    
     def get_conversation_summary(self, max_messages: int = 10) -> str:
         """Get a summary of recent conversation for AI context."""
         if not self.conversation_history:
@@ -224,6 +271,13 @@ class SessionContext:
                     summary_parts.append(f"Assistant: {msg.content} (Executed: {cmd_summary})")
                 else:
                     summary_parts.append(f"Assistant: {msg.content}")
+            elif msg.role == 'job' and msg.job_info:
+                status = msg.job_info.get('job_status', 'unknown')
+                progress = msg.job_info.get('job_progress', 0)
+                if msg.job_info.get('image_url'):
+                    summary_parts.append(f"Job {msg.job_id}: {status} ({progress}%) - Screenshot available")
+                else:
+                    summary_parts.append(f"Job {msg.job_id}: {status} ({progress}%)")
         
         return "\n".join(summary_parts)
     

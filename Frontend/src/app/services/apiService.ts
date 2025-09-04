@@ -185,6 +185,70 @@ export function createApiService(
         setError(err instanceof Error ? err.message : "Failed to fetch session context");
         throw err;
       }
+    },
+
+    startJob: async (jobType: string, params: Record<string, any>) => {
+      try {
+        const response = await fetch('/api/job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'start',
+            job_type: jobType,
+            params,
+            session_id: sessionId
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Job start failed: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to start job");
+        throw err;
+      }
+    },
+
+    getJobStatus: async (jobId: string) => {
+      try {
+        const response = await fetch(`/api/job?job_id=${jobId}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Job status failed: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to get job status");
+        throw err;
+      }
+    },
+
+    stopJob: async (jobId: string) => {
+      try {
+        const response = await fetch('/api/job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'stop',
+            job_id: jobId
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Job stop failed: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to stop job");
+        throw err;
+      }
     }
   };
 }

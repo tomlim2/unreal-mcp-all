@@ -177,7 +177,48 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     self._send_error(f"Error listing session IDs: {e}")
                     return
             
-            # NEW: Screenshot job endpoints
+            # Generic job endpoints
+            elif path == '/api/job':
+                # Handle generic job status requests
+                query_params = parse_qs(parsed_url.query)
+                job_id = query_params.get('job_id')
+                
+                if job_id and len(job_id) > 0:
+                    job_id = job_id[0]
+                    try:
+                        if not job_manager:
+                            self._send_error("Job manager not available")
+                            return
+                        
+                        job = job_manager.get_job(job_id)
+                        if not job:
+                            self._send_error(f"Job {job_id} not found")
+                            return
+                        
+                        response = {
+                            'success': True,
+                            'job_id': job.job_id,
+                            'job_type': job.job_type,
+                            'status': job.status.name.lower(),
+                            'created_at': job.created_at.isoformat() if job.created_at else None,
+                            'updated_at': job.updated_at.isoformat() if job.updated_at else None,
+                            'progress': job.progress,
+                            'result': job.result.__dict__ if job.result else None,
+                            'error': job.error
+                        }
+                        response_json = json.dumps(response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+                        
+                    except Exception as e:
+                        logger.error(f"Error getting job status: {e}")
+                        self._send_error(f"Error getting job status: {e}")
+                        return
+                else:
+                    self._send_error("Missing job_id parameter")
+                    return
+            
+            # NEW: Screenshot job endpoints (legacy support)
             elif path.startswith('/api/screenshot/'):
                 # Handle screenshot job-related requests
                 path_parts = path.split('/')
@@ -423,8 +464,103 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             parsed_url = urlparse(self.path)
             path = parsed_url.path
             
-            # Handle REST-style screenshot job endpoints
-            if path == '/api/screenshot/start':
+            # Handle generic job endpoints
+            if path == '/api/job':
+                # Handle job operations (start/stop)
+                try:
+                    request_data = json.loads(post_data.decode('utf-8')) if post_data else {}
+                    action = request_data.get('action')
+                    
+                    if action == 'start':
+                        # Start new job
+                        logger.info(f"Starting job with params: {request_data}")
+                        
+                        if not job_manager or not screenshot_worker:
+                            self._send_error("Job infrastructure not available")
+                            return
+                        
+                        job_type = request_data.get('job_type', 'screenshot')  # Default to screenshot
+                        params = request_data.get('params', {})
+                        session_id = request_data.get('session_id')
+                        
+                        # Create job with unique ID
+                        job_id = job_manager.create_job(job_type, params, session_id)
+                        
+                        # Start the job based on type
+                        if job_type == 'screenshot':
+                            success = screenshot_worker.start_screenshot_job(job_id)
+                        else:
+                            success = False  # Other job types not implemented yet
+                        
+                        if success:
+                            job = job_manager.get_job(job_id)
+                            response = {
+                                'success': True,
+                                'job_id': job_id,
+                                'job': {
+                                    'job_id': job.job_id,
+                                    'job_type': job.job_type,
+                                    'status': job.status.name.lower(),
+                                    'created_at': job.created_at.isoformat() if job.created_at else None,
+                                    'progress': job.progress
+                                } if job else None,
+                                'message': f'{job_type.capitalize()} job started successfully'
+                            }
+                        else:
+                            response = {
+                                'success': False,
+                                'error': f'Failed to start {job_type} job'
+                            }
+                        
+                        response_json = json.dumps(response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+                    
+                    elif action == 'stop':
+                        # Stop/cancel job
+                        job_id = request_data.get('job_id')
+                        if not job_id:
+                            self._send_error("Missing 'job_id' field for stop action")
+                            return
+                        
+                        logger.info(f"Stopping job: {job_id}")
+                        
+                        if not job_manager:
+                            self._send_error("Job manager not available")
+                            return
+                        
+                        success = job_manager.cancel_job(job_id)
+                        
+                        if success:
+                            response = {
+                                'success': True,
+                                'job_id': job_id,
+                                'message': 'Job stopped successfully'
+                            }
+                        else:
+                            response = {
+                                'success': False,
+                                'error': 'Failed to stop job or job not found'
+                            }
+                        
+                        response_json = json.dumps(response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+                    
+                    else:
+                        self._send_error(f"Unknown action: {action}")
+                        return
+                        
+                except json.JSONDecodeError as e:
+                    self._send_error(f"Invalid JSON: {e}")
+                    return
+                except Exception as e:
+                    logger.error(f"Error handling job request: {e}")
+                    self._send_error(f"Job request error: {e}")
+                    return
+            
+            # Handle REST-style screenshot job endpoints (legacy support)
+            elif path == '/api/screenshot/start':
                 # POST /api/screenshot/start - Create new screenshot job
                 try:
                     request_data = json.loads(post_data.decode('utf-8')) if post_data else {}

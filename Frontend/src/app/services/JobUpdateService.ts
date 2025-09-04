@@ -143,7 +143,7 @@ export class JobUpdateService {
   }
 
   private async fetchJobStatus(jobId: string): Promise<Job> {
-    const response = await fetch(`http://localhost:${this.httpBridgePort}/api/screenshot/status/${jobId}`, {
+    const response = await fetch(`http://localhost:${this.httpBridgePort}/api/job?job_id=${jobId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -160,7 +160,24 @@ export class JobUpdateService {
       throw new Error(data.error || 'Failed to fetch job status');
     }
 
-    return data.job;
+    // Convert backend response to Job format
+    return {
+      job_id: data.job_id,
+      job_type: data.job_type || 'screenshot',
+      status: data.status as 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled',
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      progress: data.progress,
+      result: data.result ? {
+        filename: data.result.filename,
+        file_path: data.result.file_path,
+        file_size: data.result.file_size,
+        thumbnail_url: data.result.thumbnail_url,
+        download_url: data.result.download_url
+      } : undefined,
+      error: data.error,
+      metadata: data.metadata
+    };
   }
 
   /**

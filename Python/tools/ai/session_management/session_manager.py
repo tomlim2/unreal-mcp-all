@@ -282,6 +282,92 @@ class SessionManager:
         
         return session
     
+    def update_job_status(self, session_id: str, job_id: str, job_status: str, 
+                         content: str = None, job_progress: int = None, 
+                         image_url: str = None) -> bool:
+        """
+        Update job status in session conversation history.
+        
+        Args:
+            session_id: The session ID
+            job_id: The job ID to update
+            job_status: New job status ('pending', 'running', 'completed', 'failed')
+            content: Optional content for the job message
+            job_progress: Optional progress percentage (0-100)
+            image_url: Optional image URL when job completes
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        # Get session
+        session = self.get_session(session_id)
+        if session is None:
+            logger.error(f"Session not found for job update: {session_id}")
+            return False
+        
+        # Update job message in conversation history
+        default_content = {
+            'pending': f"Screenshot job {job_id} is starting...",
+            'running': f"Processing screenshot job {job_id}...",
+            'completed': f"Screenshot job {job_id} completed successfully!",
+            'failed': f"Screenshot job {job_id} failed"
+        }.get(job_status, f"Job {job_id} status: {job_status}")
+        
+        session.update_job_message(
+            job_id=job_id,
+            job_status=job_status,
+            content=content or default_content,
+            job_progress=job_progress,
+            image_url=image_url
+        )
+        
+        # Update the session in storage
+        success = self.update_session(session)
+        if success:
+            logger.info(f"Updated job {job_id} status to {job_status} in session {session_id}")
+        else:
+            logger.error(f"Failed to update job {job_id} status in session {session_id}")
+        
+        return success
+    
+    def create_job_message(self, session_id: str, job_id: str, job_status: str = 'pending',
+                          content: str = None) -> bool:
+        """
+        Create initial job message when job starts.
+        
+        Args:
+            session_id: The session ID
+            job_id: The job ID
+            job_status: Initial job status (default: 'pending')
+            content: Optional content for the job message
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        # Get or create session
+        session = self.get_or_create_session(session_id)
+        if session is None:
+            logger.error(f"Failed to get/create session for job message: {session_id}")
+            return False
+        
+        # Add initial job message
+        default_content = f"Screenshot job {job_id} has been created and is starting..."
+        session.add_job_message(
+            job_id=job_id,
+            job_status=job_status,
+            content=content or default_content,
+            job_progress=0
+        )
+        
+        # Update the session in storage
+        success = self.update_session(session)
+        if success:
+            logger.info(f"Created job message for {job_id} in session {session_id}")
+        else:
+            logger.error(f"Failed to create job message for {job_id} in session {session_id}")
+        
+        return success
+    
     def cleanup_expired_sessions(self, max_age: timedelta = timedelta(days=30)) -> int:
         """
         Manually trigger cleanup of expired sessions.
