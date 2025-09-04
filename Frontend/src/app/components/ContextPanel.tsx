@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSessionStore } from "../store/sessionStore";
+import { JobProvider } from "../store/jobStore";
 import { createApiService, Session, SessionContext } from "../services";
 import SessionController from "./SessionController";
 import ContextHistory from "./ContextHistory";
@@ -141,36 +142,38 @@ export default function ContextPanel() {
   };
 
   return (
-    <div className={styles.contextPanel}>
-      {error && (
-        <div className={styles.globalError}>
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)}>×</button>
-        </div>
-      )}
-      <SessionController 
-        sessionInfo={sessionInfo}
-        loading={sessionsLoading}
-        error={error}
-        activeSessionId={sessionId}
-        onSessionSelect={handleSessionSelect}
-        onSessionCreate={handleSessionCreate}
-        onSessionDelete={handleSessionDelete}
-      />
-      <ContextHistory 
-        context={messageInfo}
-        loading={contextLoading}
-        error={contextError}
-        sessionsLoaded={sessionsLoaded}
-      />
-      <UnrealAIChat 
-        loading={chatLoading}
-        error={chatError}
-        sessionId={sessionId}
-        llmFromDb={messageInfo?.llm_model || 'gemini-2'}
-        onSubmit={handleChatSubmit}
-        onRefreshContext={refreshContext}
-      />
-    </div>
+    <JobProvider>
+      <div className={styles.contextPanel}>
+        {error && (
+          <div className={styles.globalError}>
+            <span>⚠️ {error}</span>
+            <button onClick={() => setError(null)}>×</button>
+          </div>
+        )}
+        <SessionController 
+          sessionInfo={sessionInfo}
+          loading={sessionsLoading}
+          error={error}
+          activeSessionId={sessionId}
+          onSessionSelect={handleSessionSelect}
+          onSessionCreate={handleSessionCreate}
+          onSessionDelete={handleSessionDelete}
+        />
+        <ContextHistory 
+          context={messageInfo}
+          loading={contextLoading}
+          error={contextError}
+          sessionsLoaded={sessionsLoaded}
+        />
+        <UnrealAIChat 
+          loading={chatLoading}
+          error={chatError}
+          sessionId={sessionId}
+          llmFromDb={messageInfo?.llm_model || 'gemini-2'}
+          onSubmit={handleChatSubmit}
+          onRefreshContext={refreshContext}
+        />
+      </div>
+    </JobProvider>
   );
 }

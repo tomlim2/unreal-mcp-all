@@ -16,16 +16,27 @@ class ChatMessage:
     content: str
     commands: List[Dict[str, Any]] = field(default_factory=list)
     execution_results: List[Dict[str, Any]] = field(default_factory=list)
+    # NEW: Job-related fields for worker pattern
+    job_id: Optional[str] = None
+    job_info: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        data = {
             'timestamp': self.timestamp.isoformat(),
             'role': self.role,
             'content': self.content,
             'commands': self.commands,
             'execution_results': self.execution_results
         }
+        
+        # Include job fields if present
+        if self.job_id:
+            data['job_id'] = self.job_id
+        if self.job_info:
+            data['job_info'] = self.job_info
+            
+        return data
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ChatMessage':
@@ -35,7 +46,9 @@ class ChatMessage:
             role=data['role'],
             content=data['content'],
             commands=data.get('commands', []),
-            execution_results=data.get('execution_results', [])
+            execution_results=data.get('execution_results', []),
+            job_id=data.get('job_id'),
+            job_info=data.get('job_info')
         )
 
 

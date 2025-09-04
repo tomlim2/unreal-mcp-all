@@ -8,11 +8,15 @@ import json
 import logging
 import os
 import asyncio
+import mimetypes
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 import threading
 from typing import Dict, Any, Optional
+
+# Import worker infrastructure
+from tools.workers import JobManager, JobStatus, ScreenshotWorker
 
 # Import the UnrealConnection from the main server
 from unreal_mcp_server import get_unreal_connection, UnrealConnection
@@ -24,6 +28,10 @@ from tools.ai.session_management.utils.session_helpers import extract_session_id
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MCPHttpBridge")
+
+# Global worker instances (will be initialized in MCPHttpBridge)
+job_manager = None
+screenshot_worker = None
 
 class MCPBridgeHandler(BaseHTTPRequestHandler):
     """HTTP request handler for MCP bridge"""
@@ -133,6 +141,86 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     logger.error(f"Error listing session IDs: {e}")
                     self._send_error(f"Error listing session IDs: {e}")
                     return
+            
+            # NEW: Screenshot job endpoints
+            elif path.startswith('/api/screenshot/'):
+                # Handle screenshot job-related requests
+                path_parts = path.split('/')
+                
+                if len(path_parts) >= 4 and path_parts[3] == 'status':
+                    # GET /api/screenshot/status/{job_id}
+                    if len(path_parts) == 5:
+                        job_id = path_parts[4]
+                        try:
+                            if not job_manager:
+                                self._send_error("Job manager not available")
+                                return
+                            
+                            job = job_manager.get_job(job_id)
+                            if not job:
+                                self._send_error(f"Job {job_id} not found")
+                                return
+                            
+                            response = job.to_dict()
+                            response_json = json.dumps(response)
+                            self.wfile.write(response_json.encode('utf-8'))
+                            return
+                            
+                        except Exception as e:
+                            logger.error(f"Error getting job status: {e}")
+                            self._send_error(f"Error getting job status: {e}")
+                            return
+                
+                elif len(path_parts) >= 4 and path_parts[3] == 'download':
+                    # GET /api/screenshot/download/{job_id}
+                    if len(path_parts) == 5:
+                        job_id = path_parts[4]
+                        try:
+                            if not screenshot_worker:
+                                self._send_error("Screenshot worker not available")
+                                return
+                            
+                            file_path = screenshot_worker.get_screenshot_file_path(job_id)
+                            if not file_path or not file_path.exists():
+                                self._send_error(f"Screenshot file not found for job {job_id}")
+                                return
+                            
+                            # Serve the file
+                            self._serve_file(file_path)
+                            return
+                            
+                        except Exception as e:
+                            logger.error(f"Error serving screenshot file: {e}")
+                            self._send_error(f"Error serving screenshot file: {e}")
+                            return
+                
+                elif len(path_parts) >= 4 and path_parts[3] == 'result':
+                    # GET /api/screenshot/result/{job_id}
+                    if len(path_parts) == 5:
+                        job_id = path_parts[4]
+                        try:
+                            if not job_manager:
+                                self._send_error("Job manager not available")
+                                return
+                            
+                            job = job_manager.get_job(job_id)
+                            if not job:
+                                self._send_error(f"Job {job_id} not found")
+                                return
+                            
+                            if job.status != JobStatus.COMPLETED or not job.result:
+                                self._send_error(f"Job {job_id} not completed or no result available")
+                                return
+                            
+                            response = {'result': job.result.__dict__}
+                            response_json = json.dumps(response)
+                            self.wfile.write(response_json.encode('utf-8'))
+                            return
+                            
+                        except Exception as e:
+                            logger.error(f"Error getting job result: {e}")
+                            self._send_error(f"Error getting job result: {e}")
+                            return
             
             
             # Handle other GET requests (404)
@@ -386,6 +474,77 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     self._send_error(f"Session creation error: {e}")
                     return
             
+            # NEW: Handle screenshot job creation
+            if request_data.get('action') == 'start_screenshot_job':
+                # Handle screenshot job creation
+                logger.info("Processing screenshot job creation request")
+                try:
+                    if not job_manager or not screenshot_worker:
+                        self._send_error("Job infrastructure not available")
+                        return
+                    
+                    # Extract parameters
+                    params = request_data.get('params', {})
+                    session_id = request_data.get('session_id')
+                    
+                    # Create job
+                    job_id = job_manager.create_job('screenshot', params, session_id)
+                    
+                    # Start the job
+                    success = screenshot_worker.start_screenshot_job(job_id)
+                    
+                    if success:
+                        response = {
+                            'success': True,
+                            'jobId': job_id,
+                            'status': 'pending',
+                            'message': f'Screenshot job {job_id} started'
+                        }
+                    else:
+                        response = {
+                            'success': False,
+                            'error': 'Failed to start screenshot job'
+                        }
+                    
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error creating screenshot job: {e}")
+                    self._send_error(f"Screenshot job creation error: {e}")
+                    return
+                    
+            # Handle screenshot job cancellation
+            elif request_data.get('action') == 'cancel_job':
+                # Handle job cancellation
+                logger.info("Processing job cancellation request")
+                try:
+                    if not job_manager:
+                        self._send_error("Job manager not available")
+                        return
+                    
+                    job_id = request_data.get('job_id')
+                    if not job_id:
+                        self._send_error("Missing 'job_id' field")
+                        return
+                    
+                    success = job_manager.cancel_job(job_id)
+                    
+                    response = {
+                        'success': success,
+                        'message': f'Job {job_id} {"cancelled" if success else "could not be cancelled"}'
+                    }
+                    
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+                    
+                except Exception as e:
+                    logger.error(f"Error cancelling job: {e}")
+                    self._send_error(f"Job cancellation error: {e}")
+                    return
+            
             # Check if this is a natural language request
             if 'prompt' in request_data:
                 # Handle natural language processing with session management
@@ -463,6 +622,37 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             logger.error(f"Error handling POST request: {e}")
             self._send_error(f"Server error: {e}")
     
+    def _serve_file(self, file_path: Path):
+        """Serve a file with appropriate headers."""
+        try:
+            # Get file info
+            file_size = file_path.stat().st_size
+            content_type, _ = mimetypes.guess_type(str(file_path))
+            if not content_type:
+                content_type = 'application/octet-stream'
+            
+            # Send headers
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Length', str(file_size))
+            self.send_header('Content-Disposition', f'inline; filename="{file_path.name}"')
+            self.end_headers()
+            
+            # Send file content
+            with open(file_path, 'rb') as f:
+                while True:
+                    chunk = f.read(8192)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    
+            logger.info(f"Served file: {file_path.name} ({file_size} bytes)")
+            
+        except Exception as e:
+            logger.error(f"Error serving file {file_path}: {e}")
+            self._send_error(f"Error serving file: {e}")
+
     def _send_error(self, message: str):
         """Send error response"""
         error_response = {
@@ -484,6 +674,39 @@ class MCPHttpBridge:
         self.port = port
         self.server = None
         self.server_thread = None
+        self._initialize_workers()
+    
+    def _initialize_workers(self):
+        """Initialize worker infrastructure."""
+        global job_manager, screenshot_worker
+        
+        try:
+            # Initialize job manager with Supabase if available
+            supabase_client = None
+            try:
+                from tools.ai.session_management.storage.supabase_storage import SupabaseStorage
+                supabase_storage = SupabaseStorage()
+                supabase_client = supabase_storage.supabase
+                logger.info("Initialized job manager with Supabase backend")
+            except Exception as e:
+                logger.warning(f"Could not initialize Supabase for job manager: {e}")
+            
+            job_manager = JobManager(supabase_client)
+            
+            # Initialize screenshot worker
+            unreal_connection = get_unreal_connection()
+            if unreal_connection:
+                screenshot_worker = ScreenshotWorker(
+                    job_manager=job_manager,
+                    unreal_connection=unreal_connection,
+                    project_path=os.getenv('UNREAL_PROJECT_PATH')
+                )
+                logger.info("Screenshot worker initialized successfully")
+            else:
+                logger.warning("Could not get Unreal connection for screenshot worker")
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize workers: {e}")
     
     def start(self):
         """Start the HTTP server"""

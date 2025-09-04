@@ -1,2 +1,11 @@
 export { createApiService } from './ApiService';
-export type { ApiService, Session, AIResponse, SessionContext } from './types';
+export { createJobManager } from './jobManager';
+export { getJobUpdateService } from './JobUpdateService';
+export type { 
+  ApiService, 
+  Session, 
+  AIResponse, 
+  SessionContext, 
+  Job, 
+  JobResponse 
+} from './types';

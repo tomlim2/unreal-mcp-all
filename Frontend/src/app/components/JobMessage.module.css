@@ -1,0 +1,235 @@
+.jobMessage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.jobMessage.processing {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.jobMessage.completed {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.jobMessage.failed {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.jobInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.jobTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.jobId {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.actionButton {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionButton:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionButton.primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+.actionButton.primary:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.actionButton.danger {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+
+.actionButton.danger:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.metadataItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.resultSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.resultTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.resultContent {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.fileInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.fileInfoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fileInfoLabel {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fileInfoValue {
+  font-size: 0.75rem;
+  color: #374151;
+  font-family: monospace;
+}
+
+.downloadLink {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.downloadLink:hover {
+  color: #2563eb;
+}
+
+.errorSection {
+  padding: 0.75rem;
+  background: rgba(254, 242, 242, 0.8);
+  border-radius: 0.5rem;
+  border: 1px solid #fca5a5;
+}
+
+.errorText {
+  font-size: 0.875rem;
+  color: #dc2626;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+.progressSection {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progressBar {
+  flex: 1;
+  height: 0.375rem;
+  background: #e5e7eb;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.3s ease;
+  border-radius: 0.375rem;
+}
+
+.progressText {
+  font-size: 0.75rem;
+  color: #6b7280;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.thumbnail {
+  max-width: 150px;
+  max-height: 100px;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.thumbnail:hover {
+  border-color: #3b82f6;
+  transform: scale(1.02);
+}

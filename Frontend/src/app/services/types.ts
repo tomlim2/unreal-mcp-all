@@ -68,6 +68,35 @@ export interface SessionContext {
   last_accessed: string;
 }
 
+// Job Management Types
+export interface Job {
+  job_id: string;
+  job_type: 'screenshot' | 'batch_screenshot';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  created_at: string;
+  updated_at: string;
+  progress?: number;
+  result?: {
+    filename?: string;
+    file_path?: string;
+    file_size?: number;
+    thumbnail_url?: string;
+    download_url?: string;
+  };
+  error?: string;
+  metadata?: {
+    original_prompt?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+export interface JobResponse {
+  success: boolean;
+  job_id?: string;
+  job?: Job;
+  error?: string;
+}
+
 // API Service Interface
 export interface ApiService {
   // Session management
@@ -82,4 +111,9 @@ export interface ApiService {
   
   // Context history
   fetchSessionContext: (sessionId: string) => Promise<SessionContext>;
+
+  // Job management
+  startScreenshotJob: (parameters?: Record<string, unknown>) => Promise<JobResponse>;
+  getJobStatus: (jobId: string) => Promise<Job>;
+  getJobResult: (jobId: string) => Promise<Job>;
 }
