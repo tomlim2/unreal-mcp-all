@@ -82,7 +82,7 @@ function jobReducer(state: JobState, action: JobAction): JobState {
 
     case 'CLEAR_COMPLETED_JOBS': {
       const activeJobs = Object.values(state.jobs).filter(
-        job => job.status === 'pending' || job.status === 'processing'
+        job => job.status === 'pending' || job.status === 'in_progress'
       );
       const activeJobsRecord = activeJobs.reduce((acc, job) => {
         acc[job.job_id] = job;

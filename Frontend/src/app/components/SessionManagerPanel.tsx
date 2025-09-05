@@ -166,7 +166,7 @@ function SessionManagerPanelContent() {
             // Add job to store for tracking
             jobStore.addJob({
               job_id: jobId,
-              status: 'running',
+              status: 'in_progress',
               progress: 10,
               type: 'screenshot',
               created_at: new Date().toISOString()

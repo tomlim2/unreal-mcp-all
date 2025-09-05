@@ -9,7 +9,7 @@ import logging
 import os
 import asyncio
 import mimetypes
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 import threading
@@ -18,8 +18,7 @@ from typing import Dict, Any, Optional
 # Import worker infrastructure
 from tools.workers import JobManager, JobStatus, ScreenshotWorker
 
-# Import the UnrealConnection from the main server
-from unreal_mcp_server import get_unreal_connection, UnrealConnection
+# Import will be deferred to avoid hanging on initialization
 
 # Import session management
 from tools.ai.session_management import SessionManager, SessionContext, get_session_manager
@@ -37,6 +36,19 @@ def get_job_system():
     """Get the job system components (job_manager, screenshot_worker)."""
     global job_manager, screenshot_worker
     return job_manager, screenshot_worker
+
+def ensure_unreal_connection():
+    """Ensure screenshot worker has Unreal connection when needed."""
+    global screenshot_worker
+    if screenshot_worker and not screenshot_worker.unreal_connection:
+        try:
+            from unreal_mcp_server import get_unreal_connection
+            unreal_connection = get_unreal_connection()
+            screenshot_worker.unreal_connection = unreal_connection
+            logger.info("Unreal connection set for screenshot worker")
+        except Exception as e:
+            logger.warning(f"Could not get Unreal connection: {e}")
+    return screenshot_worker
 
 def _initialize_global_job_system():
     """Initialize global job system for module imports."""
@@ -58,30 +70,17 @@ def _initialize_global_job_system():
         
         job_manager = JobManager(supabase_client)
         
-        # Get Unreal connection for screenshot worker
+        # Create screenshot worker without Unreal connection initially 
+        # (will be set when first needed to avoid hanging on module import)
         try:
-            unreal_connection = get_unreal_connection()
-            print(f"DEBUG: Got unreal_connection: {unreal_connection is not None}")
             screenshot_worker = ScreenshotWorker(
                 job_manager=job_manager,
-                unreal_connection=unreal_connection
+                unreal_connection=None
             )
-            print(f"DEBUG: Screenshot worker created successfully")
-            logger.info("Screenshot worker initialized with Unreal connection")
+            logger.info("Screenshot worker initialized (Unreal connection will be set when needed)")
         except Exception as e:
-            print(f"DEBUG: Screenshot worker initialization failed: {e}")
-            print(f"DEBUG: Trying to create screenshot worker without Unreal connection...")
-            try:
-                # Create screenshot worker without Unreal connection (will be set later)
-                screenshot_worker = ScreenshotWorker(
-                    job_manager=job_manager,
-                    unreal_connection=None
-                )
-                print(f"DEBUG: Screenshot worker created without Unreal connection")
-                logger.warning(f"Screenshot worker initialized without Unreal connection: {e}")
-            except Exception as e2:
-                print(f"DEBUG: Screenshot worker creation failed completely: {e2}")
-                screenshot_worker = None
+            logger.error(f"Screenshot worker creation failed: {e}")
+            screenshot_worker = None
         
         logger.info("Global job system initialized successfully")
         
@@ -105,6 +104,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests"""
         global job_manager, screenshot_worker
+        logger.info(f"GET request received: {self.path}")
         try:
             # Handle CORS
             self.send_response(200)
@@ -267,7 +267,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             self._send_error("Job manager not available")
                             return
                         
-                        print(f"DEBUG: HTTP bridge querying job_manager id {id(job_manager)} for job {job_id}")
                         job = job_manager.get_job(job_id)
                         if not job:
                             self._send_error(f"Job {job_id} not found")
@@ -335,7 +334,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                                 self._send_error("Screenshot worker not available")
                                 return
                             
-                            file_path = screenshot_worker.get_screenshot_file_path(job_id)
+                            worker = ensure_unreal_connection()
+                            file_path = worker.get_screenshot_file_path(job_id) if worker else None
                             if not file_path or not file_path.exists():
                                 self._send_error(f"Screenshot file not found for job {job_id}")
                                 return
@@ -375,6 +375,55 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         except Exception as e:
                             logger.error(f"Error getting job result: {e}")
                             self._send_error(f"Error getting job result: {e}")
+                            return
+                
+                else:
+                    # Handle direct /api/screenshot/{job_id} for image serving
+                    logger.info(f"Screenshot endpoint - path_parts: {path_parts}, len: {len(path_parts)}")
+                    if len(path_parts) == 4:
+                        job_id = path_parts[3]
+                        logger.info(f"Handling direct screenshot request for job: {job_id}")
+                        try:
+                            job_manager, screenshot_worker = get_job_system()
+                            if not screenshot_worker:
+                                self._send_error("Screenshot worker not available")
+                                return
+                            
+                            worker = ensure_unreal_connection()
+                            if not worker:
+                                self._send_error("Screenshot worker connection not available")
+                                return
+                            
+                            # Get job to verify it exists and is completed
+                            # get_job() already handles database fallback if not in memory
+                            job = job_manager.get_job(job_id)
+                            
+                            if not job:
+                                logger.warning(f"Job {job_id} not found in memory or database")
+                                self._send_error(f"Job {job_id} not found")
+                                return
+                            
+                            if job.status != JobStatus.COMPLETED:
+                                self._send_error(f"Job {job_id} is not completed (status: {job.status.value})")
+                                return
+                            
+                            if not job.result or not job.result.filepath:
+                                self._send_error(f"No file path available for job {job_id}")
+                                return
+                            
+                            # Serve the screenshot file directly
+                            file_path = Path(job.result.filepath)
+                            if not file_path.exists():
+                                self._send_error(f"Screenshot file not found: {file_path}")
+                                return
+                            
+                            logger.info(f"Serving screenshot file: {file_path} ({file_path.stat().st_size} bytes)")
+                            self._serve_file(file_path)
+                            return
+                            
+                        except Exception as e:
+                            logger.error(f"Error serving screenshot for job {job_id}: {e}")
+                            self._send_error(f"Error serving screenshot: {e}")
                             return
             
             
@@ -568,7 +617,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         
                         # Start the job based on type
                         if job_type == 'screenshot':
-                            success = screenshot_worker.start_screenshot_job(job_id)
+                            worker = ensure_unreal_connection()
+                            success = worker.start_screenshot_job(job_id) if worker else False
                         else:
                             success = False  # Other job types not implemented yet
                         
@@ -658,7 +708,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     job_id = job_manager.create_job('screenshot', params, session_id)
                     
                     # Start the job in background
-                    success = screenshot_worker.start_screenshot_job(job_id)
+                    worker = ensure_unreal_connection()
+                    success = worker.start_screenshot_job(job_id) if worker else False
                     
                     if success:
                         response = {
@@ -831,7 +882,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     job_id = job_manager.create_job('screenshot', params, session_id)
                     
                     # Start the job
-                    success = screenshot_worker.start_screenshot_job(job_id)
+                    worker = ensure_unreal_connection()
+                    success = worker.start_screenshot_job(job_id) if worker else False
                     
                     if success:
                         response = {
@@ -942,9 +994,14 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 return
             
             # Execute command via Unreal connection
-            connection = get_unreal_connection()
-            if not connection:
-                self._send_error("Could not connect to Unreal Engine")
+            try:
+                from unreal_mcp_server import get_unreal_connection
+                connection = get_unreal_connection()
+                if not connection:
+                    self._send_error("Could not connect to Unreal Engine")
+                    return
+            except Exception as e:
+                self._send_error(f"Could not get Unreal connection: {e}")
                 return
             
             result = connection.send_command(command_type, params)
@@ -1034,9 +1091,13 @@ class MCPHttpBridge:
             job_manager = JobManager(supabase_client)
             
             # Initialize screenshot worker
-            print("DEBUG: About to get Unreal connection...")
-            unreal_connection = get_unreal_connection()
-            print(f"DEBUG: Got Unreal connection: {unreal_connection}")
+            try:
+                from unreal_mcp_server import get_unreal_connection
+                unreal_connection = get_unreal_connection()
+                print(f"DEBUG: Got Unreal connection: {unreal_connection}")
+            except Exception as e:
+                print(f"DEBUG: Could not get Unreal connection: {e}")
+                unreal_connection = None
             
             if unreal_connection:
                 screenshot_worker = ScreenshotWorker(
@@ -1064,7 +1125,7 @@ class MCPHttpBridge:
     def start(self):
         """Start the HTTP server"""
         try:
-            self.server = HTTPServer(('127.0.0.1', self.port), MCPBridgeHandler)
+            self.server = ThreadingHTTPServer(('127.0.0.1', self.port), MCPBridgeHandler)
             self.server_thread = threading.Thread(target=self.server.serve_forever)
             self.server_thread.daemon = True
             self.server_thread.start()

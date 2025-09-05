@@ -424,8 +424,13 @@ def _handle_screenshot_command_async(command: Dict[str, Any]) -> Dict[str, Any]:
         try:
             import http_bridge
             job_manager, screenshot_worker = http_bridge.get_job_system()
+            # Ensure screenshot worker has Unreal connection before using it
+            if screenshot_worker:
+                screenshot_worker = http_bridge.ensure_unreal_connection()
             print(f"DEBUG: HTTP bridge job system - job_manager={job_manager is not None}, screenshot_worker={screenshot_worker is not None}")
             print(f"DEBUG: HTTP bridge job_manager id: {id(job_manager) if job_manager else 'None'}")
+            if screenshot_worker:
+                print(f"DEBUG: Screenshot worker has Unreal connection: {screenshot_worker.unreal_connection is not None}")
         except Exception as e:
             print(f"DEBUG: Could not access HTTP bridge job system: {e}")
         

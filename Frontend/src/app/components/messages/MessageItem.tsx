@@ -4,6 +4,22 @@ import { useState, useEffect } from 'react';
 import styles from './MessageItem.module.css';
 import MessageItemImageResult from './MessageItemImageResult';
 
+function getFullImageUrl(imageUrl: string): string {
+  // If it's already an absolute URL, return as-is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // If it's a relative URL starting with /api/screenshot/, make it absolute
+  if (imageUrl.startsWith('/api/screenshot/')) {
+    const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
+    return `http://localhost:${httpBridgePort}${imageUrl}`;
+  }
+  
+  // Otherwise return as-is
+  return imageUrl;
+}
+
 // Component to handle image loading with proper preloading
 function ImageWithFallback({ 
   src, 
@@ -138,11 +154,19 @@ interface MessageItemProps {
 
 export default function MessageItem({ message, sessionName, index, sessionId, previousMessage }: MessageItemProps) {
   const keyPrefix = sessionId ? `${sessionId}-${index}` : index;
-  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Set default expansion based on message role
+  const getDefaultExpanded = () => {
+    if (message.role === 'job') return true;     // Job messages always open
+    if (message.role === 'assistant') return false; // Assistant messages closed by default
+    return true; // Other messages open
+  };
+  
+  const [isExpanded, setIsExpanded] = useState(getDefaultExpanded());
 
   // Reset expanded state when sessionId changes
   useEffect(() => {
-    setIsExpanded(false);
+    setIsExpanded(getDefaultExpanded());
   }, [sessionId]);
 
   // User message rendering
@@ -302,9 +326,6 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
           <div className={styles.headerLeft}>
             <span className={styles.roleLabel}>Job Status</span>
             <span className={styles.jobStatus}>{getJobStatusText()}</span>
-            {message.job_progress !== undefined && (
-              <span className={styles.jobProgress}>({message.job_progress}%)</span>
-            )}
           </div>
           <div className={styles.headerRight}>
             {sessionName && (
@@ -325,24 +346,13 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
 {message.image_url && (
               <div className={styles.jobImageContainer}>
                 <ImageWithFallback 
-                  src={message.image_url}
+                  src={getFullImageUrl(message.image_url)}
                   alt="Job Result"
                   className={styles.jobImage}
                 />
               </div>
             )}
             
-            {message.job_progress !== undefined && (
-              <div className={styles.progressBar}>
-                <div 
-                  className={styles.progressFill}
-                  style={{
-                    width: `${message.job_progress}%`,
-                    backgroundColor: getJobStatusColor()
-                  }}
-                />
-              </div>
-            )}
           </>
         )}
       </div>

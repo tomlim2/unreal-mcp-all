@@ -85,6 +85,7 @@ class ScreenshotWorker:
     def _execute_screenshot_job(self, job_id: str):
         """Execute screenshot job in background thread with timestamp-based detection."""
         try:
+            logger.info(f"Starting screenshot job execution for {job_id}")
             print(f"DEBUG: Starting screenshot job execution for {job_id}")
             job = self.job_manager.get_job(job_id)
             if not job:
@@ -98,8 +99,27 @@ class ScreenshotWorker:
             
             # Record precise timestamp BEFORE executing command
             execution_start_time = time.time()
+            logger.info(f"Execution start timestamp for job {job_id}: {execution_start_time}")
+            print(f"DEBUG: Execution start timestamp for job {job_id}: {execution_start_time}")
             
-            # Check if we have Unreal connection
+            # Ensure we have Unreal connection
+            if not self.unreal_connection:
+                # Create a dedicated connection for this worker to avoid shared connection conflicts
+                try:
+                    from unreal_mcp_server import UnrealConnection
+                    self.unreal_connection = UnrealConnection()
+                    if not self.unreal_connection.connect():
+                        error_msg = "Failed to establish dedicated Unreal Engine connection"
+                        logger.error(f"Screenshot command failed for job {job_id}: {error_msg}")
+                        self.job_manager.update_job_status(job_id, JobStatus.FAILED, error=error_msg)
+                        return
+                    logger.info(f"Created dedicated Unreal connection for screenshot worker job {job_id}")
+                except Exception as e:
+                    error_msg = f"No Unreal Engine connection available - make sure Unreal Engine is running: {e}"
+                    logger.error(f"Screenshot command failed for job {job_id}: {error_msg}")
+                    self.job_manager.update_job_status(job_id, JobStatus.FAILED, error=error_msg)
+                    return
+            
             if not self.unreal_connection:
                 error_msg = "No Unreal Engine connection available - make sure Unreal Engine is running"
                 logger.error(f"Screenshot command failed for job {job_id}: {error_msg}")
@@ -117,10 +137,15 @@ class ScreenshotWorker:
                 return
             
             logger.info(f"Screenshot command sent successfully for job {job_id}")
+            print(f"DEBUG: Screenshot command sent successfully for job {job_id}")
             self.job_manager.update_job_progress(job_id, 60.0)  # 60% - monitoring for file
             
             # Monitor for file creation using timestamp-based detection
+            logger.info(f"Starting file monitoring for job {job_id} with timestamp {execution_start_time}")
+            print(f"DEBUG: Starting file monitoring for job {job_id} with timestamp {execution_start_time}")
             result = self._monitor_screenshot_with_timestamp(job_id, execution_start_time, max_wait_seconds=30)
+            logger.info(f"File monitoring completed for job {job_id}, result: {bool(result)}")
+            print(f"DEBUG: File monitoring completed for job {job_id}, result: {bool(result)}")
             
             if result:
                 self.job_manager.update_job_progress(job_id, 100.0)  # 100% - completed
@@ -233,10 +258,7 @@ class ScreenshotWorker:
                                             'created_at': creation_time,
                                             'size': file_stats.st_size
                                         })
-                                        print(f"DEBUG: Found candidate file: {file_path.name} (created: {creation_time}, start: {start_timestamp}, diff: {creation_time - start_timestamp:.3f}s)")
                                         logger.debug(f"Found candidate file: {file_path.name} (created: {creation_time}, start: {start_timestamp})")
-                                    else:
-                                        print(f"DEBUG: Skipped old file: {file_path.name} (created: {creation_time}, start: {start_timestamp}, diff: {creation_time - start_timestamp:.3f}s)")
                                 except OSError as e:
                                     # File might be in use or deleted, skip
                                     logger.debug(f"Could not access file {file_path}: {e}")
@@ -247,15 +269,8 @@ class ScreenshotWorker:
                 
                 # After checking all directories, pick the most recently created candidate
                 if candidates:
-                    # Sort candidates by creation time for debugging
-                    sorted_candidates = sorted(candidates, key=lambda x: x['created_at'], reverse=True)
-                    print(f"DEBUG: All candidates sorted by creation time:")
-                    for i, candidate in enumerate(sorted_candidates):
-                        print(f"  {i+1}. {candidate['path'].name} (created: {candidate['created_at']}, size: {candidate['size']})")
-                    
                     newest_file_info = max(candidates, key=lambda x: x['created_at'])
                     newest_file = newest_file_info['path']
-                    print(f"DEBUG: Selected screenshot: {newest_file.name} from {len(candidates)} candidates")
                     logger.info(f"Selected newest screenshot: {newest_file.name} from {len(candidates)} candidates")
                     
                     # Wait for file to be fully written

@@ -164,7 +164,7 @@ export class JobUpdateService {
     return {
       job_id: data.job_id,
       job_type: data.job_type || 'screenshot',
-      status: data.status as 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled',
+      status: data.status as 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled',
       created_at: data.created_at,
       updated_at: data.updated_at,
       progress: data.progress,

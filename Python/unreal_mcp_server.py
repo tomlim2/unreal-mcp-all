@@ -82,7 +82,9 @@ class UnrealConnection:
     def receive_full_response(self, sock, buffer_size=4096) -> bytes:
         """Receive a complete response from Unreal, handling chunked data."""
         chunks = []
-        sock.settimeout(5)  # 5 second timeout
+        # Use whatever timeout is already set on the socket (don't override it)
+        current_timeout = sock.gettimeout()
+        logger.debug(f"Using socket timeout: {current_timeout} seconds")
         try:
             while True:
                 chunk = sock.recv(buffer_size)
@@ -152,8 +154,20 @@ class UnrealConnection:
             logger.info(f"Sending command: {command_json}")
             self.socket.sendall(command_json.encode('utf-8'))
             
+            # Use longer timeout for screenshot commands
+            if command == "take_highresshot":
+                # Screenshot commands can take 15+ seconds for high-res captures
+                old_timeout = self.socket.gettimeout()
+                self.socket.settimeout(30)  # 30 second timeout for screenshots
+                logger.info("Set extended 30-second timeout for screenshot command")
+            
             # Read response using improved handler
             response_data = self.receive_full_response(self.socket)
+            
+            # Restore original timeout if it was changed
+            if command == "take_highresshot":
+                self.socket.settimeout(old_timeout)
+                logger.info("Restored original socket timeout")
             response = json.loads(response_data.decode('utf-8'))
             
             # Log complete response for debugging
