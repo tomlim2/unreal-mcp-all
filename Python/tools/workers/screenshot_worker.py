@@ -238,7 +238,10 @@ class ScreenshotWorker:
                                             'created_at': creation_time,
                                             'size': file_stats.st_size
                                         })
+                                        print(f"DEBUG: Found candidate file: {file_path.name} (created: {creation_time}, start: {start_timestamp}, diff: {creation_time - start_timestamp:.3f}s)")
                                         logger.debug(f"Found candidate file: {file_path.name} (created: {creation_time}, start: {start_timestamp})")
+                                    else:
+                                        print(f"DEBUG: Skipped old file: {file_path.name} (created: {creation_time}, start: {start_timestamp}, diff: {creation_time - start_timestamp:.3f}s)")
                                 except OSError as e:
                                     # File might be in use or deleted, skip
                                     logger.debug(f"Could not access file {file_path}: {e}")
@@ -249,8 +252,15 @@ class ScreenshotWorker:
                 
                 # After checking all directories, pick the most recently created candidate
                 if candidates:
+                    # Sort candidates by creation time for debugging
+                    sorted_candidates = sorted(candidates, key=lambda x: x['created_at'], reverse=True)
+                    print(f"DEBUG: All candidates sorted by creation time:")
+                    for i, candidate in enumerate(sorted_candidates):
+                        print(f"  {i+1}. {candidate['path'].name} (created: {candidate['created_at']}, size: {candidate['size']})")
+                    
                     newest_file_info = max(candidates, key=lambda x: x['created_at'])
                     newest_file = newest_file_info['path']
+                    print(f"DEBUG: Selected screenshot: {newest_file.name} from {len(candidates)} candidates")
                     logger.info(f"Selected newest screenshot: {newest_file.name} from {len(candidates)} candidates")
                     
                     # Wait for file to be fully written
