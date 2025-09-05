@@ -126,8 +126,8 @@ class ScreenshotWorker:
                 self.job_manager.update_job_progress(job_id, 100.0)  # 100% - completed
                 self.job_manager.update_job_status(job_id, JobStatus.COMPLETED, result=result)
                 
-                # Update session with completion and image URL
-                image_url = f"/api/screenshot/download/{job_id}" if result.download_url else None
+                # Update session with completion and image URL (via Next.js proxy to avoid CORS)
+                image_url = f"/api/screenshot/{job_id}" if result.download_url else None
                 self._update_session_job_status(job_id, 'completed', 
                                               f"Screenshot completed successfully: {result.filename}", 
                                               100, image_url)
@@ -231,13 +231,14 @@ class ScreenshotWorker:
                                     file_stats = file_path.stat()
                                     creation_time = file_stats.st_mtime
                                     
-                                    # Check if file was created after job start (with small buffer for timing)
-                                    if creation_time > (start_timestamp - 1.0):
+                                    # Check if file was created after job start (tighter buffer to avoid old files)
+                                    if creation_time > start_timestamp:
                                         candidates.append({
                                             'path': file_path,
                                             'created_at': creation_time,
                                             'size': file_stats.st_size
                                         })
+                                        logger.debug(f"Found candidate file: {file_path.name} (created: {creation_time}, start: {start_timestamp})")
                                 except OSError as e:
                                     # File might be in use or deleted, skip
                                     logger.debug(f"Could not access file {file_path}: {e}")
@@ -245,41 +246,42 @@ class ScreenshotWorker:
                     except OSError as e:
                         logger.debug(f"Could not access directory {search_dir}: {e}")
                         continue
+                
+                # After checking all directories, pick the most recently created candidate
+                if candidates:
+                    newest_file_info = max(candidates, key=lambda x: x['created_at'])
+                    newest_file = newest_file_info['path']
+                    logger.info(f"Selected newest screenshot: {newest_file.name} from {len(candidates)} candidates")
                     
-                    # If we found candidates, take the most recently created
-                    if candidates:
-                        newest_file_info = max(candidates, key=lambda x: x['created_at'])
-                        newest_file = newest_file_info['path']
+                    # Wait for file to be fully written
+                    if self._wait_for_file_stability(newest_file, max_wait_seconds=5):
+                        # File is ready - create result
+                        file_stats = newest_file.stat()
                         
-                        # Wait for file to be fully written
-                        if self._wait_for_file_stability(newest_file, max_wait_seconds=5):
-                            # File is ready - create result
-                            file_stats = newest_file.stat()
-                            
-                            # Generate URLs
-                            download_url = f"/api/screenshot/download/{job_id}"
-                            thumbnail_url = f"/api/screenshot/thumbnail/{job_id}"
-                            
-                            result = JobResult(
-                                filename=newest_file.name,
-                                filepath=str(newest_file),
-                                download_url=download_url,
-                                thumbnail_url=thumbnail_url,
-                                file_size=file_stats.st_size,
-                                metadata={
-                                    "created_at": datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
-                                    "detection_method": "timestamp-based",
-                                    "job_start_time": start_timestamp,
-                                    "file_creation_time": file_stats.st_mtime,
-                                    "detection_attempts": attempt + 1,
-                                    "project_path": str(self.project_path),
-                                    "relative_path": str(newest_file.relative_to(Path(self.project_path)))
-                                }
-                            )
-                            
-                            logger.info(f"Timestamp-based detection successful for job {job_id}: {newest_file.name} "
-                                      f"({file_stats.st_size} bytes, detected in {attempt + 1} attempts)")
-                            return result
+                        # Generate URLs (via Next.js proxy to avoid CORS)
+                        download_url = f"/api/screenshot/{job_id}"
+                        thumbnail_url = f"/api/screenshot/{job_id}"  # Same endpoint for now
+                        
+                        result = JobResult(
+                            filename=newest_file.name,
+                            filepath=str(newest_file),
+                            download_url=download_url,
+                            thumbnail_url=thumbnail_url,
+                            file_size=file_stats.st_size,
+                            metadata={
+                                "created_at": datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
+                                "detection_method": "timestamp-based",
+                                "job_start_time": start_timestamp,
+                                "file_creation_time": file_stats.st_mtime,
+                                "detection_attempts": attempt + 1,
+                                "project_path": str(self.project_path),
+                                "relative_path": str(newest_file.relative_to(Path(self.project_path)))
+                            }
+                        )
+                        
+                        logger.info(f"Timestamp-based detection successful for job {job_id}: {newest_file.name} "
+                                  f"({file_stats.st_size} bytes, detected in {attempt + 1} attempts)")
+                        return result
                 
                 # Wait before next attempt with exponential backoff
                 time.sleep(poll_interval)
@@ -334,9 +336,9 @@ class ScreenshotWorker:
                             # File is ready
                             file_stats = latest_file.stat()
                             
-                            # Generate URLs (will be handled by HTTP endpoints)
-                            download_url = f"/api/screenshot/download/{job_id}"
-                            thumbnail_url = f"/api/screenshot/thumbnail/{job_id}"
+                            # Generate URLs (via Next.js proxy to avoid CORS)
+                            download_url = f"/api/screenshot/{job_id}"
+                            thumbnail_url = f"/api/screenshot/{job_id}"  # Same endpoint for now
                             
                             result = JobResult(
                                 filename=latest_file.name,

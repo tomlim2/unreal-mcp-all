@@ -395,7 +395,9 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     if command_type == 'take_highresshot':
         print(f"DEBUG: Routing take_highresshot to async handler")
         logger.info(f"Routing take_highresshot to async handler")
-        return _handle_screenshot_command_async(command)
+        result = _handle_screenshot_command_async(command)
+        print(f"DEBUG: Async handler returned: {result}")
+        return result
     
     # Import tools to get access to connection for other commands
     from unreal_mcp_server import get_unreal_connection
@@ -413,6 +415,7 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
 
 def _handle_screenshot_command_async(command: Dict[str, Any]) -> Dict[str, Any]:
     """Handle screenshot commands using the job system via HTTP bridge globals."""
+    print(f"DEBUG: _handle_screenshot_command_async called with command: {command}")
     try:
         # First try to access job system from HTTP bridge
         job_manager = None
@@ -422,6 +425,7 @@ def _handle_screenshot_command_async(command: Dict[str, Any]) -> Dict[str, Any]:
             import http_bridge
             job_manager, screenshot_worker = http_bridge.get_job_system()
             print(f"DEBUG: HTTP bridge job system - job_manager={job_manager is not None}, screenshot_worker={screenshot_worker is not None}")
+            print(f"DEBUG: HTTP bridge job_manager id: {id(job_manager) if job_manager else 'None'}")
         except Exception as e:
             print(f"DEBUG: Could not access HTTP bridge job system: {e}")
         
@@ -430,6 +434,7 @@ def _handle_screenshot_command_async(command: Dict[str, Any]) -> Dict[str, Any]:
             print("DEBUG: Initializing local job system for screenshot processing")
             job_manager, screenshot_worker = _get_or_create_job_system()
             print(f"DEBUG: Local job system - job_manager={job_manager is not None}, screenshot_worker={screenshot_worker is not None}")
+            print(f"DEBUG: Local job_manager id: {id(job_manager) if job_manager else 'None'}")
         
         if not job_manager or not screenshot_worker:
             print("DEBUG: Job system not available, falling back to synchronous execution")

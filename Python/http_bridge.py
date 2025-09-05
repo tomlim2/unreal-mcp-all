@@ -38,6 +38,59 @@ def get_job_system():
     global job_manager, screenshot_worker
     return job_manager, screenshot_worker
 
+def _initialize_global_job_system():
+    """Initialize global job system for module imports."""
+    global job_manager, screenshot_worker
+    
+    if job_manager is not None and screenshot_worker is not None:
+        return  # Already initialized
+    
+    try:
+        # Initialize job manager with Supabase if available
+        supabase_client = None
+        try:
+            from tools.ai.session_management.storage.supabase_storage import SupabaseStorage
+            supabase_storage = SupabaseStorage()
+            supabase_client = supabase_storage.supabase
+            logger.info("Initialized global job manager with Supabase backend")
+        except Exception as e:
+            logger.warning(f"Could not initialize Supabase for global job manager: {e}")
+        
+        job_manager = JobManager(supabase_client)
+        
+        # Get Unreal connection for screenshot worker
+        try:
+            unreal_connection = get_unreal_connection()
+            print(f"DEBUG: Got unreal_connection: {unreal_connection is not None}")
+            screenshot_worker = ScreenshotWorker(
+                job_manager=job_manager,
+                unreal_connection=unreal_connection
+            )
+            print(f"DEBUG: Screenshot worker created successfully")
+            logger.info("Screenshot worker initialized with Unreal connection")
+        except Exception as e:
+            print(f"DEBUG: Screenshot worker initialization failed: {e}")
+            print(f"DEBUG: Trying to create screenshot worker without Unreal connection...")
+            try:
+                # Create screenshot worker without Unreal connection (will be set later)
+                screenshot_worker = ScreenshotWorker(
+                    job_manager=job_manager,
+                    unreal_connection=None
+                )
+                print(f"DEBUG: Screenshot worker created without Unreal connection")
+                logger.warning(f"Screenshot worker initialized without Unreal connection: {e}")
+            except Exception as e2:
+                print(f"DEBUG: Screenshot worker creation failed completely: {e2}")
+                screenshot_worker = None
+        
+        logger.info("Global job system initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize global job system: {e}")
+
+# Initialize job system when module is imported
+_initialize_global_job_system()
+
 class MCPBridgeHandler(BaseHTTPRequestHandler):
     """HTTP request handler for MCP bridge"""
     
@@ -51,6 +104,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     
     def do_GET(self):
         """Handle GET requests"""
+        global job_manager, screenshot_worker
         try:
             # Handle CORS
             self.send_response(200)
@@ -69,6 +123,29 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     'service': 'MCP HTTP Bridge',
                     'version': '1.0.0',
                     'timestamp': '2025-09-04T06:38:00.000Z'
+                }
+                response_json = json.dumps(response)
+                self.wfile.write(response_json.encode('utf-8'))
+                return
+                
+            elif path == '/debug-jobs':
+                # Debug: List all jobs in job_manager
+                if not job_manager:
+                    self._send_error("Job manager not available")
+                    return
+                    
+                jobs = job_manager.list_active_jobs()
+                response = {
+                    'total_jobs': len(jobs),
+                    'jobs': [
+                        {
+                            'job_id': job.job_id,
+                            'job_type': job.job_type,
+                            'status': job.status.name.lower(),
+                            'created_at': job.created_at.isoformat() if job.created_at else None,
+                            'progress': job.progress
+                        } for job in jobs
+                    ]
                 }
                 response_json = json.dumps(response)
                 self.wfile.write(response_json.encode('utf-8'))
@@ -190,6 +267,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             self._send_error("Job manager not available")
                             return
                         
+                        print(f"DEBUG: HTTP bridge querying job_manager id {id(job_manager)} for job {job_id}")
                         job = job_manager.get_job(job_id)
                         if not job:
                             self._send_error(f"Job {job_id} not found")
@@ -252,6 +330,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     if len(path_parts) == 5:
                         job_id = path_parts[4]
                         try:
+                            job_manager, screenshot_worker = get_job_system()
                             if not screenshot_worker:
                                 self._send_error("Screenshot worker not available")
                                 return
@@ -445,6 +524,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     
     def do_POST(self):
         """Handle POST requests"""
+        global job_manager, screenshot_worker
         try:
             # Handle CORS
             self.send_response(200)

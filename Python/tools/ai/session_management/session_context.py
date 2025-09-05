@@ -35,6 +35,13 @@ class ChatMessage:
             data['job_id'] = self.job_id
         if self.job_info:
             data['job_info'] = self.job_info
+            # Flatten important job fields for frontend compatibility
+            if self.job_info.get('job_status'):
+                data['job_status'] = self.job_info['job_status']
+            if self.job_info.get('job_progress') is not None:
+                data['job_progress'] = self.job_info['job_progress']
+            if self.job_info.get('image_url'):
+                data['image_url'] = self.job_info['image_url']
             
         return data
     
