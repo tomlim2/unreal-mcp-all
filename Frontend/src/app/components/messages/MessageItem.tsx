@@ -2,6 +2,117 @@
 
 import { useState, useEffect } from 'react';
 import styles from './MessageItem.module.css';
+import MessageItemImageResult from './MessageItemImageResult';
+
+// Component to handle image loading with proper preloading
+function ImageWithFallback({ 
+  src, 
+  alt, 
+  className 
+}: { 
+  src: string; 
+  alt: string; 
+  className?: string; 
+}) {
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    console.log('Starting preload for:', src);
+    
+    // Preload the image before setting it as src
+    const img = new Image();
+    
+    img.onload = () => {
+      if (mounted) {
+        console.log('Successfully preloaded job image:', src);
+        console.log('Setting imageSrc and isLoading=false');
+        setImageSrc(src);
+        setIsLoading(false);
+        setHasError(false);
+      }
+    };
+    
+    img.onerror = () => {
+      if (mounted) {
+        console.log('Failed to preload, retrying in 1 second...');
+        // Retry after a delay
+        setTimeout(() => {
+          if (mounted) {
+            img.src = src + '?retry=' + Date.now();
+          }
+        }, 1000);
+      }
+    };
+    
+    // Start loading
+    img.src = src;
+    
+    return () => {
+      mounted = false;
+    };
+  }, [src]);
+
+  console.log('Render state:', { isLoading, hasError, imageSrc });
+
+  if (isLoading) {
+    console.log('Rendering loading state');
+    return (
+      <div className={className} style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100px',
+        backgroundColor: '#333',
+        color: '#ccc',
+        fontSize: '12px'
+      }}>
+        Loading image...
+      </div>
+    );
+  }
+
+  if (hasError || !imageSrc) {
+    console.log('Rendering error state');
+    return (
+      <div className={className} style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100px',
+        backgroundColor: '#333',
+        color: '#f44336',
+        fontSize: '12px'
+      }}>
+        Failed to load image
+      </div>
+    );
+  }
+
+  console.log('Rendering image with src:', imageSrc);
+  return (
+    <img 
+      src={imageSrc}
+      alt={alt}
+      className={className}
+      onLoad={() => {
+        console.log('Image displayed successfully:', imageSrc);
+      }}
+    />
+  );
+}
+
+interface ExecutionResultData {
+  command: string;
+  success: boolean;
+  result?: Record<string, any> & {
+    image_url?: string;
+  };
+  error?: string;
+}
 
 interface ChatMessage {
   timestamp: string;
@@ -11,12 +122,7 @@ interface ChatMessage {
     type: string;
     params: Record<string, unknown>;
   }>;
-  execution_results?: Array<{
-    command: string;
-    success: boolean;
-    result?: unknown;
-    error?: string;
-  }>;
+  execution_results?: ExecutionResultData[];
   job_status?: 'pending' | 'running' | 'completed' | 'failed';
   job_progress?: number; // 0-100
   image_url?: string;
@@ -44,12 +150,11 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
     return (
       <div key={keyPrefix} className={`${styles.message} ${styles.user}`}>
         <div className={styles.messageHeader}>
-          <span className={styles.roleLabel}>User</span>
           {sessionName && (
             <span className={styles.sessionName}>{sessionName}</span>
           )}
         </div>
-        <div className={styles.messageContent}>
+        <div className={`${styles.messageContent} ${styles.resultContent}`}>
           {message.content}
         </div>
       </div>
@@ -131,29 +236,7 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
                     <div className={styles.resultHeader}>
                       {result.command} - {result.success ? '✅ Success' : '❌ Failed'}
                     </div>
-                    {result.success ? (
-                      <div>
-                        <pre className={styles.resultData}>
-                          {JSON.stringify(result.result, null, 2)}
-                        </pre>
-                        {/* Display screenshot if available */}
-                        {result.result && typeof result.result === 'object' && 'image_url' in result.result && (
-                          <div className={styles.screenshotContainer}>
-                            <img 
-                              src={result.result.image_url as string} 
-                              alt="Screenshot" 
-                              className={styles.screenshot}
-                              onError={(e) => {
-                                console.error('Failed to load screenshot:', result.result.image_url);
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className={styles.errorMessage}>{result.error}</div>
-                    )}
+                    <MessageItemImageResult result={result} resultIndex={resultIndex} />
                   </div>
                 ))}
               </div>
@@ -207,9 +290,6 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
       <div 
         key={keyPrefix} 
         className={`${styles.message} ${styles.job}`}
-        style={{
-          borderLeft: `12px solid ${getJobStatusColor()}`
-        }}
       >
         <div 
           className={`${styles.messageHeader} ${styles.clickable}`}
@@ -238,20 +318,16 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
         
         {isExpanded && (
           <>
-            <div className={styles.messageContent}>
+            <div className={`${styles.messageContent} ${styles.resultContent}`}>
               {message.content}
             </div>
             
-            {message.image_url && (
+{message.image_url && (
               <div className={styles.jobImageContainer}>
-                <img 
-                  src={message.image_url} 
-                  alt="Job Result" 
+                <ImageWithFallback 
+                  src={message.image_url}
+                  alt="Job Result"
                   className={styles.jobImage}
-                  onError={(e) => {
-                    console.error('Failed to load job image:', message.image_url);
-                    e.currentTarget.style.display = 'none';
-                  }}
                 />
               </div>
             )}

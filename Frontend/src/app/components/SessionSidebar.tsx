@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import SessionItem from "./SessionItem";
-import styles from "./SessionController.module.css";
+import SessionListItem from "./SessionListItem";
+import styles from "./SessionSidebar.module.css";
 
-interface SessionControllerProps {
+interface SessionSidebarProps {
   sessionInfo: any[];
   loading: boolean;
   error: string | null;
@@ -14,7 +14,7 @@ interface SessionControllerProps {
   onSessionDelete: (sessionId: string) => Promise<void>;
 }
 
-export default function SessionController({ 
+export default function SessionSidebar({ 
   sessionInfo, 
   loading, 
   error, 
@@ -22,7 +22,7 @@ export default function SessionController({
   onSessionSelect, 
   onSessionCreate, 
   onSessionDelete, 
-}: SessionControllerProps) {
+}: SessionSidebarProps) {
   const [sessionName, setSessionName] = useState("");
   const [creating, setCreating] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
@@ -117,7 +117,7 @@ export default function SessionController({
           <div className={styles.noSessions}>No sessions found (total: {sessionInfo.length})</div>
         ) : (
           sessionInfo.map((session) => (
-            <SessionItem
+            <SessionListItem
               key={session.session_id}
               sessionId={session.session_id}
               sessionName={session.session_name}

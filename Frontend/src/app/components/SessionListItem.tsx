@@ -1,9 +1,9 @@
 "use client";
 
 import { Session } from "../services";
-import styles from "./SessionItem.module.css";
+import styles from "./SessionListItem.module.css";
 
-interface SessionItemProps {
+interface SessionListItemProps {
   sessionId: string;
   sessionName: string;
   isActive: boolean;
@@ -12,14 +12,14 @@ interface SessionItemProps {
   isDeleting?: boolean;
 }
 
-export default function SessionItem({
+export default function SessionListItem({
   sessionId,
   sessionName,
   isActive,
   onSelect,
   onDelete,
   isDeleting = false,
-}: SessionItemProps) {
+}: SessionListItemProps) {
   return (
     <div
       className={`${styles.sessionItem} ${isActive ? styles.active : ""}`}

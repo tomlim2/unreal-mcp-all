@@ -193,7 +193,7 @@ class ScreenshotWorker:
         
         logger.info(f"Starting timestamp-based detection for job {job_id} (start_time: {start_timestamp})")
         
-        poll_interval = 0.5  # Check every 500ms
+        poll_interval = 0.3  # Check every 300ms for more responsive detection
         attempts = int(max_wait_seconds / poll_interval)
         
         for attempt in range(attempts):
@@ -205,21 +205,16 @@ class ScreenshotWorker:
                     return None
                 
                 # Look for screenshot files created after start timestamp
-                # Check both the main screenshots dir and subdirectories
+                # Only search WindowsEditor directory where Unreal Engine saves screenshots
                 search_dirs = []
                 if self.screenshots_dir and self.screenshots_dir.exists():
+                    # self.screenshots_dir should be the WindowsEditor directory
                     search_dirs.append(self.screenshots_dir)
-                    
-                # Also check base screenshots directory and common subdirectories
-                if self.project_path:
-                    base_dir = Path(self.project_path) / "Saved" / "Screenshots"
-                    if base_dir.exists():
-                        search_dirs.append(base_dir)
-                        # Check common Unreal screenshot subdirectories
-                        for subdir in ["WindowsEditor", "Windows", "Editor"]:
-                            subdir_path = base_dir / subdir
-                            if subdir_path.exists() and subdir_path not in search_dirs:
-                                search_dirs.append(subdir_path)
+                elif self.project_path:
+                    # Fallback: directly target WindowsEditor directory
+                    windows_editor_dir = Path(self.project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+                    if windows_editor_dir.exists():
+                        search_dirs.append(windows_editor_dir)
                 
                 candidates = []
                 for search_dir in search_dirs:
@@ -231,7 +226,7 @@ class ScreenshotWorker:
                                     file_stats = file_path.stat()
                                     creation_time = file_stats.st_mtime
                                     
-                                    # Check if file was created after job start (tighter buffer to avoid old files)
+                                    # Check if file was created after job start
                                     if creation_time > start_timestamp:
                                         candidates.append({
                                             'path': file_path,

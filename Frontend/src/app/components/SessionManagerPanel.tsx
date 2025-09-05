@@ -5,12 +5,12 @@ import { useSessionStore } from "../store/sessionStore";
 import { JobProvider, useJobStore } from "../store/jobStore";
 import { createApiService, Session, SessionContext } from "../services";
 import { getJobUpdateService } from "../services/JobUpdateService";
-import SessionController from "./SessionController";
-import ContextHistory from "./ContextHistory";
-import UnrealAIChat from "./UnrealAIChat";
-import styles from "./ContextPanel.module.css";
+import SessionSidebar from "./SessionSidebar";
+import ConversationHistory from "./ConversationHistory";
+import ChatInput from "./ChatInput";
+import styles from "./SessionManagerPanel.module.css";
 
-function ContextPanelContent() {
+function SessionManagerPanelContent() {
   const { sessionId, setSessionId } = useSessionStore();
   const jobStore = useJobStore();
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +120,60 @@ function ContextPanelContent() {
 
     try {
       const data = await apiService.sendMessage(prompt, context, model);
+      
+      // Check if the response contains job results and extract job_id for polling
+      if (data.executionResults && data.executionResults.length > 0) {
+        for (const result of data.executionResults) {
+          if (result.success && result.result?.result?.job_id) {
+            const jobId = result.result.result.job_id;
+            console.log('Found job_id in chat response:', jobId);
+            
+            // Start polling for this job
+            const jobUpdateService = getJobUpdateService();
+            jobUpdateService.startPolling(
+              jobId,
+              // onUpdate: Update job store with progress
+              (job) => {
+                console.log('Job update received from chat:', job);
+                jobStore.updateJob(job);
+                
+                // Refresh context to show updated job message
+                if (sessionId) {
+                  contextCache.current.delete(sessionId);
+                  fetchSessionContext(sessionId, true);
+                }
+              },
+              // onComplete: Job finished (success or failure)
+              (job) => {
+                console.log('Job completed from chat:', job);
+                jobStore.updateJob(job);
+                
+                // Refresh context to show final job result with screenshot
+                if (sessionId) {
+                  contextCache.current.delete(sessionId);
+                  setTimeout(async () => {
+                    await fetchSessionContext(sessionId, true);
+                  }, 200); // Slightly longer delay for screenshot processing
+                }
+              },
+              // onError: Polling failed
+              (error) => {
+                console.error('Job polling error from chat:', error);
+                setChatError(error);
+              }
+            );
+            
+            // Add job to store for tracking
+            jobStore.addJob({
+              job_id: jobId,
+              status: 'running',
+              progress: 10,
+              type: 'screenshot',
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+      }
       
       // Refresh context after successful execution (with small delay to ensure DB update)
       if (sessionId) {
@@ -258,7 +312,7 @@ function ContextPanelContent() {
           <button onClick={() => setError(null)}>×</button>
         </div>
       )}
-      <SessionController 
+      <SessionSidebar 
         sessionInfo={sessionInfo}
         loading={sessionsLoading}
         error={error}
@@ -267,13 +321,13 @@ function ContextPanelContent() {
         onSessionCreate={handleSessionCreate}
         onSessionDelete={handleSessionDelete}
       />
-      <ContextHistory 
+      <ConversationHistory 
         context={messageInfo}
         loading={contextLoading}
         error={contextError}
         sessionsLoaded={sessionsLoaded}
       />
-      <UnrealAIChat 
+      <ChatInput 
         loading={chatLoading}
         error={chatError}
         sessionId={sessionId}
@@ -290,10 +344,10 @@ function ContextPanelContent() {
   );
 }
 
-export default function ContextPanel() {
+export default function SessionManagerPanel() {
   return (
     <JobProvider>
-      <ContextPanelContent />
+      <SessionManagerPanelContent />
     </JobProvider>
   );
 }

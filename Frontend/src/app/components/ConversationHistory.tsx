@@ -2,22 +2,22 @@
 
 import { useEffect, useRef } from 'react';
 import { SessionContext } from '../services';
-import MessageItem from './MessageItem';
-import styles from './ContextHistory.module.css';
+import { MessageItem, MessageGroupWrapper } from './messages';
+import styles from './ConversationHistory.module.css';
 
-interface ContextHistoryProps {
+interface ConversationHistoryProps {
   context: SessionContext | null;
   loading: boolean;
   error: string | null;
   sessionsLoaded: boolean;
 }
 
-const ContextHistory = ({ 
+const ConversationHistory = ({ 
   context, 
   loading, 
   error, 
   sessionsLoaded, 
-}: ContextHistoryProps) => {
+}: ConversationHistoryProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -83,17 +83,13 @@ const ContextHistory = ({
         ) : (
           <div className={styles.messages}>
             <div className={styles.spacer}></div>
-            {context.conversation_history
-              .slice()
-              .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-              .map((message, index, sortedMessages) => (
-                <MessageItem
-                  key={index}
-                  message={message}
-                  index={index}
-                  previousMessage={index > 0 ? sortedMessages[index - 1] : undefined}
-                />
-              ))}
+            <MessageGroupWrapper
+              messages={context.conversation_history
+                .slice()
+                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+              }
+              sessionId={context.session_id}
+            />
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -102,6 +98,6 @@ const ContextHistory = ({
   );
 };
 
-ContextHistory.displayName = 'ContextHistory';
+ConversationHistory.displayName = 'ConversationHistory';
 
-export default ContextHistory;
+export default ConversationHistory;

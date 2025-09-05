@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Screenshot Test</title>
+</head>
+<body>
+    <h1>Screenshot Test</h1>
+    <p>Testing image loading from API:</p>
+    <img 
+        src="/api/screenshot/155e75cd-aaf2-4154-bce2-37f2399e65ac" 
+        alt="Test Screenshot"
+        style="max-width: 500px; border: 2px solid red;"
+        onload="console.log('Image loaded successfully')"
+        onerror="console.error('Image failed to load')"
+    />
+    <p>If you see a red border but no image, the API endpoint might be returning an error.</p>
+</body>
+</html>

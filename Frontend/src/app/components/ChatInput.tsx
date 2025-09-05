@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import styles from "./UnrealAIChat.module.css";
+import styles from "./ChatInput.module.css";
 
-interface UnrealLlmChatProps {
+interface ChatInputProps {
 	loading: boolean;
 	error: string | null;
 	sessionId: string | null;
@@ -12,14 +12,14 @@ interface UnrealLlmChatProps {
 	onRefreshContext: () => void;
 }
 
-export default function UnrealLlmChat({
+export default function ChatInput({
 	loading,
 	error,
 	sessionId,
 	llmFromDb,
 	onSubmit,
 	onRefreshContext,
-}: UnrealLlmChatProps) {
+}: ChatInputProps) {
 	const [prompt, setPrompt] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [selectedLlm, setSelectedLlm] = useState<'gemini' | 'gemini-2' | 'claude'>(llmFromDb);
@@ -108,9 +108,6 @@ export default function UnrealLlmChat({
 					</div>
 				</form>
 				<div className={styles.modelSwitcher}>
-					<label htmlFor="model-select" className={styles.modelLabel}>
-						AI Model: {sessionId && `(Session: ${sessionId.slice(-8)})`}
-					</label>
 					<select
 						id="model-select"
 						value={selectedLlm}
