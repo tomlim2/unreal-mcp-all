@@ -57,7 +57,6 @@ export default function SessionManagerPanel() {
       return;
     }
 
-    setContextLoading(true);
     setContextError(null);
     try {
       const context = await apiService.getSessionContext(sid);

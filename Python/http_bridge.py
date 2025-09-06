@@ -342,8 +342,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     llm_model = request_data.get('llm_model')
                     
                     # Process with session-aware NLP
-                    from tools.ai.nlp import _process_natural_language_impl_with_session
-                    result = _process_natural_language_impl_with_session(
+                    from tools.ai.nlp import process_natural_language
+                    result = process_natural_language(
                         user_input, context, session_id, llm_model
                     )
                     
