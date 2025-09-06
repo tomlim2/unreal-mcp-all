@@ -68,52 +68,20 @@ export interface SessionContext {
   last_accessed: string;
 }
 
-// Job Management Types
-export interface Job {
-  job_id: string;
-  job_type: 'screenshot' | 'batch_screenshot';
-  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-  progress?: number;
-  result?: {
-    filename?: string;
-    file_path?: string;
-    file_size?: number;
-    thumbnail_url?: string;
-    download_url?: string;
-  };
-  error?: string;
-  metadata?: {
-    original_prompt?: string;
-    parameters?: Record<string, unknown>;
-  };
-}
-
-export interface JobResponse {
-  success: boolean;
-  job_id?: string;
-  job?: Job;
-  error?: string;
-}
 
 // API Service Interface
 export interface ApiService {
   // Session management
-  fetchSessions: () => Promise<Session[]>;
-  fetchSessionIds: () => Promise<any[]>;
+  getSessions: () => Promise<Session[]>;
+  fetchSessionIds: () => Promise<string[]>;
   fetchSessionDetails: (sessionId: string) => Promise<Session>;
   createSession: (sessionName: string) => Promise<{ session_id: string; session_name: string }>;
   deleteSession: (sessionId: string) => Promise<void>;
+  renameSession: (sessionId: string, name: string) => Promise<void>;
   
   // Chat functionality
-  sendMessage: (prompt: string, context?: string, model?: string) => Promise<AIResponse>;
+  chat: (prompt: string, sessionId?: string, model?: string) => Promise<AIResponse>;
   
   // Context history
-  fetchSessionContext: (sessionId: string) => Promise<SessionContext>;
-
-  // Job management
-  startJob: (jobType: string, params: Record<string, any>) => Promise<any>;
-  getJobStatus: (jobId: string) => Promise<any>;
-  stopJob: (jobId: string) => Promise<any>;
+  getSessionContext: (sessionId: string) => Promise<SessionContext>;
 }

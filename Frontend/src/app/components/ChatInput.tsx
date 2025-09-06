@@ -8,13 +8,8 @@ interface ChatInputProps {
 	error: string | null;
 	sessionId: string | null;
 	llmFromDb: 'gemini' | 'gemini-2' | 'claude';
-	onSubmit: (prompt: string, context: string, model?: string) => Promise<unknown>;
+	onSubmit: (prompt: string, model?: string) => Promise<unknown>;
 	onRefreshContext: () => void;
-	jobLoading?: boolean;
-	jobError?: string | null;
-	onJobStart?: (jobType: string, params: Record<string, any>) => Promise<any>;
-	onJobStatus?: (jobId: string) => Promise<any>;
-	onJobStop?: (jobId: string) => Promise<any>;
 }
 
 export default function ChatInput({
@@ -24,11 +19,6 @@ export default function ChatInput({
 	llmFromDb,
 	onSubmit,
 	onRefreshContext,
-	jobLoading,
-	jobError,
-	onJobStart,
-	onJobStatus,
-	onJobStop,
 }: ChatInputProps) {
 	const [prompt, setPrompt] = useState("");
 	const [submitting, setSubmitting] = useState(false);
@@ -47,7 +37,6 @@ export default function ChatInput({
 		try {
 			const data = await onSubmit(
 				prompt,
-				"User is a creative cinema director",
 				selectedLlm
 			);
 

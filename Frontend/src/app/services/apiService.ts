@@ -10,13 +10,9 @@ interface SessionIdsResponse {
   error?: string;
 }
 
-export function createApiService(
-  sessionId: string | null,
-  setSessionId: (sessionId: string | null) => void,
-  setError: (error: string | null) => void
-): ApiService {
+export function createApiService(): ApiService {
   return {
-    fetchSessions: async (): Promise<Session[]> => {
+    getSessions: async (): Promise<Session[]> => {
       try {
         const response = await fetch("/api/sessions");
         const data: SessionsResponse = await response.json();
@@ -27,7 +23,7 @@ export function createApiService(
         
         return data.sessions || [];
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch sessions");
+        console.error(err instanceof Error ? err.message : "Failed to fetch sessions");
         throw err;
       }
     },
@@ -43,7 +39,7 @@ export function createApiService(
         
         return data.session_ids || [];
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch session IDs");
+        console.error(err instanceof Error ? err.message : "Failed to fetch session IDs");
         throw err;
       }
     },
@@ -59,7 +55,7 @@ export function createApiService(
         
         return data;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch session details");
+        console.error(err instanceof Error ? err.message : "Failed to fetch session details");
         throw err;
       }
     },
@@ -88,7 +84,7 @@ export function createApiService(
 
         return result;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create session");
+        console.error(err instanceof Error ? err.message : "Failed to create session");
         throw err;
       }
     },
@@ -109,30 +105,22 @@ export function createApiService(
           throw new Error(result.error);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to delete session");
+        console.error(err instanceof Error ? err.message : "Failed to delete session");
         throw err;
       }
     },
 
-    sendMessage: async (prompt: string, context?: string, model?: string): Promise<AIResponse> => {
+    chat: async (prompt: string, sessionId?: string, model?: string): Promise<AIResponse> => {
       try {
-        setError(null);
-        
         const requestBody: Record<string, unknown> = {
           prompt,
-          context: context || 'User is working with Unreal Engine project with dynamic sky system',
-          llm_model: model,
-          session_id: sessionId
+          context: 'User is working with Unreal Engine project with dynamic sky system',
+          llm_model: model
         };
         
         // Include session ID if we have one
         if (sessionId) {
           requestBody.session_id = sessionId;
-        }
-
-        // Include model if provided
-        if (model) {
-          requestBody.model = model;
         }
         
         const response = await fetch('/api/mcp', {
@@ -148,25 +136,15 @@ export function createApiService(
         }
 
         const data: AIResponse = await response.json();
-
-        if (data.session_id && !data.error && !sessionId) {
-          setSessionId(data.session_id);
-        }
         return data;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-        setError(errorMessage);
-        
-        // Clear session ID if backend is unavailable
-        if (err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('Failed to get AI response'))) {
-          setSessionId(null); // Clear session when backend is down
-        }
-        
+        console.error(errorMessage);
         throw err;
       }
     },
 
-    fetchSessionContext: async (sessionId: string): Promise<SessionContext> => {
+    getSessionContext: async (sessionId: string): Promise<SessionContext> => {
       try {
         const response = await fetch(`/api/sessions/${sessionId}/context`);
         
@@ -182,71 +160,31 @@ export function createApiService(
         
         return data.context;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch session context");
+        console.error(err instanceof Error ? err.message : "Failed to fetch session context");
         throw err;
       }
     },
 
-    startJob: async (jobType: string, params: Record<string, any>) => {
+    renameSession: async (sessionId: string, name: string) => {
       try {
-        const response = await fetch('/api/job', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'start',
-            job_type: jobType,
-            params,
-            session_id: sessionId
-          })
+        const response = await fetch(`/api/sessions/${sessionId}/name`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ session_name: name }),
         });
 
         if (!response.ok) {
-          throw new Error(`Job start failed: ${response.status}`);
+          throw new Error(`Failed to rename session: ${response.status}`);
         }
 
-        return await response.json();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to start job");
-        throw err;
-      }
-    },
-
-    getJobStatus: async (jobId: string) => {
-      try {
-        const response = await fetch(`/api/job?job_id=${jobId}`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Job status failed: ${response.status}`);
+        const result = await response.json();
+        if (result.error) {
+          throw new Error(result.error);
         }
-
-        return await response.json();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to get job status");
-        throw err;
-      }
-    },
-
-    stopJob: async (jobId: string) => {
-      try {
-        const response = await fetch('/api/job', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'stop',
-            job_id: jobId
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Job stop failed: ${response.status}`);
-        }
-
-        return await response.json();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to stop job");
+        console.error(err instanceof Error ? err.message : "Failed to rename session");
         throw err;
       }
     }

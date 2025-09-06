@@ -12,6 +12,7 @@ interface SessionSidebarProps {
   onSessionSelect: (sessionId: string) => void;
   onSessionCreate: (sessionName: string) => Promise<{ session_id?: string }>;
   onSessionDelete: (sessionId: string) => Promise<void>;
+  onSessionRename: (sessionId: string, name: string) => Promise<void>;
 }
 
 export default function SessionSidebar({ 
@@ -21,7 +22,8 @@ export default function SessionSidebar({
   activeSessionId, 
   onSessionSelect, 
   onSessionCreate, 
-  onSessionDelete, 
+  onSessionDelete,
+  onSessionRename,
 }: SessionSidebarProps) {
   const [sessionName, setSessionName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -113,8 +115,8 @@ export default function SessionSidebar({
         </div>
       </div>
       <div className={styles.sessionList}>
-        {sessionInfo.length === 0 ? (
-          <div className={styles.noSessions}>No sessions found (total: {sessionInfo.length})</div>
+        {!sessionInfo || sessionInfo.length === 0 ? (
+          <div className={styles.noSessions}>No sessions found (total: {sessionInfo?.length || 0})</div>
         ) : (
           sessionInfo.map((session) => (
             <SessionListItem

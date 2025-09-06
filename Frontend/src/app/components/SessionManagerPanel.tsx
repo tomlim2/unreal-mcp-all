@@ -2,17 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSessionStore } from "../store/sessionStore";
-import { JobProvider, useJobStore } from "../store/jobStore";
 import { createApiService, Session, SessionContext } from "../services";
-import { getJobUpdateService } from "../services/JobUpdateService";
 import SessionSidebar from "./SessionSidebar";
 import ConversationHistory from "./ConversationHistory";
 import ChatInput from "./ChatInput";
 import styles from "./SessionManagerPanel.module.css";
 
-function SessionManagerPanelContent() {
+export default function SessionManagerPanel() {
   const { sessionId, setSessionId } = useSessionStore();
-  const jobStore = useJobStore();
   const [error, setError] = useState<string | null>(null);
   
   // Centralized session management state
@@ -30,167 +27,53 @@ function SessionManagerPanelContent() {
   const [chatError, setChatError] = useState<string | null>(null);  
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
 
-  // Job state
-  const [jobLoading, setJobLoading] = useState(false);
-  const [jobError, setJobError] = useState<string | null>(null);
+  const apiService = createApiService();
 
-  // Create API service with dependencies
-  const apiService = createApiService(sessionId, setSessionId, setError);
-
+  // Load all sessions on mount
   useEffect(() => {
-    firstFetchSessions();
+    fetchSessions();
   }, []);
 
-  const firstFetchSessions = async () => {
-    setSessionsLoading(true);
-    const sessionInfo = await updateSessionSelectorInfo();
-    if (sessionInfo.length > 0 && !sessionId) {
-		handleSessionSelect(sessionInfo[0].session_id);
-	}
-    setSessionsLoading(false);
-    setSessionsLoaded(true);
-  }
-
-  const updateSessionSelectorInfo = async () => {
-	const sessionInfo = await apiService.fetchSessionIds();
-	setSessionInfo(sessionInfo);
-	return sessionInfo;
-  }
-
-  const fetchSessionContext = async (id: string, forceRefresh = false) => {
-    // Check cache first (unless forcing refresh)
-    if (!forceRefresh) {
-      const cachedContext = contextCache.current.get(id);
-      if (cachedContext) {
-        setMessageInfo(cachedContext);
-        setContextError(null);
-        return;
-      }
-    }
-
-    if (!messageInfo || messageInfo.session_id !== id) {
-      setContextLoading(true);
-    }
-    setContextError(null);
-
-    try {
-      const context = await apiService.fetchSessionContext(id);
-      
-      if (context) {
-        contextCache.current.set(id, context);
-      }
-      
-      setMessageInfo(context);
-    } catch (err) {
-      setContextError(err instanceof Error ? err.message : 'Failed to fetch session context');
+  // Load session context when sessionId changes
+  useEffect(() => {
+    if (sessionId) {
+      fetchSessionContext(sessionId);
+    } else {
       setMessageInfo(null);
+    }
+  }, [sessionId]);
+
+  const fetchSessions = async () => {
+    setSessionsLoading(true);
+    try {
+      const sessions = await apiService.getSessions();
+      setSessionInfo(sessions);
+      setSessionsLoaded(true);
+    } catch (error) {
+      console.error('Failed to fetch sessions:', error);
+      setError('Failed to load sessions');
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  const fetchSessionContext = async (sid: string, forceRefresh: boolean = false) => {
+    if (!forceRefresh && contextCache.current.has(sid)) {
+      setMessageInfo(contextCache.current.get(sid)!);
+      return;
+    }
+
+    setContextLoading(true);
+    setContextError(null);
+    try {
+      const context = await apiService.getSessionContext(sid);
+      contextCache.current.set(sid, context);
+      setMessageInfo(context);
+    } catch (error) {
+      console.error('Failed to fetch session context:', error);
+      setContextError('Failed to load conversation history');
     } finally {
       setContextLoading(false);
-    }
-  };
-
-  const handleSessionSelect = async (selectedSessionId: string) => {
-    setSessionId(selectedSessionId);
-    const context = await apiService.fetchSessionContext(selectedSessionId);
-    setMessageInfo(context);
-  };
-
-  const handleSessionCreate = async (sessionName: string) => {
-    const result = await apiService.createSession(sessionName);
-    await updateSessionSelectorInfo();
-    if (result.session_id) {
-      setSessionId(result.session_id);
-	  handleSessionSelect(result.session_id);
-    }
-    return result;
-  };
-
-  const handleSessionDelete = async (sessionIdToDelete: string) => {
-    await apiService.deleteSession(sessionIdToDelete);
-    await updateSessionSelectorInfo();
-    if (sessionId === sessionIdToDelete) {
-      setSessionId(null);
-	  firstFetchSessions();
-    }
-  };
-
-  const handleChatSubmit = async (prompt: string, context: string, model?: string) => {
-    setChatLoading(true);
-    setChatError(null);
-
-    try {
-      const data = await apiService.sendMessage(prompt, context, model);
-      
-      // Check if the response contains job results and extract job_id for polling
-      if (data.executionResults && data.executionResults.length > 0) {
-        for (const result of data.executionResults) {
-          if (result.success && result.result?.result?.job_id) {
-            const jobId = result.result.result.job_id;
-            console.log('Found job_id in chat response:', jobId);
-            
-            // Start polling for this job
-            const jobUpdateService = getJobUpdateService();
-            jobUpdateService.startPolling(
-              jobId,
-              // onUpdate: Update job store with progress
-              (job) => {
-                console.log('Job update received from chat:', job);
-                jobStore.updateJob(job);
-                
-                // Refresh context to show updated job message
-                if (sessionId) {
-                  contextCache.current.delete(sessionId);
-                  fetchSessionContext(sessionId, true);
-                }
-              },
-              // onComplete: Job finished (success or failure)
-              (job) => {
-                console.log('Job completed from chat:', job);
-                jobStore.updateJob(job);
-                
-                // Refresh context to show final job result with screenshot
-                if (sessionId) {
-                  contextCache.current.delete(sessionId);
-                  setTimeout(async () => {
-                    await fetchSessionContext(sessionId, true);
-                  }, 200); // Slightly longer delay for screenshot processing
-                }
-              },
-              // onError: Polling failed
-              (error) => {
-                console.error('Job polling error from chat:', error);
-                setChatError(error);
-              }
-            );
-            
-            // Add job to store for tracking
-            jobStore.addJob({
-              job_id: jobId,
-              status: 'in_progress',
-              progress: 10,
-              type: 'screenshot',
-              created_at: new Date().toISOString()
-            });
-          }
-        }
-      }
-      
-      // Refresh context after successful execution (with small delay to ensure DB update)
-      if (sessionId) {
-        contextCache.current.delete(sessionId);
-        // Small delay to ensure database has been updated with model preference
-        setTimeout(async () => {
-          await fetchSessionContext(sessionId, true);
-        }, 100);
-      }
-      
-      return data;
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "An error occurred";
-      setChatError(error);
-      throw err;
-    } finally {
-      setChatLoading(false);
     }
   };
 
@@ -201,125 +84,83 @@ function SessionManagerPanelContent() {
     }
   };
 
-  // Job handlers using API service
-  const handleJobStart = async (jobType: string, params: Record<string, any>) => {
-    setJobLoading(true);
-    setJobError(null);
+  const handleChatSubmit = async (prompt: string, llmModel?: string) => {
+    if (!sessionId || !prompt.trim()) return;
+
+    setChatLoading(true);
+    setChatError(null);
 
     try {
-      const result = await apiService.startJob(jobType, params);
-      
-      // Start polling for job updates if we got a job_id
-      if (result.job_id) {
-        const jobUpdateService = getJobUpdateService();
-        
-        jobUpdateService.startPolling(
-          result.job_id,
-          // onUpdate: Update job store with progress
-          (job) => {
-            console.log('Job update received:', job);
-            jobStore.updateJob(job);
-            
-            // Refresh context to show updated job message
-            if (sessionId) {
-              contextCache.current.delete(sessionId);
-              fetchSessionContext(sessionId, true);
-            }
-          },
-          // onComplete: Job finished (success or failure)
-          (job) => {
-            console.log('Job completed:', job);
-            jobStore.updateJob(job);
-            
-            // Refresh context to show final job result with screenshot
-            if (sessionId) {
-              contextCache.current.delete(sessionId);
-              setTimeout(async () => {
-                await fetchSessionContext(sessionId, true);
-              }, 200); // Slightly longer delay for screenshot processing
-            }
-          },
-          // onError: Polling failed
-          (error) => {
-            console.error('Job polling error:', error);
-            setJobError(error);
-          }
-        );
+      const result = await apiService.chat(prompt, sessionId, llmModel);
+      console.log('Chat result:', result);
 
-        // Add job to store for tracking
-        if (result.job) {
-          jobStore.addJob(result.job);
-        }
-      }
-      
-      // Refresh context to show new job message
-      if (sessionId) {
-        contextCache.current.delete(sessionId);
-        setTimeout(async () => {
-          await fetchSessionContext(sessionId, true);
-        }, 100);
-      }
-      
-      return result;
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "Failed to start job";
-      setJobError(error);
-      throw err;
+      // Refresh context to show new messages
+      contextCache.current.delete(sessionId);
+      await fetchSessionContext(sessionId, true);
+
+    } catch (error) {
+      console.error('Chat error:', error);
+      setChatError(error instanceof Error ? error.message : 'Chat failed');
     } finally {
-      setJobLoading(false);
+      setChatLoading(false);
     }
   };
 
-  const handleJobStatus = async (jobId: string) => {
+  const handleCreateSession = async (name: string) => {
     try {
-      return await apiService.getJobStatus(jobId);
-    } catch (err) {
-      console.error('Job status error:', err);
-      throw err;
+      const session = await apiService.createSession(name);
+      setSessionId(session.session_id);
+      await fetchSessions(); // Refresh the list
+      return session;
+    } catch (error) {
+      console.error('Failed to create session:', error);
+      setError('Failed to create session');
+      return null;
     }
   };
 
-  const handleJobStop = async (jobId: string) => {
-    setJobLoading(true);
-    setJobError(null);
-
+  const handleDeleteSession = async (sid: string) => {
     try {
-      const result = await apiService.stopJob(jobId);
-      
-      // Refresh context to update job status
-      if (sessionId) {
-        contextCache.current.delete(sessionId);
-        setTimeout(async () => {
-          await fetchSessionContext(sessionId, true);
-        }, 100);
+      await apiService.deleteSession(sid);
+      if (sessionId === sid) {
+        setSessionId(null);
+        setMessageInfo(null);
       }
-      
-      return result;
-    } catch (err) {
-      const error = err instanceof Error ? err.message : "Failed to stop job";
-      setJobError(error);
-      throw err;
-    } finally {
-      setJobLoading(false);
+      contextCache.current.delete(sid);
+      await fetchSessions(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      setError('Failed to delete session');
+    }
+  };
+
+  const handleRenameSession = async (sid: string, name: string) => {
+    try {
+      await apiService.renameSession(sid, name);
+      await fetchSessions(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to rename session:', error);
+      setError('Failed to rename session');
     }
   };
 
   return (
-    <div className={styles.contextPanel}>
+    <div className={styles.container}>
       {error && (
-        <div className={styles.globalError}>
-          <span>⚠️ {error}</span>
+        <div className={styles.error}>
+          {error}
           <button onClick={() => setError(null)}>×</button>
         </div>
       )}
       <SessionSidebar 
         sessionInfo={sessionInfo}
+        activeSessionId={sessionId}
+        onSessionSelect={setSessionId}
+        onSessionCreate={handleCreateSession}
+        onSessionDelete={handleDeleteSession}
+        onSessionRename={handleRenameSession}
         loading={sessionsLoading}
         error={error}
-        activeSessionId={sessionId}
-        onSessionSelect={handleSessionSelect}
-        onSessionCreate={handleSessionCreate}
-        onSessionDelete={handleSessionDelete}
       />
       <ConversationHistory 
         context={messageInfo}
@@ -334,20 +175,7 @@ function SessionManagerPanelContent() {
         llmFromDb={messageInfo?.llm_model || 'gemini-2'}
         onSubmit={handleChatSubmit}
         onRefreshContext={refreshContext}
-        jobLoading={jobLoading}
-        jobError={jobError}
-        onJobStart={handleJobStart}
-        onJobStatus={handleJobStatus}
-        onJobStop={handleJobStop}
       />
     </div>
-  );
-}
-
-export default function SessionManagerPanel() {
-  return (
-    <JobProvider>
-      <SessionManagerPanelContent />
-    </JobProvider>
   );
 }

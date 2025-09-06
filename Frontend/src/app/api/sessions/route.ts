@@ -39,15 +39,25 @@ export async function POST(request: NextRequest) {
   try {
     // Parse the request body
     const body = await request.json();
+    const { session_name } = body;
     
-    // Forward request to Python MCP server to create session
+    if (!session_name) {
+      return NextResponse.json({
+        error: 'session_name is required'
+      }, { status: 400 });
+    }
+    
+    // Forward request to Python MCP server with create_session action - bypasses NLP
     const response = await fetch(`${MCP_HTTP_BRIDGE_URL}`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        action: 'create_session',
+        session_name: session_name
+      }),
     });
 
     if (!response.ok) {

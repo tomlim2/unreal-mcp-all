@@ -199,6 +199,37 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
         : { status: 'success', text: 'Success' };
     };
 
+    // Extract image results to show always (not collapsed)
+    const imageResults = message.execution_results?.filter(result => 
+      result.success && result.result?.image_url
+    ) || [];
+
+    // Create preview of message content for header
+    const getMessagePreview = (content: string, maxLength: number = 60) => {
+      if (!content) return 'Assistant';
+      
+      // Remove extra whitespace and newlines
+      const cleanContent = content.trim().replace(/\s+/g, ' ');
+      
+      if (cleanContent.length <= maxLength) {
+        return cleanContent;
+      }
+      
+      // Find a good breaking point (end of sentence or word)
+      const truncated = cleanContent.substring(0, maxLength);
+      const lastSpace = truncated.lastIndexOf(' ');
+      const lastPeriod = truncated.lastIndexOf('.');
+      
+      // Use the better breaking point
+      const breakPoint = Math.max(lastSpace, lastPeriod);
+      if (breakPoint > maxLength * 0.7) { // Only use if it's not too short
+        return cleanContent.substring(0, breakPoint) + '...';
+      }
+      
+      return truncated + '...';
+    };
+
+    const messagePreview = getMessagePreview(message.content);
     const { status, text } = getAssistantStatus();
 
     return (
@@ -222,17 +253,28 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
           }}
         >
           <div className={styles.headerLeft}>
-            <span className={styles.roleLabel}>Assistant</span>
+            <span className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''}`}>
+              {isExpanded ? '-' : '+'}
+            </span>
+            <span className={styles.messagePreview}>{messagePreview}</span>
           </div>
           <div className={styles.headerRight}>
             {sessionName && (
               <span className={styles.sessionName}>{sessionName}</span>
             )}
-            <span className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''}`}>
-              {isExpanded ? '-' : '+'}
-            </span>
           </div>
         </div>
+        
+        {/* Always show images (not collapsed) */}
+        {imageResults.length > 0 && (
+          <div className={styles.alwaysVisibleImages}>
+            {imageResults.map((result, resultIndex) => (
+              <div key={`image-${resultIndex}`} className={styles.imageContainer}>
+                <MessageItemImageResult result={result} resultIndex={resultIndex} />
+              </div>
+            ))}
+          </div>
+        )}
         
         {isExpanded && (
           <>
@@ -252,17 +294,21 @@ export default function MessageItem({ message, sessionName, index, sessionId, pr
               </div>
             )}
             
+            {/* Show non-image execution results only */}
             {message.execution_results && message.execution_results.length > 0 && (
               <div className={styles.results}>
                 <strong>Results:</strong>
-                {message.execution_results.map((result, resultIndex) => (
-                  <div key={resultIndex} className={`${styles.result} ${result.success ? styles.success : styles.failure}`}>
-                    <div className={styles.resultHeader}>
-                      {result.command} - {result.success ? '✅ Success' : '❌ Failed'}
+                {message.execution_results
+                  .filter(result => !result.result?.image_url) // Exclude image results since they're shown above
+                  .map((result, resultIndex) => (
+                    <div key={resultIndex} className={`${styles.result} ${result.success ? styles.success : styles.failure}`}>
+                      <div className={styles.resultHeader}>
+                        {result.command} - {result.success ? '✅ Success' : '❌ Failed'}
+                      </div>
+                      <MessageItemImageResult result={result} resultIndex={resultIndex} />
                     </div>
-                    <MessageItemImageResult result={result} resultIndex={resultIndex} />
-                  </div>
-                ))}
+                  ))
+                }
               </div>
             )}
           </>

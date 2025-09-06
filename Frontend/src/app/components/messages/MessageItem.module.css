@@ -327,6 +327,70 @@
   transform: scale(1.02);
 }
 
+.screenshotError {
+  padding: 16px;
+  background: #3a3a3a;
+  border: 1px dashed #666;
+  border-radius: 4px;
+  color: #cccccc;
+}
+
+.errorText {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.errorText strong {
+  color: #ffffff;
+}
+
+.errorText small {
+  color: #999999;
+  font-size: 0.8rem;
+}
+
+.retryButton {
+  background: #4a4a4a;
+  border: 1px solid #666;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.retryButton:hover {
+  background: #555555;
+}
+
+.retryButton:active {
+  background: #333333;
+}
+
+/* Always visible images (outside collapsed content) */
+.alwaysVisibleImages {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.imageContainer {
+  margin-bottom: 0;
+}
+
+/* Message preview in header */
+.messagePreview {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #ffffff;
+  max-width: 400px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 8px;
+}
+
 /* Job message specific styles */
 .roleLabel {
   font-size: 0.75rem;

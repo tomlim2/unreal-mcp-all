@@ -73,7 +73,7 @@ export async function DELETE(
     
     // Forward delete request to Python MCP server
     const response = await fetch(`${MCP_HTTP_BRIDGE_URL}`, {
-      method: 'DELETE',
+      method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Accept': 'application/json'

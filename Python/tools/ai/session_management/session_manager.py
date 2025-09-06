@@ -330,43 +330,6 @@ class SessionManager:
         
         return success
     
-    def create_job_message(self, session_id: str, job_id: str, job_status: str = 'pending',
-                          content: str = None) -> bool:
-        """
-        Create initial job message when job starts.
-        
-        Args:
-            session_id: The session ID
-            job_id: The job ID
-            job_status: Initial job status (default: 'pending')
-            content: Optional content for the job message
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        # Get or create session
-        session = self.get_or_create_session(session_id)
-        if session is None:
-            logger.error(f"Failed to get/create session for job message: {session_id}")
-            return False
-        
-        # Add initial job message
-        default_content = f"Screenshot job {job_id} has been created and is starting..."
-        session.add_job_message(
-            job_id=job_id,
-            job_status=job_status,
-            content=content or default_content,
-            job_progress=0
-        )
-        
-        # Update the session in storage
-        success = self.update_session(session)
-        if success:
-            logger.info(f"Created job message for {job_id} in session {session_id}")
-        else:
-            logger.error(f"Failed to create job message for {job_id} in session {session_id}")
-        
-        return success
     
     def cleanup_expired_sessions(self, max_age: timedelta = timedelta(days=30)) -> int:
         """

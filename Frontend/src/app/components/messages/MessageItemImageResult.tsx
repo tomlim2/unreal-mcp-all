@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import styles from './MessageItem.module.css';
 
 interface MessageItemImageResultProps {
@@ -41,22 +42,51 @@ function getFullImageUrl(imageUrl: string): string {
 }
 
 export default function MessageItemImageResult({ result, resultIndex }: MessageItemImageResultProps) {
+  const [imageLoadError, setImageLoadError] = useState(false);
+
   if (result.success) {
     return (
       <div>
         {result.result?.image_url && (
           <div className={styles.screenshotContainer}>
-            <img 
-              src={getFullImageUrl(result.result.image_url)} 
-              alt="Screenshot" 
-              className={styles.screenshot}
-              onError={(e) => {
-                const fullUrl = getFullImageUrl(result.result?.image_url || '');
-                console.error('Failed to load screenshot:', fullUrl);
-                console.log('Screenshot API called for job:', result.result?.image_url?.split('/').pop());
-                e.currentTarget.style.display = 'none';
-              }}
-            />
+            {!imageLoadError ? (
+              <img 
+                src={getFullImageUrl(result.result.image_url)} 
+                alt="Screenshot" 
+                className={styles.screenshot}
+                onError={(e) => {
+                  const fullUrl = getFullImageUrl(result.result?.image_url || '');
+                  const filename = result.result?.image_url?.split('/').pop();
+                  
+                  // Only log in development, reduce console noise in production
+                  if (process.env.NODE_ENV === 'development') {
+                    console.warn('Screenshot not available:', filename);
+                    console.debug('Full URL attempted:', fullUrl);
+                  }
+                  
+                  setImageLoadError(true);
+                  
+                  // Prevent default browser error handling to reduce console noise
+                  e.preventDefault();
+                }}
+              />
+            ) : (
+              <div className={styles.screenshotError}>
+                <div className={styles.errorText}>
+                  <strong>Screenshot not available</strong>
+                  <br />
+                  <small>The image file "{result.result.image_url?.split('/').pop()}" could not be loaded.</small>
+                  <br />
+                  <button 
+                    className={styles.retryButton}
+                    onClick={() => setImageLoadError(false)}
+                    title="Try loading the image again"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
