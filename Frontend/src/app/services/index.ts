@@ -1,4 +1,4 @@
-export { createApiService } from './ApiService';
+export { createApiService } from './ApiServiceContext';
 export type { 
   ApiService, 
   Session, 

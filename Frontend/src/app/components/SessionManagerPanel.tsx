@@ -34,20 +34,14 @@ export default function SessionManagerPanel() {
     fetchSessions();
   }, []);
 
-  // Load session context when sessionId changes
-  useEffect(() => {
-    if (sessionId) {
-      fetchSessionContext(sessionId);
-    } else {
-      setMessageInfo(null);
-    }
-  }, [sessionId]);
-
   const fetchSessions = async () => {
-    setSessionsLoading(true);
     try {
       const sessions = await apiService.getSessions();
       setSessionInfo(sessions);
+	if (sessions.length > 0 && !sessionId) {
+		setSessionId(sessions[0].session_id);
+		fetchSessionContext(sessions[0].session_id);
+	}
       setSessionsLoaded(true);
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
@@ -128,6 +122,7 @@ export default function SessionManagerPanel() {
       }
       contextCache.current.delete(sid);
       await fetchSessions(); // Refresh the list
+      handleSelectSession(sessionInfo.length > 0 ? sessionInfo[0].session_id : '');
     } catch (error) {
       console.error('Failed to delete session:', error);
       setError('Failed to delete session');
@@ -144,6 +139,11 @@ export default function SessionManagerPanel() {
     }
   };
 
+  const handleSelectSession = (sid: string) => {
+    setSessionId(sid);
+    fetchSessionContext(sid);
+  };
+
   return (
     <div className={styles.container}>
       {error && (
@@ -155,7 +155,7 @@ export default function SessionManagerPanel() {
       <SessionSidebar 
         sessionInfo={sessionInfo}
         activeSessionId={sessionId}
-        onSessionSelect={setSessionId}
+        onSessionSelect={handleSelectSession}
         onSessionCreate={handleCreateSession}
         onSessionDelete={handleDeleteSession}
         onSessionRename={handleRenameSession}
