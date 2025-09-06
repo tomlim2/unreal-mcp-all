@@ -5,7 +5,10 @@ Handles Unreal Engine screenshot operations.
 """
 
 import logging
-from typing import Dict, Any, List
+import os
+import time
+from pathlib import Path
+from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 
@@ -69,12 +72,64 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         return processed
     
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
-        """Execute screenshot commands."""
+        """Execute screenshot commands synchronously."""
         logger.info(f"Screenshot Handler: Executing {command_type} with params: {params}")
         
+        # Take screenshot via Unreal connection
         response = connection.send_command(command_type, params)
         
         if response and response.get("status") == "error":
             raise Exception(response.get("error", f"Unknown Unreal {command_type} error"))
         
-        return response
+        # Wait a moment for file to be created
+        time.sleep(0.5)
+        
+        # Find newest screenshot file
+        screenshot_file = self._find_newest_screenshot()
+        
+        if screenshot_file:
+            # Return success with direct file URL
+            filename = screenshot_file.name
+            return {
+                "success": True,
+                "message": f"Screenshot saved: {filename}",
+                "image_url": f"/api/screenshot-file/{filename}"
+            }
+        else:
+            # Return success but no file found (fallback)
+            return {
+                "success": True,
+                "message": "Screenshot command executed (file not immediately available)",
+                "image_url": None
+            }
+
+    def _find_newest_screenshot(self) -> Optional[Path]:
+        """Find the newest screenshot file in the WindowsEditor directory."""
+        try:
+            project_path = os.getenv('UNREAL_PROJECT_PATH')
+            if not project_path:
+                logger.warning("UNREAL_PROJECT_PATH not set - cannot find screenshot files")
+                return None
+            
+            # Look in WindowsEditor subdirectory where Unreal saves high-res screenshots
+            screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+            
+            if not screenshot_dir.exists():
+                logger.warning(f"Screenshot directory not found: {screenshot_dir}")
+                return None
+            
+            # Find all PNG files
+            png_files = list(screenshot_dir.glob("*.png"))
+            
+            if not png_files:
+                logger.warning("No PNG files found in screenshot directory")
+                return None
+            
+            # Return the newest file by modification time
+            newest_file = max(png_files, key=lambda f: f.stat().st_mtime)
+            logger.info(f"Found newest screenshot: {newest_file.name}")
+            return newest_file
+            
+        except Exception as e:
+            logger.error(f"Error finding newest screenshot: {e}")
+            return None

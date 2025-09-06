@@ -15,6 +15,7 @@ AVAILABLE_PROVIDERS = {
     'gemini': lambda: GeminiProvider("gemini-1.5-flash"),
     'gemini-2': lambda: GeminiProvider("gemini-2.5-flash"),
     'claude': lambda: ClaudeProvider(),
+    'claude-3-haiku-20240307': lambda: ClaudeProvider("claude-3-haiku-20240307"),
 }
 
 # Default model configuration

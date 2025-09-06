@@ -15,6 +15,13 @@ from pathlib import Path
 import threading
 from typing import Dict, Any, Optional
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Import worker infrastructure
 from tools.workers import JobManager, JobStatus, ScreenshotWorker
 
@@ -97,8 +104,62 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         """Handle CORS preflight requests"""
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS, HEAD')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Access-Control-Max-Age', '86400')  # Cache preflight for 24 hours
+        self.end_headers()
+    
+    def do_HEAD(self):
+        """Handle HEAD requests (same as GET but without response body)"""
+        # For screenshot files, we can handle HEAD requests efficiently
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path
+        
+        if path.startswith('/api/screenshot-file/'):
+            # Handle HEAD request for screenshot files
+            path_parts = path.split('/')
+            if len(path_parts) == 4 and path_parts[1] == 'api' and path_parts[2] == 'screenshot-file':
+                filename = path_parts[3]
+                try:
+                    # Get project path from environment
+                    project_path = os.getenv('UNREAL_PROJECT_PATH')
+                    if not project_path:
+                        self.send_response(500)
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        return
+                    
+                    # Build path to screenshot file
+                    screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+                    file_path = screenshot_dir / filename
+                    
+                    # Check if file exists
+                    if file_path.exists() and filename.lower().endswith('.png'):
+                        file_size = file_path.stat().st_size
+                        
+                        # Send success headers without body
+                        self.send_response(200)
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.send_header('Content-Type', 'image/png')
+                        self.send_header('Content-Length', str(file_size))
+                        self.end_headers()
+                        return
+                    else:
+                        self.send_response(404)
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        return
+                        
+                except Exception as e:
+                    logger.error(f"Error handling HEAD request for {filename}: {e}")
+                    self.send_response(500)
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    return
+        
+        # For other paths, return 501 Not Implemented
+        self.send_response(501)
+        self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
     
     def do_GET(self):
@@ -106,15 +167,51 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         global job_manager, screenshot_worker
         logger.info(f"GET request received: {self.path}")
         try:
-            # Handle CORS
+            # Parse URL path first
+            parsed_url = urlparse(self.path)
+            path = parsed_url.path
+            
+            # Handle file requests first (before sending any headers)
+            if path.startswith('/api/screenshot-file/'):
+                # Handle direct screenshot file serving: /api/screenshot-file/{filename}
+                path_parts = path.split('/')
+                if len(path_parts) == 4 and path_parts[1] == 'api' and path_parts[2] == 'screenshot-file':
+                    filename = path_parts[3]
+                    try:
+                        # Get project path from environment
+                        project_path = os.getenv('UNREAL_PROJECT_PATH')
+                        if not project_path:
+                            self._send_error("UNREAL_PROJECT_PATH not configured")
+                            return
+                        
+                        # Build path to screenshot file
+                        screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+                        file_path = screenshot_dir / filename
+                        
+                        # Validate file exists and is a PNG
+                        if not file_path.exists():
+                            self._send_error(f"Screenshot file not found: {filename}")
+                            return
+                        
+                        if not filename.lower().endswith('.png'):
+                            self._send_error(f"Invalid file type: {filename}")
+                            return
+                        
+                        # Serve the file
+                        logger.info(f"Serving screenshot file: {filename}")
+                        self._serve_file(file_path)
+                        return
+                        
+                    except Exception as e:
+                        logger.error(f"Error serving screenshot file {filename}: {e}")
+                        self._send_error(f"Error serving file: {e}")
+                        return
+            
+            # Handle JSON API requests (send JSON headers)
             self.send_response(200)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            
-            # Parse URL path
-            parsed_url = urlparse(self.path)
-            path = parsed_url.path
             
             if path == '/health':
                 # Handle health check request
@@ -427,6 +524,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             return
             
             
+            # NEW: Simple screenshot file serving endpoint
             # Handle other GET requests (404)
             self.send_response(404)
             self.send_header('Access-Control-Allow-Origin', '*')

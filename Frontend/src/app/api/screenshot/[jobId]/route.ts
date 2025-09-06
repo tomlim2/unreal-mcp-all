@@ -10,36 +10,64 @@ export async function GET(
   try {
     const { jobId } = await params;
     
-    console.log(`Screenshot API called for job: ${jobId}`);
+    console.log(`Screenshot API called for job/filename: ${jobId}`);
     
     if (!jobId) {
-      return NextResponse.json({ error: 'Job ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Job ID or filename is required' }, { status: 400 });
     }
 
-    // First try the HTTP bridge
-    try {
-      const response = await fetch(`${MCP_HTTP_BRIDGE_URL}/api/screenshot/download/${jobId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'image/*',
-        },
-      });
-
-      if (response.ok && response.headers.get('content-type')?.startsWith('image/')) {
-        const imageBuffer = await response.arrayBuffer();
-        const contentType = response.headers.get('content-type') || 'image/png';
-
-        return new NextResponse(imageBuffer, {
-          status: 200,
+    // Check if this looks like a filename (ends with .png)
+    if (jobId.endsWith('.png')) {
+      // Handle direct filename requests
+      try {
+        const response = await fetch(`${MCP_HTTP_BRIDGE_URL}/api/screenshot-file/${jobId}`, {
+          method: 'GET',
           headers: {
-            'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=31536000, immutable',
-            'Access-Control-Allow-Origin': '*',
+            'Accept': 'image/png',
           },
         });
+
+        if (response.ok) {
+          const imageBuffer = await response.arrayBuffer();
+          
+          return new NextResponse(imageBuffer, {
+            status: 200,
+            headers: {
+              'Content-Type': 'image/png',
+              'Cache-Control': 'public, max-age=3600',
+              'Access-Control-Allow-Origin': '*',
+            },
+          });
+        }
+      } catch (error) {
+        console.log(`Direct filename fetch failed: ${error}`);
       }
-    } catch (bridgeError) {
-      console.log(`HTTP bridge failed, trying direct file access: ${bridgeError}`);
+    } else {
+      // Handle legacy job ID requests
+      try {
+        const response = await fetch(`${MCP_HTTP_BRIDGE_URL}/api/screenshot/download/${jobId}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'image/*',
+          },
+        });
+
+        if (response.ok && response.headers.get('content-type')?.startsWith('image/')) {
+          const imageBuffer = await response.arrayBuffer();
+          const contentType = response.headers.get('content-type') || 'image/png';
+
+          return new NextResponse(imageBuffer, {
+            status: 200,
+            headers: {
+              'Content-Type': contentType,
+              'Cache-Control': 'public, max-age=31536000, immutable',
+              'Access-Control-Allow-Origin': '*',
+            },
+          });
+        }
+      } catch (bridgeError) {
+        console.log(`HTTP bridge failed, trying direct file access: ${bridgeError}`);
+      }
     }
 
     // Fallback: Try to serve the file directly based on known location

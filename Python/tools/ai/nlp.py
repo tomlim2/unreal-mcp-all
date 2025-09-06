@@ -178,12 +178,30 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             parsed_response = json.loads(ai_response)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse AI response as JSON: {e}")
-            # If AI didn't return valid JSON, create a structured response
-            parsed_response = {
-                "explanation": ai_response,
-                "commands": [],
-                "expectedResult": "Please rephrase your request more specifically."
-            }
+            
+            # Try to extract JSON from Claude's response (which often includes explanatory text)
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', ai_response)
+            if json_match:
+                try:
+                    json_text = json_match.group()
+                    parsed_response = json.loads(json_text)
+                    logger.info("Successfully extracted JSON from Claude response")
+                except json.JSONDecodeError:
+                    logger.warning("Extracted text is also not valid JSON")
+                    # Fall back to creating a structured response
+                    parsed_response = {
+                        "explanation": ai_response,
+                        "commands": [],
+                        "expectedResult": "Please rephrase your request more specifically."
+                    }
+            else:
+                # If AI didn't return valid JSON, create a structured response
+                parsed_response = {
+                    "explanation": ai_response,
+                    "commands": [],
+                    "expectedResult": "Please rephrase your request more specifically."
+                }
         # Execute commands using direct connection with schema validation
         execution_results = []
         if parsed_response.get("commands") and isinstance(parsed_response["commands"], list):
@@ -192,12 +210,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     logger.info(f"Executing command from NLP: {command}")
                     print(f"DEBUG: Executing command from NLP: {command}")
                     
-                    # Add session_id to command parameters if available for job tracking
-                    if session_id and command.get('type') == 'take_highresshot':
-                        if 'params' not in command:
-                            command['params'] = {}
-                        command['params']['session_id'] = session_id
-                        logger.info(f"Added session_id {session_id} to screenshot command")
+                    # Session tracking is now handled by the simple command handlers
                     
                     # Commands are now validated by handler system in execute_command_direct
                     # No need for pre-validation here as handlers manage their own validation
@@ -312,17 +325,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
 **Rendering & Capture:**
-- Screenshots: take_highresshot (execute screenshot command)
-
-**JOB SYSTEM & ASYNC PROCESSING**
-**Screenshot Jobs:**
-- take_highresshot creates BACKGROUND JOBS with async processing
-- Jobs progress through states: pending → running → completed/failed
-- Returns job_id immediately (not the actual screenshot)
-- Frontend polls for job status and displays progress bars
-- Completed jobs provide downloadable image URLs
-- Job results are automatically saved to session conversation history
-- Use session_id parameter to track jobs in chat context
+- Screenshots: take_highresshot (execute screenshot command immediately, returns image URL)
 
 ## PARAMETER VALIDATION RULES
 **Sky Commands:**
@@ -391,13 +394,8 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     
     command_type = command.get('type')
     
-    # Route screenshot commands to job system for async processing
-    if command_type == 'take_highresshot':
-        print(f"DEBUG: Routing take_highresshot to async handler")
-        logger.info(f"Routing take_highresshot to async handler")
-        result = _handle_screenshot_command_async(command)
-        print(f"DEBUG: Async handler returned: {result}")
-        return result
+    # Screenshot commands now use simple synchronous handling (no more async jobs)
+    # All commands go through the unified command registry
     
     # Import tools to get access to connection for other commands
     from unreal_mcp_server import get_unreal_connection
