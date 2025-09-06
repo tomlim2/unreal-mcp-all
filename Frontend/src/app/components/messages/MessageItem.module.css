@@ -1,34 +1,27 @@
 .message {
   padding: 15px 20px;
-  margin: 0;
   width: 100%;
   word-wrap: break-word;
   border: none;
 }
 
 .message.user {
-  background-color: #e5e5e5;
-  color: #000000;
+  background-color: #2d5016;
+  color: #ffffff;
   align-self: flex-end;
   margin-left: auto;
+  margin: 0.85rem 0;
+  max-width: 300px;
+  width: auto;
+  border-radius: 999px;
+  text-align: right;
 }
 
 .message.assistant {
-  background-color: #333333;
+  padding: 0.875rem 0;
   color: #ffffff;
   align-self: flex-start;
-  margin-right: auto;
-}
-
-.message.job {
-  background-color: #333333;
-  color: #ffffff;
-  align-self: flex-start;
-  margin-right: auto;
-}
-
-.message.job {
-  border-left: 12px solid #6b7280; /* Gray border for all job messages */
+  margin: 0;
 }
 
 .message.system {
@@ -60,7 +53,7 @@
 }
 
 .sessionName {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #666666;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   background: #cccccc;
@@ -69,7 +62,7 @@
 }
 
 .role {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: bold;
   padding: 4px 8px;
   text-transform: uppercase;
@@ -92,7 +85,7 @@
 }
 
 .timestamp {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -114,7 +107,7 @@
   border: none;
   width: 20px;
   height: 20px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -148,14 +141,12 @@
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
+  font-size: 0.875rem;
 }
 
-.messageContent.resultContent {
-  margin-top: 12px;
-}
 
 .message.user .messageContent {
-  font-size: .85rem;
+  font-size: 0.875rem;
 }
 
 .message.user .content {
@@ -174,7 +165,7 @@
   padding: 12px;
   background-color: #2a2a2a;
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   border: none;
   line-height: 1.5;
   cursor: pointer;
@@ -190,107 +181,145 @@
   padding: 12px;
   background-color: #1a1a1a;
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   border: none;
   line-height: 1.5;
 }
 
+.aiSection {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.aiSection strong {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #cccccc;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+}
+
+.aiSection p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #ffffff;
+  font-style: italic;
+}
+
 .commands {
   margin-top: 16px;
-  padding: 16px;
-  background-color: #1a1a1a;
-  border: none;
 }
 
 .commands strong {
   display: block;
   margin-bottom: 8px;
-  color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #cccccc;
+  text-transform: uppercase;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
 .command {
-  margin: 8px 0;
-  background: #2a2a2a;
-  border: none;
+  margin: 12px 0;
+  padding: 0;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #e6e6e6;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border: 1px solid #333;
   overflow: hidden;
+  white-space: pre;
+  tab-size: 2;
 }
 
-.command code {
-  display: inline-block;
-  padding: 8px 12px;
-  background-color: #1a1a1a;
-  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 0.75rem;
+.commandHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #333;
+  border-bottom: 1px solid #444;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.command strong {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
+  font-size: 0.875rem;
   color: #ffffff;
-  border: none;
-  width: 100%;
   font-weight: 600;
+  text-transform: none;
+  margin: 0;
+}
+
+.languageLabel {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
+  font-size: 0.875rem;
+  color: #999;
+  font-weight: normal;
+}
+
+.commandContent {
+  padding: 16px;
+  overflow-x: auto;
+  margin: 0;
 }
 
 .command pre {
   margin: 0;
-  padding: 12px;
-  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: #ffffff;
-  background: #2a2a2a;
+  padding: 16px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #e6e6e6;
+  background: #484848;
+  border-radius: 6px;
+  border: 1px solid #333;
   overflow-x: auto;
+  white-space: pre;
+  tab-size: 2;
 }
 
 .results {
   margin-top: 16px;
-  padding: 16px;
-  background-color: #1a1a1a;
-  border: none;
 }
 
 .results strong {
   display: block;
   margin-bottom: 8px;
-  color: #ffffff;
-  font-size: 0.75rem;
-}
-
-.result {
-  margin: 8px 0;
-  overflow: hidden;
-  border: none;
-}
-
-.result.success {
-  background: #2a2a2a;
-}
-
-.result.failure {
-  background: #1a1a1a;
-}
-
-.resultHeader {
-  padding: 8px 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #cccccc;
+  text-transform: uppercase;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
-.result.success .resultHeader {
-  background-color: #1a1a1a;
-  color: #ffffff;
-  border: none;
+.result {
+  margin: 12px 0;
 }
 
-.result.failure .resultHeader {
-  background-color: #666666;
+.resultHeader {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   color: #ffffff;
-  border: none;
+  margin-bottom: 4px;
 }
 
 .resultData {
   margin: 0;
   padding: 12px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.4;
   color: #ffffff;
   background: #2a2a2a;
@@ -298,11 +327,11 @@
 }
 
 .errorMessage {
-  padding: 12px;
-  color: #ffffff;
-  background: #2a2a2a;
+  color: #ff6b6b;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  margin: 8px 0;
 }
 
 .screenshotContainer {
@@ -311,33 +340,38 @@
   background: #2a2a2a;
   border: 1px solid #666666;
   border-radius: 4px;
+  width: 100%;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .screenshot {
   max-width: 100%;
-  height: auto;
+  max-height: 100%;
   border: 1px solid #ddd;
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: transform 0.2s ease;
-}
-
-.screenshot:hover {
-  transform: scale(1.02);
+  object-fit: contain;
 }
 
 .screenshotError {
   padding: 16px;
-  background: #3a3a3a;
-  border: 1px dashed #666;
-  border-radius: 4px;
   color: #cccccc;
+  width: 100%;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
 }
 
 .errorText {
-  flex: 1;
   line-height: 1.4;
+  margin-bottom: 12px;
 }
 
 .errorText strong {
@@ -346,33 +380,47 @@
 
 .errorText small {
   color: #999999;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
 }
 
 .retryButton {
-  background: #4a4a4a;
-  border: 1px solid #666;
+  background: transparent;
+  border: none;
   color: #ffffff;
-  padding: 4px 8px;
-  border-radius: 3px;
-  font-size: 0.75rem;
+  padding: 0;
+  font-size: 0.875rem;
   cursor: pointer;
   margin-top: 8px;
-  transition: background-color 0.2s ease;
+  transition: color 0.2s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 500;
+  align-self: flex-start;
+  text-decoration: underline;
 }
 
 .retryButton:hover {
-  background: #555555;
+  color: #cccccc;
 }
 
 .retryButton:active {
-  background: #333333;
+  color: #999999;
 }
 
 /* Always visible images (outside collapsed content) */
 .alwaysVisibleImages {
-  margin-top: 0;
+  margin-top: 16px;
   margin-bottom: 0;
+}
+
+.alwaysVisibleImages strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #cccccc;
+  text-transform: uppercase;
+  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
 .imageContainer {
@@ -381,56 +429,18 @@
 
 /* Message preview in header */
 .messagePreview {
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 400;
   color: #ffffff;
-  max-width: 400px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-left: 8px;
 }
 
-/* Job message specific styles */
+/* System message specific styles */
 .roleLabel {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: bold;
   color: #ffffff;
   margin-right: 8px;
-}
-
-.jobStatus {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #22c55e;
-  margin-right: 8px;
-}
-
-.jobProgress {
-  font-size: 0.75rem;
-  color: #cccccc;
-}
-
-.jobImageContainer {
-  margin-top: 12px;
-  padding: 12px;
-  background: #2a2a2a;
-  border: 1px solid #444444;
-  border-radius: 4px;
-}
-
-.jobImage {
-  max-width: 100%;
-  height: auto;
-  border: 1px solid #666666;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.jobImage:hover {
-  transform: scale(1.02);
 }
 
 .headerLeft {
@@ -446,7 +456,7 @@
 
 .expandIcon {
   font-family: monospace;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: bold;
   color: #cccccc;
   cursor: pointer;

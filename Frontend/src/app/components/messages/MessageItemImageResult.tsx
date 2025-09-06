@@ -7,9 +7,7 @@ interface MessageItemImageResultProps {
   result: {
     command: string;
     success: boolean;
-    result?: Record<string, any> & {
-      image_url?: string;
-    };
+    result?: unknown;
     error?: string;
   };
   resultIndex: number;
@@ -43,50 +41,77 @@ function getFullImageUrl(imageUrl: string): string {
 
 export default function MessageItemImageResult({ result, resultIndex }: MessageItemImageResultProps) {
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   if (result.success) {
+    const hasImageUrl = result.result && 
+      typeof result.result === 'object' && 
+      result.result !== null &&
+      'image_url' in result.result &&
+      typeof (result.result as any).image_url === 'string';
+      
+    if (!hasImageUrl) {
+      return <div></div>; // Return empty div if no image
+    }
+      
     return (
-      <div>
-        {result.result?.image_url && (
-          <div className={styles.screenshotContainer}>
-            {!imageLoadError ? (
-              <img 
-                src={getFullImageUrl(result.result.image_url)} 
-                alt="Screenshot" 
-                className={styles.screenshot}
-                onError={(e) => {
-                  const fullUrl = getFullImageUrl(result.result?.image_url || '');
-                  const filename = result.result?.image_url?.split('/').pop();
-                  
-                  // Only log in development, reduce console noise in production
-                  if (process.env.NODE_ENV === 'development') {
-                    console.warn('Screenshot not available:', filename);
-                    console.debug('Full URL attempted:', fullUrl);
-                  }
-                  
-                  setImageLoadError(true);
-                  
-                  // Prevent default browser error handling to reduce console noise
-                  e.preventDefault();
-                }}
-              />
-            ) : (
-              <div className={styles.screenshotError}>
-                <div className={styles.errorText}>
-                  <strong>Screenshot not available</strong>
-                  <br />
-                  <small>The image file "{result.result.image_url?.split('/').pop()}" could not be loaded.</small>
-                  <br />
-                  <button 
-                    className={styles.retryButton}
-                    onClick={() => setImageLoadError(false)}
-                    title="Try loading the image again"
-                  >
-                    Retry
-                  </button>
-                </div>
+      <div className={styles.screenshotContainer}>
+        {!imageLoadError ? (
+          <>
+            {!imageLoaded && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                color: '#cccccc',
+                fontSize: '0.875rem',
+                width: '100%',
+                minHeight: '150px'
+              }}>
+                Loading image...
               </div>
             )}
+            <img 
+              src={getFullImageUrl((result.result as any).image_url)} 
+              alt="Screenshot" 
+              className={styles.screenshot}
+              style={{ display: imageLoaded ? 'block' : 'none' }}
+              onLoad={() => setImageLoaded(true)}
+              onError={(e) => {
+                const imageUrl = (result.result as any).image_url || '';
+                const fullUrl = getFullImageUrl(imageUrl);
+                const filename = imageUrl.split('/').pop();
+                
+                // Only log in development, reduce console noise in production
+                if (process.env.NODE_ENV === 'development') {
+                  console.warn('Screenshot not available:', filename);
+                  console.debug('Full URL attempted:', fullUrl);
+                }
+                
+                setImageLoadError(true);
+                
+                // Prevent default browser error handling to reduce console noise
+                e.preventDefault();
+              }}
+            />
+          </>
+        ) : (
+          <div className={styles.screenshotError}>
+            <div className={styles.errorText}>
+              <strong>Screenshot not available</strong>
+              <br />
+              <small>The image file &quot;{((result.result as any).image_url || '').split('/').pop()}&quot; could not be loaded.</small>
+              <br />
+              <button 
+                className={styles.retryButton}
+                onClick={() => {
+                  setImageLoadError(false);
+                  setImageLoaded(false);
+                }}
+                title="Try loading the image again"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { SessionContext } from '../services';
-import { MessageItem, MessageGroupWrapper } from './messages';
+import { MessageItem } from './messages';
 import styles from './ConversationHistory.module.css';
 
 interface ConversationHistoryProps {
@@ -83,13 +83,18 @@ const ConversationHistory = ({
         ) : (
           <div className={styles.messages}>
             <div className={styles.spacer}></div>
-            <MessageGroupWrapper
-              messages={context.conversation_history
-                .slice()
-                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-              }
-              sessionId={context.session_id}
-            />
+            {context.conversation_history
+              .slice()
+              .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+              .map((message, index) => (
+                <MessageItem
+                  key={`${context.session_id}-${index}`}
+                  message={message}
+                  index={index}
+                  sessionId={context.session_id}
+                />
+              ))
+            }
             <div ref={messagesEndRef} />
           </div>
         )}

@@ -56,24 +56,6 @@ export default function SessionSidebar({
 
   const deleteSpecificSession = (sessionIdToDelete: string) => {
     onSessionDelete(sessionIdToDelete);
-
-    // Ask for confirmation
-    // const sessionToDelete = sessionInfo.find(s => s.session_id === sessionIdToDelete);
-    // const sessionDisplayName = sessionToDelete?.session_name || `Session ${sessionIdToDelete.slice(0, 8)}`;
-    
-    // if (!window.confirm(`Are you sure you want to delete "${sessionDisplayName}" and all its conversation history? This action cannot be undone.`)) {
-    //   return;
-    // }
-
-    // setDeletingSessionId(sessionIdToDelete);
-    // setLocalError(null);
-
-    // try {
-    // } catch (err) {
-    //   setLocalError(err instanceof Error ? err.message : "Failed to delete session");
-    // } finally {
-    //   setDeletingSessionId(null);
-    // }
   };
 
 

@@ -1,12 +1,9 @@
 .container {
   padding: 0;
-  width: 800px;
-  height: calc(100vh - 8rem);
+  width: 100%;
+  height: 100vh;
   margin: 0px auto;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  display: grid;
-  grid-template-rows: 1fr;
-  overflow: hidden;
 }
 
 .header {
@@ -27,7 +24,7 @@
   border-radius: 50%;
   width: 32px;
   height: 32px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -42,7 +39,7 @@
   text-align: center;
   padding: 40px;
   color: #666666;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .error {
@@ -62,7 +59,7 @@
   text-align: center;
   color: #999999;
   font-style: italic;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .sessionInfo {
@@ -74,20 +71,22 @@
 
 .sessionInfo h3 {
   margin: 0 0 8px 0;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .sessionMeta {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #cccccc;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
 .section {
   margin: 0;
+  padding: 1rem 0 8rem 0;
   overflow: hidden;
-  display: grid;
-  grid-template-rows: 1fr;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   min-height: 0;
 }
 
@@ -97,7 +96,7 @@
   padding: 16px 20px;
   color: #000000;
   border: none;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
@@ -109,13 +108,12 @@
 }
 
 .messages {
-  overflow-y: scroll;
-  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   scrollbar-width: thin;
   scrollbar-color: #cccccc transparent;
   height: 100%;
+  width: 800px;
   box-sizing: border-box;
 }
 
