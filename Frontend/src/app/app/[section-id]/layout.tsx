@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo } from "react";
+import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
 import { createApiService, SessionContext } from "../../services";
 import { useSessionContext } from "../../layout";
 import SessionSidebar from "../../components/SessionSidebar";
@@ -154,28 +154,27 @@ function ConversationProvider({
   return (
     <ConversationContext.Provider value={contextValue}>
       <div className={styles.container}>
-        {error && (
-          <div className={styles.error}>
-            {error}
-            <button onClick={() => setError(null)}>×</button>
-          </div>
-        )}
         <SessionSidebar 
           sessionInfo={sessionInfo}
           activeSessionId={sessionId}
-          onSessionCreate={handleCreateSession}
-          onSessionDelete={handleSessionDelete}
-          onSessionRename={handleRenameSession}
+          onSessionDelete={handleDeleteSession}
           loading={sessionsLoading}
-          error={error}
         />
-        <ConversationHistory 
-          context={messageInfo}
-          loading={contextLoading}
-          error={contextError}
-          sessionsLoaded={sessionsLoaded}
-        />
-        {children}
+        <div className={styles.mainContent}>
+          {error && (
+            <div className={styles.error}>
+              {error}
+              <button onClick={() => setError(null)}>×</button>
+            </div>
+          )}
+          <ConversationHistory 
+            context={messageInfo}
+            loading={contextLoading}
+            error={contextError}
+            sessionsLoaded={sessionsLoaded}
+          />
+          {children}
+        </div>
       </div>
     </ConversationContext.Provider>
   );
@@ -186,10 +185,12 @@ export default function SectionLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { 'section-id': string };
+  params: Promise<{ 'section-id': string }>;
 }) {
+  const resolvedParams = use(params);
+  
   return (
-    <ConversationProvider sectionId={params['section-id']}>
+    <ConversationProvider sectionId={resolvedParams['section-id']}>
       {children}
     </ConversationProvider>
   );

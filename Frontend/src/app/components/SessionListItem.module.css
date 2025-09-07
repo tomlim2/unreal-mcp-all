@@ -18,11 +18,11 @@
   font-family: 'Inter', monospace;
   color: #ffffff;
   margin-bottom: 4px;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
 }
 
 .sessionMeta {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   color: #cccccc;
   display: flex;
   gap: 16px;
@@ -45,7 +45,7 @@
   border: none;
   width: 24px;
   height: 24px;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   line-height: 1;
   cursor: pointer;
   display: flex;

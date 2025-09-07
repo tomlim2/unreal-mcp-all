@@ -1,79 +1,82 @@
 'use client';
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import ChatInput from "../components/ChatInput";
 import { useSessionContext } from "../layout";
-import styles from "../page.module.css";
+import SessionSidebar from "../components/SessionSidebar";
+import ConversationHistory from "../components/ConversationHistory";
+import { createApiService } from "../services";
+import styles from "../components/SessionManagerPanel.module.css";
 
 export default function AppHome() {
   const router = useRouter();
-  const { sessionInfo, sessionsLoaded } = useSessionContext();
+  const apiService = useMemo(() => createApiService(), []);
+  const {
+    sessionInfo,
+    sessionsLoaded,
+    sessionsLoading,
+    sessionId,
+    handleCreateSession,
+    handleDeleteSession,
+    handleRenameSession,
+    error,
+    setError
+  } = useSessionContext();
 
-  useEffect(() => {
-    if (sessionsLoaded) {
-      if (sessionInfo.length > 0) {
-        // Redirect to first session
-        router.replace(`/app/${sessionInfo[0].session_id}`);
-      } else {
-        // No sessions available, stay on /app and show empty state
-        console.log('No sessions available');
+  const handleChatSubmit = async (prompt: string, llmModel?: string) => {
+    if (!prompt.trim()) return;
+    
+    try {
+      // Create new session with the first input as the session name
+      const newSession = await handleCreateSession(prompt.trim());
+      if (newSession) {
+        // Send the prompt as the first message to the newly created session
+        await apiService.chat(prompt.trim(), newSession.session_id, llmModel);
+        
+        // Redirect to the newly created session
+        router.push(`/app/${newSession.session_id}`);
       }
+    } catch (error) {
+      console.error('Failed to create session and send first message:', error);
     }
-  }, [sessionsLoaded, sessionInfo, router]);
+  };
 
-  if (!sessionsLoaded) {
-    return (
-      <div className={styles.page}>
-        <main className={styles.main}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100vh',
-            color: '#666666',
-            fontSize: '0.95rem'
-          }}>
-            Loading sessions...
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (sessionInfo.length === 0) {
-    return (
-      <div className={styles.page}>
-        <main className={styles.main}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '100vh',
-            color: '#999999',
-            fontSize: '0.95rem',
-            fontStyle: 'italic'
-          }}>
-            No sessions available. Create a new session to get started.
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const refreshContext = () => {
+    // No context to refresh on /app page
+    console.log('No context to refresh on /app page');
+  };
 
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '100vh',
-          color: '#666666',
-          fontSize: '0.95rem'
-        }}>
-          Redirecting to first session...
-        </div>
-      </main>
+    <div className={styles.container}>
+      <SessionSidebar 
+        sessionInfo={sessionInfo}
+        activeSessionId={sessionId}
+        onSessionDelete={handleDeleteSession}
+        loading={sessionsLoading}
+      />
+      <div className={styles.mainContent}>
+        {error && (
+          <div className={styles.error}>
+            {error}
+            <button onClick={() => setError(null)}>×</button>
+          </div>
+        )}
+        <ConversationHistory 
+          context={null}
+          loading={false}
+          error={null}
+          sessionsLoaded={sessionsLoaded}
+        />
+        <ChatInput 
+          loading={false}
+          error={null}
+          sessionId={null}
+          llmFromDb="gemini-2"
+          onSubmit={handleChatSubmit}
+          onRefreshContext={refreshContext}
+        />
+      </div>
     </div>
   );
 }

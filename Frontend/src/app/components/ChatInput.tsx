@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import styles from "./ChatInput.module.css";
 
 interface ChatInputProps {
@@ -23,118 +23,161 @@ export default function ChatInput({
 	const [prompt, setPrompt] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [selectedLlm, setSelectedLlm] = useState<'gemini' | 'gemini-2' | 'claude'>(llmFromDb);
+	const [showExamples, setShowExamples] = useState(false);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 	useEffect(() => {
 		setSelectedLlm(llmFromDb);
 	}, [llmFromDb]);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!prompt.trim()) return;
+	// Auto-resize textarea
+	useEffect(() => {
+		if (textareaRef.current) {
+			textareaRef.current.style.height = 'auto';
+			textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+		}
+	}, [prompt]);
+
+	const handleSubmit = async (e?: React.FormEvent) => {
+		if (e) e.preventDefault();
+		if (!prompt.trim() || isProcessing) return;
 
 		setSubmitting(true);
+		setShowExamples(false);
 
 		try {
-			const data = await onSubmit(
-				prompt,
-				selectedLlm
-			);
-
+			const data = await onSubmit(prompt, selectedLlm);
 			console.log("AI Response:", data);
 			onRefreshContext();
-			setPrompt(""); // Clear the input after successful submission
+			setPrompt("");
 		} catch (err) {
-			// Error is handled by parent component
 			console.error('Submit failed:', err);
 		} finally {
 			setSubmitting(false);
 		}
 	};
 
-	const handleExamplePrompt = (examplePrompt: string) => {
-		setPrompt(examplePrompt);
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			handleSubmit();
+		}
 	};
 
-	// Determine if actions should be disabled
+	const handleExampleClick = (example: string) => {
+		setPrompt(example);
+		if (textareaRef.current) {
+			textareaRef.current.focus();
+		}
+	};
+
 	const isProcessing = loading || submitting;
+	const canSubmit = prompt.trim() && !isProcessing;
+	
+	// Dynamic placeholder based on whether we have a session
+	const placeholderText = sessionId 
+		? "Message Unreal Engine..." 
+		: "Enter session name to get started...";
 
 	const examplePrompts = [
 		"Set the time to sunrise (6 AM)",
-		"Show me all actors in the current level",
+		"Show me all actors in the current level", 
 		"Set the sky to sunset time",
 		"Set to San Francisco",
-		"Set the New York City",
 		"Move the map to Tokyo Japan",
 		"Create a bright white light at position 0,0,200",
 		"Create a warm orange light named MainLight",
 		"Show me all MM control lights",
-		"Make MainLight red and move it to 100,100,150",
-		"Delete the light named MainLight",
 		"Take a high-resolution screenshot",
 		"Make it rain and take a screenshot",
 	];
 
 	return (
-		<>
-			<div className={styles.container}>
-				<form onSubmit={handleSubmit} className={styles.form}>
-					<div className={styles.inputGroup}>
+		<div className={styles.chatContainer}>
+			{/* Main input area */}
+			<div className={styles.inputContainer}>
+				<div className={styles.inputWrapper}>
+					<div className={styles.textareaRow}>
 						<textarea
+							ref={textareaRef}
 							value={prompt}
 							onChange={(e) => setPrompt(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && !e.shiftKey) {
-									e.preventDefault();
-									if (!isProcessing && prompt.trim()) {
-										const form = e.currentTarget.form;
-										if (form) {
-											form.requestSubmit();
-										}
-									}
-								}
-							}}
-							placeholder="Describe what you want to do in Unreal Engine... (Press Enter to execute, Shift+Enter for new line)"
-							className={styles.textarea}
-							rows={3}
+							onKeyDown={handleKeyDown}
+							placeholder={prompt ? "" : placeholderText}
+							className={styles.messageInput}
+							rows={1}
+							disabled={isProcessing}
 						/>
+						
+						{/* Send button */}
 						<button
-							type="submit"
-							disabled={isProcessing || !prompt.trim()}
-							className={styles.submitButton}
+							onClick={() => handleSubmit()}
+							disabled={!canSubmit}
+							className={`${styles.sendButton} ${canSubmit ? styles.sendButtonActive : ''}`}
+							type="button"
 						>
-							{isProcessing ? "Processing..." : "Execute"}
+							{isProcessing ? (
+								<div className={styles.spinner} />
+							) : (
+								<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+									<path
+										d="M8 1L15 8L8 15M15 8H1"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									/>
+								</svg>
+							)}
 						</button>
 					</div>
-				</form>
-				<div className={styles.modelSwitcher}>
-					<select
-						id="model-select"
-						value={selectedLlm}
-						onChange={(e) => setSelectedLlm(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
-						className={styles.modelSelect}
-						disabled={isProcessing}
-					>
-						<option value="gemini">gemini-1.5-flash</option>
-						<option value="gemini-2">gemini-2.5-flash</option>
-						<option value="claude">claude-3-haiku-20240307</option>
-					</select>
-				</div>
-			</div>
-			<div className={styles.examples}>
-				<h3>Examples:</h3>
-				<div className={styles.exampleButtons}>
-					{examplePrompts.map((example, index) => (
+					
+					{/* Bottom controls - Examples toggle and Model selector */}
+					<div className={styles.bottomControls}>
 						<button
-							key={index}
-							onClick={() => handleExamplePrompt(example)}
-							className={styles.exampleButton}
+							onClick={() => setShowExamples(!showExamples)}
+							className={styles.examplesToggle}
 							disabled={isProcessing}
 						>
-							{example}
+							{showExamples ? 'Hide examples' : 'Show examples'}
 						</button>
-					))}
+						
+						<select
+							value={selectedLlm}
+							onChange={(e) => setSelectedLlm(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
+							className={styles.modelSelect}
+							disabled={isProcessing}
+						>
+							<option value="gemini">Gemini 1.5 Flash</option>
+							<option value="gemini-2">Gemini 2.5 Flash</option>
+							<option value="claude">Claude 3 Haiku</option>
+						</select>
+					</div>
+					
+					{/* Examples */}
+					{showExamples && (
+						<div className={styles.examplesGrid}>
+							{examplePrompts.map((example, index) => (
+								<button
+									key={index}
+									onClick={() => handleExampleClick(example)}
+									className={styles.exampleCard}
+									disabled={isProcessing}
+								>
+									{example}
+								</button>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
-		</>
+
+			{/* Error display */}
+			{error && (
+				<div className={styles.errorMessage}>
+					{error}
+				</div>
+			)}
+		</div>
 	);
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Inter } from "next/font/google";
+import { Inter, Bodoni_Moda } from "next/font/google";
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useMemo } from "react";
 import { createApiService, Session } from "./services";
 import { useSessionStore } from "./store/sessionStore";
@@ -9,6 +9,12 @@ import "./globals.css";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const bodoniModa = Bodoni_Moda({
+  variable: "--font-bodoni-moda",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 // Session Context Types
@@ -175,12 +181,14 @@ function SessionProvider({ children }: { children: ReactNode }) {
 
 export default function RootLayout({
   children,
+  params,
 }: Readonly<{
   children: React.ReactNode;
+  params?: Promise<any>;
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable}`}>
+      <body className={`${inter.variable} ${bodoniModa.variable}`} suppressHydrationWarning>
         <SessionProvider>
           {children}
         </SessionProvider>

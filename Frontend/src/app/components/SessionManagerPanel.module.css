@@ -1,8 +1,52 @@
+.container {
+  display: flex;
+  height: 100vh;
+  position: relative;
+}
+
+.mainContent {
+  flex: 1;
+  margin-left: 320px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+}
+
 .contextPanel {
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow-y: auto;
+}
+
+.error {
+  background-color: #2a1a1a;
+  border: 1px solid #663333;
+  border-radius: 8px;
+  color: #ff9999;
+  padding: 12px;
+  margin: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.error button {
+  background: none;
+  border: none;
+  color: #ff9999;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 0 4px;
+  margin-left: 12px;
+}
+
+.error button:hover {
+  background-color: #663333;
+  border-radius: 4px;
 }
 
 .globalError {

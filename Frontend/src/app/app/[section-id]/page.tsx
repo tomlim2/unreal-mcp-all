@@ -1,13 +1,15 @@
 'use client';
 
+import { use } from "react";
 import ChatInput from "../../components/ChatInput";
 import { useConversationContext } from "./layout";
 
 export default function SectionPage({
   params,
 }: {
-  params: { 'section-id': string };
+  params: Promise<{ 'section-id': string }>;
 }) {
+  const resolvedParams = use(params);
   const {
     messageInfo,
     chatLoading,
@@ -20,7 +22,7 @@ export default function SectionPage({
     <ChatInput 
       loading={chatLoading}
       error={chatError}
-      sessionId={params['section-id']}
+      sessionId={resolvedParams['section-id']}
       llmFromDb={messageInfo?.llm_model || 'gemini-2'}
       onSubmit={handleChatSubmit}
       onRefreshContext={refreshContext}

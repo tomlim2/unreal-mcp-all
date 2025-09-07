@@ -19,13 +19,24 @@ const ConversationHistory = ({
   sessionsLoaded, 
 }: ConversationHistoryProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isFirstLoadRef = useRef<boolean>(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (instant = false) => {
+    messagesEndRef.current?.scrollIntoView({ 
+      behavior: instant ? 'auto' : 'smooth' 
+    });
   };
 
+  // Reset first load flag when session changes
   useEffect(() => {
-    scrollToBottom();
+    isFirstLoadRef.current = true;
+  }, [context?.session_id]);
+
+  useEffect(() => {
+    if (context?.conversation_history) {
+      scrollToBottom(isFirstLoadRef.current);
+      isFirstLoadRef.current = false;
+    }
   }, [context?.conversation_history]);
   if (!sessionsLoaded) {
     return (
