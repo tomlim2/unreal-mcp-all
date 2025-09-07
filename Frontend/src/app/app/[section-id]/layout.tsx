@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
 import { createApiService, SessionContext } from "../../services";
 import { useSessionContext } from "../layout";
-import SessionSidebar from "../../components/SessionSidebar";
-import ConversationHistory from "../../components/ConversationHistory";
+import ConversationHistory from "../../components/conversation/ConversationHistory";
 import styles from "../../components/SessionManagerPanel.module.css";
 
 // Conversation Context Types
@@ -153,29 +152,19 @@ function ConversationProvider({
 
   return (
     <ConversationContext.Provider value={contextValue}>
-      <div className={styles.container}>
-        <SessionSidebar 
-          sessionInfo={sessionInfo}
-          activeSessionId={sessionId}
-          onSessionDelete={handleDeleteSession}
-          loading={sessionsLoading}
-        />
-        <div className={styles.mainContent}>
-          {error && (
-            <div className={styles.error}>
-              {error}
-              <button onClick={() => setError(null)}>×</button>
-            </div>
-          )}
-          <ConversationHistory 
-            context={messageInfo}
-            loading={contextLoading}
-            error={contextError}
-            sessionsLoaded={sessionsLoaded}
-          />
-          {children}
+      {error && (
+        <div className={styles.error}>
+          {error}
+          <button onClick={() => setError(null)}>×</button>
         </div>
-      </div>
+      )}
+      <ConversationHistory 
+        context={messageInfo}
+        loading={contextLoading}
+        error={contextError}
+        sessionsLoaded={sessionsLoaded}
+      />
+      {children}
     </ConversationContext.Provider>
   );
 }

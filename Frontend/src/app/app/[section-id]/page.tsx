@@ -1,7 +1,7 @@
 'use client';
 
 import { use } from "react";
-import ChatInput from "../../components/ChatInput";
+import ChatInput from "../../components/chat/ChatInput";
 import { useConversationContext } from "./layout";
 
 export default function SectionPage({

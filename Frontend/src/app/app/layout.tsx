@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createApiService, Session } from "../services";
 import { useSessionStore } from "../store/sessionStore";
+import Sidebar from "../components/sidebar/Sidebar";
+import styles from "../components/SessionManagerPanel.module.css";
 
 // Session Context Types
 interface SessionContextType {
@@ -44,6 +46,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
   const { sessionId, setSessionId } = useSessionStore();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
   
   // Session management state
   const [sessionInfo, setSessionInfo] = useState<Session[]>([]);
@@ -62,7 +65,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
         const sessions = await apiService.getSessions();
         if (isMounted) {
           setSessionInfo(sessions);
-          if (sessions.length > 0 && !sessionId) {
+          if (sessions.length > 0 && !sessionId && pathname !== '/app') {
             setSessionId(sessions[0].session_id);
           }
           setSessionsLoaded(true);
@@ -167,9 +170,29 @@ function SessionProvider({ children }: { children: ReactNode }) {
     setError
   };
 
+  // Determine active session ID based on current route
+  const getActiveSessionId = () => {
+    if (pathname === '/app') return null; // No active session on new session page
+    if (pathname?.startsWith('/app/')) {
+      const pathSessionId = pathname.split('/app/')[1];
+      return pathSessionId || null;
+    }
+    return sessionId;
+  };
+
   return (
     <SessionContext.Provider value={contextValue}>
-      {children}
+      <div className={styles.container}>
+        <Sidebar 
+          sessionInfo={sessionInfo}
+          activeSessionId={getActiveSessionId()}
+          onSessionDelete={handleDeleteSession}
+          loading={sessionsLoading}
+        />
+        <div className={styles.mainContent}>
+          {children}
+        </div>
+      </div>
     </SessionContext.Provider>
   );
 }

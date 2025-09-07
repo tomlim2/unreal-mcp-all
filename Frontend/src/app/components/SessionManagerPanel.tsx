@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { createApiService, SessionContext } from "../services";
 import { useSessionContext } from "../layout";
-import SessionSidebar from "./SessionSidebar";
-import ConversationHistory from "./ConversationHistory";
-import ChatInput from "./ChatInput";
+import Sidebar from "./sidebar/Sidebar";
+import ConversationHistory from "./conversation/ConversationHistory";
+import ChatInput from "./chat/ChatInput";
 import styles from "./SessionManagerPanel.module.css";
 
 export default function SessionManagerPanel() {
@@ -110,15 +110,11 @@ export default function SessionManagerPanel() {
           <button onClick={() => setError(null)}>×</button>
         </div>
       )}
-      <SessionSidebar 
+      <Sidebar 
         sessionInfo={sessionInfo}
         activeSessionId={sessionId}
-        onSessionSelect={handleSessionSelect}
-        onSessionCreate={handleCreateSession}
         onSessionDelete={handleSessionDelete}
-        onSessionRename={handleRenameSession}
         loading={sessionsLoading}
-        error={error}
       />
       <ConversationHistory 
         context={messageInfo}

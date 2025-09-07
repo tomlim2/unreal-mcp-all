@@ -2,24 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Session } from "../services";
+import { Session } from "../../services";
 import SessionListItem from "./SessionListItem";
-import useModal from "./modal/useModal";
-import styles from "./SessionSidebar.module.css";
+import useModal from "../modal/useModal";
+import styles from "./Sidebar.module.css";
 
-interface SessionSidebarProps {
+interface SidebarProps {
   sessionInfo: Session[];
   loading: boolean;
   activeSessionId: string | null;
   onSessionDelete: (sessionId: string) => Promise<void>;
 }
 
-export default function SessionSidebar({ 
+export default function Sidebar({ 
   sessionInfo, 
   loading, 
   activeSessionId, 
   onSessionDelete,
-}: SessionSidebarProps) {
+}: SidebarProps) {
   const router = useRouter();
   const { showConfirm } = useModal();
 
@@ -58,6 +58,9 @@ export default function SessionSidebar({
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Mega Melange</h1>
+        <p className={styles.description}>
+          AI-powered Unreal Engine development suite for creative professionals
+        </p>
       </div>
       <div className={styles.sessionControls}>
         <button
@@ -84,6 +87,11 @@ export default function SessionSidebar({
             />
           ))
         )}
+      </div>
+      <div className={styles.footer}>
+        <p className={styles.copyright}>
+          © 2024 Mega Melange. Natural language control for Unreal Engine workflows.
+        </p>
       </div>
     </div>
   );

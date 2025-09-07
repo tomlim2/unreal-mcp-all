@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { SessionContext } from '../services';
+import { SessionContext } from '../../services';
 import { MessageItem } from './messages';
 import styles from './ConversationHistory.module.css';
 
@@ -10,13 +10,15 @@ interface ConversationHistoryProps {
   loading: boolean;
   error: string | null;
   sessionsLoaded: boolean;
+  isNewSessionPage?: boolean;
 }
 
 const ConversationHistory = ({ 
   context, 
   loading, 
   error, 
-  sessionsLoaded, 
+  sessionsLoaded,
+  isNewSessionPage = false,
 }: ConversationHistoryProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isFirstLoadRef = useRef<boolean>(true);
@@ -50,7 +52,10 @@ const ConversationHistory = ({
     return (
       <div className={styles.container}>
         <div className={styles.placeholder}>
-          Select a session to view its context and conversation history.
+          {isNewSessionPage 
+            ? "Start a new conversation by typing a message below."
+            : ""
+          }
         </div>
       </div>
     );
@@ -90,7 +95,9 @@ const ConversationHistory = ({
       {/* Conversation History */}
       <div className={styles.section}>
         {context.conversation_history.length === 0 ? (
-          <div className={styles.empty}>No conversation history yet.</div>
+          <div className={styles.messages}>
+            <div className={styles.spacer}></div>
+          </div>
         ) : (
           <div className={styles.messages}>
             <div className={styles.spacer}></div>

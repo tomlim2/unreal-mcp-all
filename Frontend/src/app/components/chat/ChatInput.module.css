@@ -97,7 +97,7 @@
 
 .messageInput::placeholder {
   color: #999999;
-  font-family: var(--font-bodoni-moda), 'Times New Roman', Times, serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-weight: 400;
 }
 

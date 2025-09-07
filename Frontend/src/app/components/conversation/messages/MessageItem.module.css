@@ -67,7 +67,6 @@
   font-size: 0.95rem;
   font-weight: bold;
   padding: 4px 8px;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
@@ -200,7 +199,6 @@
   letter-spacing: 0.5px;
   color: #cccccc;
   margin-bottom: 4px;
-  text-transform: uppercase;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -223,7 +221,6 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #cccccc;
-  text-transform: uppercase;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -301,7 +298,6 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #cccccc;
-  text-transform: uppercase;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -417,7 +413,6 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #cccccc;
-  text-transform: uppercase;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 

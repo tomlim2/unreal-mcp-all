@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import ChatInput from "../components/ChatInput";
+import ChatInput from "../components/chat/ChatInput";
 import { useSessionContext } from "./layout";
-import SessionSidebar from "../components/SessionSidebar";
-import ConversationHistory from "../components/ConversationHistory";
+import ConversationHistory from "../components/conversation/ConversationHistory";
 import { createApiService } from "../services";
 import styles from "../components/SessionManagerPanel.module.css";
 
@@ -13,13 +12,8 @@ export default function AppHome() {
   const router = useRouter();
   const apiService = useMemo(() => createApiService(), []);
   const {
-    sessionInfo,
     sessionsLoaded,
-    sessionsLoading,
-    sessionId,
     handleCreateSession,
-    handleDeleteSession,
-    handleRenameSession,
     error,
     setError
   } = useSessionContext();
@@ -48,35 +42,28 @@ export default function AppHome() {
   };
 
   return (
-    <div className={styles.container}>
-      <SessionSidebar 
-        sessionInfo={sessionInfo}
-        activeSessionId={sessionId}
-        onSessionDelete={handleDeleteSession}
-        loading={sessionsLoading}
+    <>
+      {error && (
+        <div className={styles.error}>
+          {error}
+          <button onClick={() => setError(null)}>×</button>
+        </div>
+      )}
+      <ConversationHistory 
+        context={null}
+        loading={false}
+        error={null}
+        sessionsLoaded={sessionsLoaded}
+        isNewSessionPage={true}
       />
-      <div className={styles.mainContent}>
-        {error && (
-          <div className={styles.error}>
-            {error}
-            <button onClick={() => setError(null)}>×</button>
-          </div>
-        )}
-        <ConversationHistory 
-          context={null}
-          loading={false}
-          error={null}
-          sessionsLoaded={sessionsLoaded}
-        />
-        <ChatInput 
-          loading={false}
-          error={null}
-          sessionId={null}
-          llmFromDb="gemini-2"
-          onSubmit={handleChatSubmit}
-          onRefreshContext={refreshContext}
-        />
-      </div>
-    </div>
+      <ChatInput 
+        loading={false}
+        error={null}
+        sessionId={null}
+        llmFromDb="gemini-2"
+        onSubmit={handleChatSubmit}
+        onRefreshContext={refreshContext}
+      />
+    </>
   );
 }

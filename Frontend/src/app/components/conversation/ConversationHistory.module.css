@@ -58,8 +58,9 @@
   height: 100%;
   text-align: center;
   color: #999999;
-  font-style: italic;
-  font-size: 0.95rem;
+  font-size: 2rem;
+  font-family: var(--font-bodoni-moda), 'Times New Roman', Times, serif;
+  font-weight: 700;
 }
 
 .sessionInfo {
