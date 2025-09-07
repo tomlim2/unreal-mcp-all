@@ -53,7 +53,7 @@
 }
 
 .sessionName {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #666666;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   background: #cccccc;
@@ -62,7 +62,7 @@
 }
 
 .role {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: bold;
   padding: 4px 8px;
   text-transform: uppercase;
@@ -85,7 +85,7 @@
 }
 
 .timestamp {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -107,7 +107,7 @@
   border: none;
   width: 20px;
   height: 20px;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -141,12 +141,12 @@
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 
 .message.user .messageContent {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .message.user .content {
@@ -165,7 +165,7 @@
   padding: 12px;
   background-color: #2a2a2a;
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   border: none;
   line-height: 1.5;
   cursor: pointer;
@@ -181,7 +181,7 @@
   padding: 12px;
   background-color: #1a1a1a;
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   border: none;
   line-height: 1.5;
 }
@@ -193,7 +193,7 @@
 
 .aiSection strong {
   display: block;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #cccccc;
@@ -204,7 +204,7 @@
 
 .aiSection p {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   line-height: 1.4;
   color: #ffffff;
   font-style: italic;
@@ -217,7 +217,7 @@
 .commands strong {
   display: block;
   margin-bottom: 8px;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #cccccc;
@@ -248,12 +248,12 @@
   background: #333;
   border-bottom: 1px solid #444;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .command strong {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #ffffff;
   font-weight: 600;
   text-transform: none;
@@ -262,7 +262,7 @@
 
 .languageLabel {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #999;
   font-weight: normal;
 }
@@ -295,7 +295,7 @@
 .results strong {
   display: block;
   margin-bottom: 8px;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #cccccc;
@@ -308,7 +308,7 @@
 }
 
 .resultHeader {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 600;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   color: #ffffff;
@@ -319,7 +319,7 @@
   margin: 0;
   padding: 12px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   line-height: 1.4;
   color: #ffffff;
   background: #2a2a2a;
@@ -329,7 +329,7 @@
 .errorMessage {
   color: #ff6b6b;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-style: italic;
   margin: 8px 0;
 }
@@ -378,7 +378,7 @@
 
 .errorText small {
   color: #999999;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .retryButton {
@@ -386,7 +386,7 @@
   border: none;
   color: #ffffff;
   padding: 0;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: color 0.2s ease;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -411,7 +411,7 @@
 
 .alwaysVisibleImages strong {
   display: block;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #cccccc;
@@ -425,7 +425,7 @@
 
 /* Message preview in header */
 .messagePreview {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 400;
   color: #ffffff;
   white-space: nowrap;
@@ -433,7 +433,7 @@
 
 /* System message specific styles */
 .roleLabel {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: bold;
   color: #ffffff;
   margin-right: 8px;
@@ -452,7 +452,7 @@
 
 .expandIcon {
   font-family: monospace;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: bold;
   color: #cccccc;
   cursor: pointer;

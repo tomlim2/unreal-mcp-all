@@ -14,7 +14,7 @@
   text-align: center;
   padding: 40px;
   color: #666666;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .error {
@@ -23,7 +23,7 @@
   padding: 16px;
   color: #ffffff;
   text-align: center;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .retryButton {
@@ -33,7 +33,7 @@
   color: #ffffff;
   border: none;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .retryButton:hover {
@@ -62,7 +62,7 @@
   color: #ffffff;
   border: none;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   width: 100%;
 }
 
@@ -88,7 +88,7 @@
   border: none;
   background: #2a2a2a;
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   resize: vertical;
   font-family: inherit;
 }
@@ -116,7 +116,7 @@
 }
 
 .charCount {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #666666;
   text-align: right;
 }

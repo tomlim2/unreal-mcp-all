@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { Session } from "../services";
 import SessionListItem from "./SessionListItem";
 import styles from "./SessionSidebar.module.css";
 
 interface SessionSidebarProps {
-  sessionInfo: any[];
+  sessionInfo: Session[];
   loading: boolean;
   error: string | null;
   activeSessionId: string | null;
-  onSessionSelect: (sessionId: string) => void;
-  onSessionCreate: (sessionName: string) => Promise<{ session_id?: string }>;
+  onSessionCreate: (sessionName: string) => Promise<Session | null>;
   onSessionDelete: (sessionId: string) => Promise<void>;
   onSessionRename: (sessionId: string, name: string) => Promise<void>;
 }
@@ -20,7 +20,6 @@ export default function SessionSidebar({
   loading, 
   error, 
   activeSessionId, 
-  onSessionSelect, 
   onSessionCreate, 
   onSessionDelete,
   onSessionRename,
@@ -107,7 +106,6 @@ export default function SessionSidebar({
               sessionId={session.session_id}
               sessionName={session.session_name}
               isActive={activeSessionId === session.session_id}
-              onSelect={() => onSessionSelect(session.session_id)}
               onDelete={deleteSpecificSession}
               isDeleting={deletingSessionId === session.session_id}
             />

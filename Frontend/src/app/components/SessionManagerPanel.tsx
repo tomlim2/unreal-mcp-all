@@ -1,21 +1,27 @@
 'use client';
 
 import { useState, useRef, useEffect } from "react";
-import { useSessionStore } from "../store/sessionStore";
-import { createApiService, Session, SessionContext } from "../services";
+import { createApiService, SessionContext } from "../services";
+import { useSessionContext } from "../layout";
 import SessionSidebar from "./SessionSidebar";
 import ConversationHistory from "./ConversationHistory";
 import ChatInput from "./ChatInput";
 import styles from "./SessionManagerPanel.module.css";
 
 export default function SessionManagerPanel() {
-  const { sessionId, setSessionId } = useSessionStore();
-  const [error, setError] = useState<string | null>(null);
-  
-  // Centralized session management state
-  const [sessionInfo, setSessionInfo] = useState<any[]>([]);
-  const [sessionsLoaded, setSessionsLoaded] = useState(false);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+  // Use session context from layout
+  const {
+    sessionInfo,
+    sessionsLoaded,
+    sessionsLoading,
+    sessionId,
+    handleCreateSession,
+    handleDeleteSession,
+    handleRenameSession,
+    handleSelectSession,
+    error,
+    setError
+  } = useSessionContext();
   
   // Session context state
   const [messageInfo, setMessageInfo] = useState<SessionContext | null>(null);
@@ -29,27 +35,14 @@ export default function SessionManagerPanel() {
 
   const apiService = createApiService();
 
-  // Load all sessions on mount
+  // Load session context when sessionId changes
   useEffect(() => {
-    fetchSessions();
-  }, []);
-
-  const fetchSessions = async () => {
-    try {
-      const sessions = await apiService.getSessions();
-      setSessionInfo(sessions);
-	if (sessions.length > 0 && !sessionId) {
-		setSessionId(sessions[0].session_id);
-		fetchSessionContext(sessions[0].session_id);
-	}
-      setSessionsLoaded(true);
-    } catch (error) {
-      console.error('Failed to fetch sessions:', error);
-      setError('Failed to load sessions');
-    } finally {
-      setSessionsLoading(false);
+    if (sessionId) {
+      fetchSessionContext(sessionId);
+    } else {
+      setMessageInfo(null);
     }
-  };
+  }, [sessionId]); // fetchSessionContext is stable, doesn't need to be in deps
 
   const fetchSessionContext = async (sid: string, forceRefresh: boolean = false) => {
     if (!forceRefresh && contextCache.current.has(sid)) {
@@ -99,48 +92,14 @@ export default function SessionManagerPanel() {
     }
   };
 
-  const handleCreateSession = async (name: string) => {
-    try {
-      const session = await apiService.createSession(name);
-      setSessionId(session.session_id);
-      await fetchSessions(); // Refresh the list
-      return session;
-    } catch (error) {
-      console.error('Failed to create session:', error);
-      setError('Failed to create session');
-      return null;
-    }
+  // Wrap session operations to handle context cache
+  const handleSessionDelete = async (sid: string) => {
+    contextCache.current.delete(sid);
+    await handleDeleteSession(sid);
   };
 
-  const handleDeleteSession = async (sid: string) => {
-    try {
-      await apiService.deleteSession(sid);
-      if (sessionId === sid) {
-        setSessionId(null);
-        setMessageInfo(null);
-      }
-      contextCache.current.delete(sid);
-      await fetchSessions(); // Refresh the list
-      handleSelectSession(sessionInfo.length > 0 ? sessionInfo[0].session_id : '');
-    } catch (error) {
-      console.error('Failed to delete session:', error);
-      setError('Failed to delete session');
-    }
-  };
-
-  const handleRenameSession = async (sid: string, name: string) => {
-    try {
-      await apiService.renameSession(sid, name);
-      await fetchSessions(); // Refresh the list
-    } catch (error) {
-      console.error('Failed to rename session:', error);
-      setError('Failed to rename session');
-    }
-  };
-
-  const handleSelectSession = (sid: string) => {
-    setSessionId(sid);
-    fetchSessionContext(sid);
+  const handleSessionSelect = (sid: string) => {
+    handleSelectSession(sid);
   };
 
   return (
@@ -154,9 +113,9 @@ export default function SessionManagerPanel() {
       <SessionSidebar 
         sessionInfo={sessionInfo}
         activeSessionId={sessionId}
-        onSessionSelect={handleSelectSession}
+        onSessionSelect={handleSessionSelect}
         onSessionCreate={handleCreateSession}
-        onSessionDelete={handleDeleteSession}
+        onSessionDelete={handleSessionDelete}
         onSessionRename={handleRenameSession}
         loading={sessionsLoading}
         error={error}

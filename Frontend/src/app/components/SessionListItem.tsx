@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Session } from "../services";
 import styles from "./SessionListItem.module.css";
 
@@ -7,7 +8,6 @@ interface SessionListItemProps {
   sessionId: string;
   sessionName: string;
   isActive: boolean;
-  onSelect: () => void;
   onDelete?: (sessionId: string) => void;
   isDeleting?: boolean;
 }
@@ -16,14 +16,19 @@ export default function SessionListItem({
   sessionId,
   sessionName,
   isActive,
-  onSelect,
   onDelete,
   isDeleting = false,
 }: SessionListItemProps) {
+  const router = useRouter();
+
+  const handleSelect = () => {
+    router.push(`/app/${sessionId}`);
+  };
+
   return (
     <div
       className={`${styles.sessionItem} ${isActive ? styles.active : ""}`}
-      onClick={onSelect}
+      onClick={handleSelect}
     >
       <div className={styles.sessionItemHeader}>
         <div className={styles.sessionId}>

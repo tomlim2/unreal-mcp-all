@@ -24,7 +24,7 @@
   border-radius: 50%;
   width: 32px;
   height: 32px;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -39,7 +39,7 @@
   text-align: center;
   padding: 40px;
   color: #666666;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .error {
@@ -59,7 +59,7 @@
   text-align: center;
   color: #999999;
   font-style: italic;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .sessionInfo {
@@ -71,11 +71,11 @@
 
 .sessionInfo h3 {
   margin: 0 0 8px 0;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
 }
 
 .sessionMeta {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #cccccc;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
@@ -97,7 +97,7 @@
   padding: 16px 20px;
   color: #000000;
   border: none;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
