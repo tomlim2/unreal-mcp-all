@@ -82,12 +82,13 @@
 
 .section {
   margin: 0;
-  padding: 1rem 0 8rem 0;
+  padding: 1rem 0 9rem 0;
   overflow: hidden;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  flex-flow: column-reverse;
   align-items: center;
-  min-height: 0;
 }
 
 .section h4 {
