@@ -2,6 +2,7 @@
 
 import { Inter, Bodoni_Moda } from "next/font/google";
 import ModalProvider from "./components/modal/ModalProvider";
+import ToastProvider from "./components/toast/ToastProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -25,9 +26,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${bodoniModa.variable}`} suppressHydrationWarning>
-        <ModalProvider>
-          {children}
-        </ModalProvider>
+        <ToastProvider position="top-right" maxToasts={5}>
+          <ModalProvider>
+            {children}
+          </ModalProvider>
+        </ToastProvider>
       </body>
     </html>
   );
