@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
 import { createApiService, SessionContext } from "../../services";
-import { useSessionContext } from "../../layout";
+import { useSessionContext } from "../layout";
 import SessionSidebar from "../../components/SessionSidebar";
 import ConversationHistory from "../../components/ConversationHistory";
 import styles from "../../components/SessionManagerPanel.module.css";

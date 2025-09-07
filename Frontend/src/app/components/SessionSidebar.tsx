@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Session } from "../services";
 import SessionListItem from "./SessionListItem";
+import useModal from "./modal/useModal";
 import styles from "./SessionSidebar.module.css";
 
 interface SessionSidebarProps {
@@ -20,13 +21,27 @@ export default function SessionSidebar({
   onSessionDelete,
 }: SessionSidebarProps) {
   const router = useRouter();
+  const { showConfirm } = useModal();
 
   const handleNewSession = () => {
     router.push('/app');
   };
 
-  const deleteSpecificSession = (sessionIdToDelete: string) => {
-    onSessionDelete(sessionIdToDelete);
+  const deleteSpecificSession = async (sessionIdToDelete: string) => {
+    const sessionToDelete = sessionInfo.find(s => s.session_id === sessionIdToDelete);
+    const sessionName = sessionToDelete?.session_name || 'Untitled Session';
+    
+    const confirmed = await showConfirm({
+      title: 'Delete Session',
+      message: `Are you sure you want to delete "${sessionName}"? This action cannot be undone.`,
+      variant: 'danger',
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
+    
+    if (confirmed) {
+      onSessionDelete(sessionIdToDelete);
+    }
   };
 
 

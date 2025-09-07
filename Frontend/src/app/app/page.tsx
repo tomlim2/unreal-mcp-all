@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import ChatInput from "../components/ChatInput";
-import { useSessionContext } from "../layout";
+import { useSessionContext } from "./layout";
 import SessionSidebar from "../components/SessionSidebar";
 import ConversationHistory from "../components/ConversationHistory";
 import { createApiService } from "../services";

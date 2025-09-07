@@ -1,0 +1,458 @@
+/* Modal Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.noBackdrop {
+  background-color: transparent;
+  backdrop-filter: none;
+}
+
+/* Modal Container */
+.modal {
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideIn 0.2s ease-out;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Modal Sizes */
+.small {
+  width: 100%;
+  max-width: 400px;
+}
+
+.medium {
+  width: 100%;
+  max-width: 500px;
+}
+
+.large {
+  width: 100%;
+  max-width: 700px;
+}
+
+.fullscreen {
+  width: 95vw;
+  height: 95vh;
+  max-width: none;
+  max-height: none;
+}
+
+/* Close Button */
+.closeButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: #333333;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+.closeButton:hover {
+  background: #555555;
+}
+
+/* Modal Content */
+.modalContent {
+  padding: 1.5rem;
+  color: #ffffff;
+}
+
+/* Modal Footer */
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333333;
+}
+
+.footerActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Buttons */
+.button {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.primaryButton {
+  background: #ffffff;
+  color: #000000;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #e6e6e6;
+}
+
+.secondaryButton {
+  background: #333333;
+  color: #ffffff;
+  border: 1px solid #555555;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: #555555;
+}
+
+.tertiaryButton {
+  background: transparent;
+  color: #999999;
+  border: 1px solid #555555;
+}
+
+.tertiaryButton:hover:not(:disabled) {
+  color: #ffffff;
+  background: #333333;
+}
+
+.dangerButton {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Alert Modal */
+.alertHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.alertIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.success .alertIcon {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.error .alertIcon {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.warning .alertIcon {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.info .alertIcon {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.alertTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.alertBody {
+  margin-bottom: 1rem;
+}
+
+.alertMessage {
+  margin: 0;
+  color: #cccccc;
+  line-height: 1.5;
+}
+
+/* Confirm Modal */
+.confirmHeader {
+  margin-bottom: 1rem;
+}
+
+.confirmTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.confirmBody {
+  margin-bottom: 1rem;
+}
+
+.confirmMessage {
+  margin: 0;
+  color: #cccccc;
+  line-height: 1.5;
+}
+
+/* Form Modal */
+.formHeader {
+  margin-bottom: 1rem;
+}
+
+.formTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.formBody {
+  margin-bottom: 1rem;
+}
+
+/* Image Modal */
+.imageContainer {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.modalImage {
+  max-width: 100%;
+  max-height: 70vh;
+  height: auto;
+  border-radius: 8px;
+}
+
+.imageFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #333333;
+}
+
+.imageCaption {
+  margin: 0;
+  color: #cccccc;
+  font-size: 0.875rem;
+  flex: 1;
+}
+
+/* Loading Modal */
+.loadingHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #333333;
+  border-top: 3px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loadingTitle {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0;
+  color: #ffffff;
+  text-align: center;
+}
+
+.progressContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.progressBar {
+  flex: 1;
+  height: 8px;
+  background: #333333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #ffffff;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.progressText {
+  color: #cccccc;
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-width: 40px;
+}
+
+/* Settings Modal */
+.settingsHeader {
+  margin-bottom: 1rem;
+}
+
+.settingsTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.tabsContainer {
+  display: flex;
+  border-bottom: 1px solid #333333;
+  margin-bottom: 1.5rem;
+}
+
+.tabButton {
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  color: #999999;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tabButton:hover {
+  color: #ffffff;
+}
+
+.activeTab {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+.settingsBody {
+  margin-bottom: 1rem;
+  min-height: 200px;
+}
+
+/* Custom Modal */
+.customHeader {
+  margin-bottom: 1rem;
+}
+
+.customTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.customBody {
+  margin-bottom: 1rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .overlay {
+    padding: 0.5rem;
+  }
+  
+  .modal {
+    border-radius: 8px;
+  }
+  
+  .modalContent {
+    padding: 1rem;
+  }
+  
+  .fullscreen {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+  
+  .modalFooter {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+  
+  .footerActions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .button {
+    width: 100%;
+  }
+}
