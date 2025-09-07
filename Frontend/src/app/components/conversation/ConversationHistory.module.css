@@ -35,12 +35,6 @@
   background: #666666;
 }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #666666;
-  font-size: 0.95rem;
-}
 
 .error {
   background-color: #cccccc;

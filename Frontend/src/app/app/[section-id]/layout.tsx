@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
 import { createApiService, SessionContext } from "../../services";
 import { useSessionContext } from "../layout";
-import ConversationHistory from "../../components/conversation/ConversationHistory";
 import styles from "../../components/SessionManagerPanel.module.css";
 
 // Conversation Context Types
@@ -67,23 +66,19 @@ function ConversationProvider({
 
   const apiService = useMemo(() => createApiService(), []);
 
-  // Load session context when sectionId changes
   useEffect(() => {
     if (sectionId) {
-      // Update the global session ID to match the route
       handleSelectSession(sectionId);
       
-      // Only fetch if we don't already have this session's context
       if (!contextCache.current.has(sectionId) && messageInfo?.session_id !== sectionId) {
         fetchSessionContext(sectionId);
       } else if (contextCache.current.has(sectionId)) {
-        // Use cached context without API call
         setMessageInfo(contextCache.current.get(sectionId)!);
       }
     } else {
       setMessageInfo(null);
     }
-  }, [sectionId]); // Only depend on sectionId
+  }, [sectionId]);
 
   const fetchSessionContext = async (sid: string, forceRefresh: boolean = false) => {
     if (!forceRefresh && contextCache.current.has(sid)) {
@@ -158,12 +153,6 @@ function ConversationProvider({
           <button onClick={() => setError(null)}>×</button>
         </div>
       )}
-      <ConversationHistory 
-        context={messageInfo}
-        loading={contextLoading}
-        error={contextError}
-        sessionsLoaded={sessionsLoaded}
-      />
       {children}
     </ConversationContext.Provider>
   );

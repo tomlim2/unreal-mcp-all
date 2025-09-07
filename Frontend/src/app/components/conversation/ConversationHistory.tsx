@@ -7,17 +7,13 @@ import styles from './ConversationHistory.module.css';
 
 interface ConversationHistoryProps {
   context: SessionContext | null;
-  loading: boolean;
   error: string | null;
-  sessionsLoaded: boolean;
   isNewSessionPage?: boolean;
 }
 
 const ConversationHistory = ({ 
   context, 
-  loading, 
   error, 
-  sessionsLoaded,
   isNewSessionPage = false,
 }: ConversationHistoryProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -40,13 +36,6 @@ const ConversationHistory = ({
       isFirstLoadRef.current = false;
     }
   }, [context?.conversation_history]);
-  if (!sessionsLoaded) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Loading sessions...</div>
-      </div>
-    );
-  }
 
   if (!context?.session_id) {
     return (
@@ -60,15 +49,6 @@ const ConversationHistory = ({
       </div>
     );
   }
-
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Loading context...</div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className={styles.container}>

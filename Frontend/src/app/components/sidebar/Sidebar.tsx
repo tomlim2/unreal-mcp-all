@@ -9,14 +9,12 @@ import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
   sessionInfo: Session[];
-  loading: boolean;
   activeSessionId: string | null;
   onSessionDelete: (sessionId: string) => Promise<void>;
 }
 
 export default function Sidebar({ 
   sessionInfo, 
-  loading, 
   activeSessionId, 
   onSessionDelete,
 }: SidebarProps) {
@@ -44,16 +42,6 @@ export default function Sidebar({
     }
   };
 
-
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Loading sessions...</div>
-      </div>
-    );
-  }
-
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -75,7 +63,7 @@ export default function Sidebar({
       </div>
       <div className={styles.sessionList}>
         {!sessionInfo || sessionInfo.length === 0 ? (
-          <div className={styles.noSessions}>No sessions found (total: {sessionInfo?.length || 0})</div>
+          <div className={styles.noSessions}></div>
         ) : (
           sessionInfo.map((session) => (
             <SessionListItem
