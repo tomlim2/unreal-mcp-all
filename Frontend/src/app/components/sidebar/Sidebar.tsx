@@ -47,7 +47,7 @@ export default function Sidebar({
       <div className={styles.header}>
         <h1 className={styles.title}>Mega Melange</h1>
         <p className={styles.description}>
-          AI-powered Unreal Engine development suite for creative professionals
+			Natural language control for Unreal Engine workflows
         </p>
       </div>
       <div className={styles.sessionControls}>
@@ -78,7 +78,7 @@ export default function Sidebar({
       </div>
       <div className={styles.footer}>
         <p className={styles.copyright}>
-          © 2024 Mega Melange. Natural language control for Unreal Engine workflows.
+		  github repo available soon
         </p>
       </div>
     </div>
