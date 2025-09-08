@@ -280,26 +280,11 @@ mcp = FastMCP(
 )
 
 # Import and register tools using new organized structure
-from tools.unreal.actors import register_actor_tools
-from tools.unreal.editor import register_editor_tools
-from tools.unreal.blueprints import register_blueprint_tools
-from tools.unreal.nodes import register_blueprint_node_tools
-from tools.testing.test import register_test_tools
 from tools.ai.nlp import register_nlp_tools
-from docs_loader import load_best_practices
 
 # Register tools
-register_actor_tools(mcp)  # Now includes dynamic sky tools
-register_editor_tools(mcp)
-register_blueprint_tools(mcp)
-register_blueprint_node_tools(mcp)
-register_test_tools(mcp)
 register_nlp_tools(mcp)
 
-@mcp.prompt()
-def unreal_best_practices():
-    """Best practices for working with Unreal MCP."""
-    return load_best_practices()
 
 # Run the server
 if __name__ == "__main__":
