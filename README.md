@@ -24,16 +24,19 @@ This project is currently in an **EXPERIMENTAL** state. The API, functionality, 
 
 ## 🌟 Overview
 
-The Unreal MCP integration provides comprehensive tools for controlling Unreal Engine through natural language:
+MegaMelange provides natural language control of Unreal Engine through multiple interfaces: web frontend, MCP protocol for AI assistants, and comprehensive Python automation tools.
 
 | Category | Capabilities |
 |----------|-------------|
-| **Actor Management** | • Create and delete actors (cubes, spheres, lights, cameras, etc.)<br>• Set actor transforms (position, rotation, scale)<br>• Query actor properties and find actors by name<br>• List all actors in the current level |
-| **Blueprint Development** | • Create new Blueprint classes with custom components<br>• Add and configure components (mesh, camera, light, etc.)<br>• Set component properties and physics settings<br>• Compile Blueprints and spawn Blueprint actors<br>• Create input mappings for player controls |
-| **Blueprint Node Graph** | • Add event nodes (BeginPlay, Tick, etc.)<br>• Create function call nodes and connect them<br>• Add variables with custom types and default values<br>• Create component and self references<br>• Find and manage nodes in the graph |
-| **Editor Control** | • Focus viewport on specific actors or locations<br>• Control viewport camera orientation and distance |
+| **Scene Management** | • Create and manipulate actors (cubes, spheres, lights, cameras)<br>• Set actor transforms (position, rotation, scale)<br>• Query and search actors by name or type<br>• List all actors in the current level |
+| **Lighting & Environment** | • Ultra Dynamic Sky integration with time-of-day control<br>• Color temperature adjustment for cinematic lighting<br>• MM Control Lights system for professional lighting setups<br>• Environmental lighting and atmosphere control |
+| **Geospatial Integration** | • Cesium integration for real-world coordinates<br>• Set latitude/longitude for accurate positioning<br>• Geographic data integration and mapping |
+| **Rendering & Capture** | • High-resolution screenshot capture (4K+)<br>• Material parameter control and manipulation<br>• Camera positioning and viewport control<br>• Real-time rendering adjustments |
+| **AI Image Processing** | • Nano Banana: AI-powered image style transformation<br>• Google Gemini integration for creative image editing<br>• Transform screenshots with artistic styles and effects<br>• Automated styled rendering workflows |
+| **Blueprint Development** | • Create Blueprint classes with custom components<br>• Add and configure components (mesh, camera, light)<br>• Compile Blueprints and spawn Blueprint actors<br>• Component property and physics settings |
+| **Editor Control** | • Focus viewport on specific actors or locations<br>• Camera orientation and distance control<br>• Level management and organization |
 
-All these capabilities are accessible through natural language commands via AI assistants, making it easy to automate and control Unreal Engine workflows.
+All capabilities are accessible through natural language commands, making professional Unreal Engine workflows intuitive and efficient for creative professionals.
 
 ## 🧩 Components
 
@@ -83,14 +86,48 @@ All these capabilities are accessible through natural language commands via AI a
   - **scripts/** - Organized test scripts by category
   - **docs/** - Python-specific documentation
   - **unreal_mcp_server.py** - Main MCP server implementation
+  - **http_bridge.py** - HTTP bridge for web frontend integration
 
+- **script/** - Windows batch scripts for easy setup and management
+  - **script-init-ports.bat** - Initialize and start all services
+  - **script-install-packages.bat** - Install Python and Node.js dependencies
+  - **script-set-ports.bat** - Configure ports and environment variables
+  - **script-stop-ports.bat** - Stop all running services
+
+- **docs/** - Project documentation and schemas
 - **tests/** - Integration and connection tests
 
 ## 🚀 Quick Start Guide
 
 Choose your preferred interface for controlling Unreal Engine with AI:
 
-### Option A: Web Frontend (Recommended for beginners)
+### Option A: Automated Setup (Windows - Recommended)
+
+1. **Prerequisites**
+   - Python 3.12+ and `uv` package manager
+   - Node.js 18+ and npm
+   - OpenAI API key (for web frontend)
+   - Anthropic API key (for MCP server)
+   - Unreal Engine 5.3+
+
+2. **One-Click Setup**
+   ```cmd
+   # Install all dependencies automatically
+   script\script-install-packages.bat
+   
+   # Configure ports (optional - sets up .env files)
+   script\script-set-ports.bat
+   
+   # Start all services
+   script\script-init-ports.bat
+   ```
+
+3. **Setup Unreal Project**
+   - Open `MCPGameProject/MCPGameProject.uproject`
+   - Build the project (includes UnrealMCP plugin)
+   - Start playing with natural language commands at http://localhost:3000
+
+### Option B: Web Frontend (Manual setup)
 
 1. **Prerequisites**
    - Node.js 18+ and npm
@@ -110,7 +147,7 @@ Choose your preferred interface for controlling Unreal Engine with AI:
    - Build the project (includes UnrealMCP plugin)
    - Start playing with natural language commands at http://localhost:3000
 
-### Option B: MCP Protocol (For AI assistants)
+### Option C: MCP Protocol (For AI assistants)
 
 1. **Prerequisites**
    - Python 3.12+ and `uv`
@@ -144,7 +181,7 @@ Choose your preferred interface for controlling Unreal Engine with AI:
    }
    ```
 
-### Option C: Plugin Integration (For existing projects)
+### Option D: Plugin Integration (For existing projects)
 
 1. **Copy Plugin**
    - Copy `MCPGameProject/Plugins/UnrealMCP` to your project's Plugins folder
@@ -160,6 +197,21 @@ Choose your preferred interface for controlling Unreal Engine with AI:
 Try these example commands:
 - Web Frontend: "Set the time to sunrise" or "Create a cube at 0,0,100"
 - MCP Protocol: Ask your AI assistant to "list all actors in the Unreal level"
+
+### Service Management (Windows)
+
+Use the provided batch scripts for easy service management:
+
+```cmd
+# Start all services (Python MCP, HTTP Bridge, Frontend)
+script\script-init-ports.bat
+
+# Stop all services
+script\script-stop-ports.bat
+
+# Change port configuration
+script\script-set-ports.bat
+```
 
 ### Configuration Locations
 
