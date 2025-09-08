@@ -15,14 +15,14 @@ echo.
 pause
 
 REM 현재 디렉토리 확인
-if not exist "Python" (
+if not exist "../Python" (
     echo ❌ 오류: Python 폴더를 찾을 수 없습니다.
     echo    프로젝트 루트 디렉토리에서 실행해주세요.
     pause
     exit /b 1
 )
 
-if not exist "Frontend" (
+if not exist "../Frontend" (
     echo ❌ 오류: Frontend 폴더를 찾을 수 없습니다.
     echo    프로젝트 루트 디렉토리에서 실행해주세요.
     pause
@@ -81,7 +81,7 @@ echo.
 REM Python 환경 설정
 echo 🐍 1/3: Python 환경 설정 중...
 echo ================================
-cd Python
+cd ../Python
 
 echo 📦 가상환경 생성 중...
 if exist ".venv" (
@@ -128,13 +128,13 @@ if not exist ".env" (
     echo ✅ .env 파일 이미 존재함
 )
 
-cd ..
+cd ../..
 echo.
 
 REM Frontend 환경 설정
 echo 🌐 2/3: Frontend 환경 설정 중...
 echo =================================
-cd Frontend
+cd ../Frontend
 
 echo 📥 Node.js 패키지 설치 중...
 npm install
@@ -145,7 +145,7 @@ if %errorlevel% neq 0 (
 )
 echo ✅ Node.js 패키지 설치 완료
 
-cd ..
+cd ../..
 echo.
 echo 🎉 의존성 설치 완료!
 echo ==================

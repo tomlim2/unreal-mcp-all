@@ -1,8 +1,8 @@
 @echo off
 
 REM Load environment variables from .env file if it exists
-if exist ".env" (
-    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+if exist "../.env" (
+    for /f "usebackq tokens=1,2 delims==" %%a in ("../.env") do (
         if not "%%a"=="" if not "%%b"=="" (
             set "%%a=%%b"
         )

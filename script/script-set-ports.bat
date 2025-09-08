@@ -6,9 +6,9 @@ echo 현재 포트 설정을 변경하거나 .env 파일을 생성합니다.
 echo.
 
 REM Load existing environment variables from .env file if it exists
-if exist ".env" (
+if exist "../.env" (
     echo 📄 기존 .env 파일을 읽는 중...
-    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+    for /f "usebackq tokens=1,2 delims==" %%a in ("../.env") do (
         if not "%%a"=="" if not "%%b"=="" (
             set "%%a=%%b"
         )
@@ -107,7 +107,7 @@ echo HTTP_BRIDGE_PORT=%HTTP_BRIDGE_PORT%
 echo.
 echo # Frontend Port ^(used by npm run dev^)
 echo FRONTEND_PORT=%FRONTEND_PORT%
-) > .env
+) > ../.env
 
 echo ✅ .env 파일 생성 완료
 
@@ -115,7 +115,7 @@ REM Create Frontend .env.local file
 echo.
 echo 💾 Frontend/.env.local 파일 생성 중...
 
-if not exist "Frontend" (
+if not exist "../Frontend" (
     echo ⚠️  Frontend 폴더가 없습니다. Frontend/.env.local 건너뜀.
 ) else (
     (
@@ -127,7 +127,7 @@ if not exist "Frontend" (
     echo.
     echo # OpenAI API Key ^(required for web interface^)
     echo # OPENAI_API_KEY=your_openai_api_key_here
-    ) > Frontend\.env.local
+    ) > ../Frontend\.env.local
     
     echo ✅ Frontend/.env.local 파일 생성 완료
 )
@@ -152,15 +152,15 @@ echo ⚠️  경고: .env 파일을 삭제하면 모든 설정이 기본값으�
 set /p confirm=정말 삭제하시겠습니까? (y/N): 
 
 if /i "%confirm%"=="y" (
-    if exist ".env" (
-        del ".env"
+    if exist "../.env" (
+        del "../.env"
         echo ✅ .env 파일이 삭제되었습니다.
     ) else (
         echo ℹ️  .env 파일이 존재하지 않습니다.
     )
     
-    if exist "Frontend\.env.local" (
-        del "Frontend\.env.local"
+    if exist "../Frontend\.env.local" (
+        del "../Frontend\.env.local"
         echo ✅ Frontend/.env.local 파일이 삭제되었습니다.
     ) else (
         echo ℹ️  Frontend/.env.local 파일이 존재하지 않습니다.

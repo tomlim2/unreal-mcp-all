@@ -1,9 +1,9 @@
 @echo off
 
 REM Load environment variables from .env file if it exists
-if exist ".env" (
+if exist "../.env" (
     echo 📄 Loading environment variables from .env file...
-    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+    for /f "usebackq tokens=1,2 delims==" %%a in ("../.env") do (
         if not "%%a"=="" if not "%%b"=="" (
             set "%%a=%%b"
         )
@@ -28,14 +28,14 @@ echo.
 pause
 
 REM 현재 디렉토리 확인
-if not exist "Python" (
+if not exist "../Python" (
     echo ❌ 오류: Python 폴더를 찾을 수 없습니다.
     echo    프로젝트 루트 디렉토리에서 실행해주세요.
     pause
     exit /b 1
 )
 
-if not exist "Frontend" (
+if not exist "../Frontend" (
     echo ❌ 오류: Frontend 폴더를 찾을 수 없습니다.
     echo    프로젝트 루트 디렉토리에서 실행해주세요.
     pause
@@ -72,21 +72,21 @@ echo.
 
 REM 1. Python MCP 서버 시작
 echo 🐍 1/3: Python MCP 서버 시작 중...
-start "Python MCP 서버" cmd /k "cd Python && .venv\Scripts\activate && echo ✅ 가상환경 활성화됨 && echo 🚀 Python MCP 서버 시작 중... && .venv\Scripts\python.exe unreal_mcp_server.py"
+start "Python MCP 서버" cmd /k "cd ../Python && .venv\Scripts\activate && echo ✅ 가상환경 활성화됨 && echo 🚀 Python MCP 서버 시작 중... && .venv\Scripts\python.exe unreal_mcp_server.py"
 
 REM 서버 시작 대기
 timeout /t 3 >nul
 
 REM 2. HTTP 브리지 시작  
 echo 🌉 2/3: HTTP 브리지 시작 중...
-start "HTTP 브리지" cmd /k "cd Python && .venv\Scripts\activate && echo ✅ 가상환경 활성화됨 && echo 🌉 HTTP 브리지 시작 중... && .venv\Scripts\python.exe http_bridge.py"
+start "HTTP 브리지" cmd /k "cd ../Python && .venv\Scripts\activate && echo ✅ 가상환경 활성화됨 && echo 🌉 HTTP 브리지 시작 중... && .venv\Scripts\python.exe http_bridge.py"
 
 REM 브리지 시작 대기
 timeout /t 3 >nul
 
 REM 3. Next.js 프론트엔드 시작
 echo 🌐 3/3: Next.js 프론트엔드 시작 중...
-start "Next.js 프론트엔드" cmd /k "cd Frontend && echo 🌐 Next.js 프론트엔드 시작 중... && npm run dev -- --port %FRONTEND_PORT%"
+start "Next.js 프론트엔드" cmd /k "cd ../Frontend && echo 🌐 Next.js 프론트엔드 시작 중... && npm run dev -- --port %FRONTEND_PORT%"
 
 echo.
 echo 🎉 모든 서비스 시작 완료!
