@@ -11,12 +11,14 @@ interface SidebarProps {
   sessionInfo: Session[];
   activeSessionId: string | null;
   onSessionDelete: (sessionId: string) => Promise<void>;
+  loading?: boolean;
 }
 
 export default function Sidebar({ 
   sessionInfo, 
   activeSessionId, 
   onSessionDelete,
+  loading = false,
 }: SidebarProps) {
   const router = useRouter();
   const { showConfirm } = useModal();
@@ -54,6 +56,7 @@ export default function Sidebar({
         <button
           onClick={handleNewSession}
           className={styles.newSessionButton}
+          disabled={loading}
         >
           New Session
         </button>
@@ -72,6 +75,7 @@ export default function Sidebar({
               sessionName={session.session_name || 'Untitled Session'}
               isActive={activeSessionId === session.session_id}
               onDelete={deleteSpecificSession}
+              loading={loading}
             />
           ))
         )}

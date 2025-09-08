@@ -10,6 +10,7 @@ interface SessionListItemProps {
   isActive: boolean;
   onDelete?: (sessionId: string) => void;
   isDeleting?: boolean;
+  loading?: boolean;
 }
 
 export default function SessionListItem({
@@ -18,6 +19,7 @@ export default function SessionListItem({
   isActive,
   onDelete,
   isDeleting = false,
+  loading = false,
 }: SessionListItemProps) {
   const router = useRouter();
 
@@ -30,6 +32,7 @@ export default function SessionListItem({
       <button
         className={`${styles.sessionItem} ${isActive ? styles.active : ""}`}
         onClick={handleSelect}
+        disabled={loading}
       >
         {sessionName || `Session ${sessionId.slice(0, 8)}`}
       </button>
@@ -40,7 +43,7 @@ export default function SessionListItem({
             e.stopPropagation();
             onDelete(sessionId);
           }}
-          disabled={isDeleting}
+          disabled={isDeleting || loading}
           title="Delete session"
         >
           ×

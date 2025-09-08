@@ -114,6 +114,7 @@ export default function SessionManagerPanel() {
         sessionInfo={sessionInfo}
         activeSessionId={sessionId}
         onSessionDelete={handleSessionDelete}
+        loading={chatLoading}
       />
       <ConversationHistory 
         context={messageInfo}

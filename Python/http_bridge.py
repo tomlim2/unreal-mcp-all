@@ -63,9 +63,14 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         self.end_headers()
                         return
                     
-                    # Build path to screenshot file
+                    # Build path to screenshot file - check both WindowsEditor and styled directories  
                     screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+                    styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+                    
                     file_path = screenshot_dir / filename
+                    if not file_path.exists():
+                        # Try styled directory if not found in WindowsEditor
+                        file_path = styled_dir / filename
                     
                     # Check if file exists
                     if file_path.exists() and filename.lower().endswith('.png'):
@@ -117,9 +122,14 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             self._send_error("UNREAL_PROJECT_PATH not configured")
                             return
                         
-                        # Build path to screenshot file
+                        # Build path to screenshot file - check both WindowsEditor and styled directories
                         screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+                        styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+                        
                         file_path = screenshot_dir / filename
+                        if not file_path.exists():
+                            # Try styled directory if not found in WindowsEditor
+                            file_path = styled_dir / filename
                         
                         # Validate file exists and is a PNG
                         if not file_path.exists():
@@ -139,13 +149,13 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         logger.error(f"Error serving screenshot file {filename}: {e}")
                         self._send_error(f"Error serving file: {e}")
                         return
-            
+
             # Handle JSON API requests (send JSON headers)
             self.send_response(200)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            
+
             if path == '/health':
                 # Handle health check request
                 response = {
@@ -157,7 +167,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 response_json = json.dumps(response)
                 self.wfile.write(response_json.encode('utf-8'))
                 return
-            
+
             elif path == '/sessions':
                 # Handle session list request - bypass NLP, direct to session manager
                 try:
@@ -184,19 +194,19 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     response_json = json.dumps(response)
                     self.wfile.write(response_json.encode('utf-8'))
                     return
-                    
+
                 except Exception as e:
                     logger.error(f"Error getting session list: {e}")
                     self._send_error(f"Failed to get session list: {e}")
                     return
-            
+
             # Handle other GET requests (404)
             self.send_response(404)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self._send_error(f"Endpoint not found: {path}")
-            
+
         except Exception as e:
             logger.error(f"Error handling GET request: {e}")
             self._send_error(f"Server error: {e}")
@@ -358,28 +368,28 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     else:
                         self._send_error("Missing 'prompt' field or valid 'action' field")
                     return
-            
+
             # Handle other POST requests (404)
             self.send_response(404)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self._send_error(f"Endpoint not found: {path}")
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in POST request: {e}")
             self._send_error(f"Invalid JSON: {e}")
         except Exception as e:
             logger.error(f"Error handling POST request: {e}")
             self._send_error(f"Server error: {e}")
-    
+
     def do_PUT(self):
         """Handle PUT requests for session management"""
         logger.info(f"PUT request received: {self.path}")
         try:
             parsed_url = urlparse(self.path)
             path = parsed_url.path
-            
+
             # Handle CORS
             self.send_response(200)
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -435,18 +445,18 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         logger.error(f"Error updating session name: {e}")
                         self._send_error(f"Error updating session name: {e}")
                         return
-            
+
             # Handle other PUT requests (404)
             self.send_response(404)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self._send_error(f"Endpoint not found: {path}")
-            
+
         except Exception as e:
             logger.error(f"Error handling PUT request: {e}")
             self._send_error(f"Server error: {e}")
-    
+
     def _serve_file(self, file_path: Path):
         """Serve a file with appropriate headers."""
         try:
@@ -455,7 +465,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             content_type, _ = mimetypes.guess_type(str(file_path))
             if not content_type:
                 content_type = 'application/octet-stream'
-            
+
             # Send headers
             self.send_response(200)
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -463,7 +473,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Length', str(file_size))
             self.send_header('Content-Disposition', f'inline; filename="{file_path.name}"')
             self.end_headers()
-            
+
             # Send file content
             with open(file_path, 'rb') as f:
                 while True:
@@ -471,9 +481,9 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     if not chunk:
                         break
                     self.wfile.write(chunk)
-                    
+
             logger.info(f"Served file: {file_path.name} ({file_size} bytes)")
-            
+
         except Exception as e:
             logger.error(f"Error serving file {file_path}: {e}")
             self._send_error(f"Error serving file: {e}")
@@ -485,7 +495,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            
+
             response = {'error': error_message}
             response_json = json.dumps(response)
             self.wfile.write(response_json.encode('utf-8'))
@@ -495,7 +505,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
 
 class MCPHttpBridge:
     """HTTP Bridge Server for MCP communication."""
-    
+
     def __init__(self, host='127.0.0.1', port=8080):
         self.host = host
         self.port = port

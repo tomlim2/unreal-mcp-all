@@ -90,6 +90,10 @@ export default function ChatInput({
 		"Show me all MM control lights",
 		"Take a high-resolution screenshot",
 		"Make it rain and take a screenshot",
+		"Take a screenshot and make it cyberpunk style",
+		"Apply watercolor effect to last screenshot",
+		"Transform image to Japan punk style",
+		"Make the screenshot look like an anime",
 	];
 
 	return (

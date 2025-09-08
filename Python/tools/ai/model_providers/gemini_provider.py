@@ -78,8 +78,21 @@ class GeminiProvider(BaseModelProvider):
                 generation_config=generation_config
             )
             
+            # Check response status and finish reason
+            if not response.candidates:
+                raise Exception("Gemini returned no candidates")
+            
+            candidate = response.candidates[0]
+            finish_reason = candidate.finish_reason if hasattr(candidate, 'finish_reason') else None
+            
+            logger.info(f"Gemini finish reason: {finish_reason}")
+            
+            # Check for safety issues or other problems
+            if finish_reason and finish_reason.name != 'STOP':
+                logger.warning(f"Gemini response may be incomplete. Finish reason: {finish_reason.name}")
+            
             if response.text:
-                logger.info(f"Gemini response generated successfully")
+                logger.info(f"Gemini response generated successfully (length: {len(response.text)} chars)")
                 # Clean up markdown code block formatting from Gemini
                 cleaned_response = response.text.strip()
                 if cleaned_response.startswith('```json'):
@@ -88,9 +101,20 @@ class GeminiProvider(BaseModelProvider):
                     if cleaned_response.endswith('```'):
                         cleaned_response = cleaned_response[:-3]  # Remove ```
                     cleaned_response = cleaned_response.strip()
+                
+                # Log the full response for debugging
+                logger.info(f"Full Gemini response: {cleaned_response}")
                 return cleaned_response
             else:
-                raise Exception("Gemini returned empty response")
+                # Try to get text from candidate directly if response.text is empty
+                if candidate.content and candidate.content.parts:
+                    text_parts = [part.text for part in candidate.content.parts if hasattr(part, 'text')]
+                    if text_parts:
+                        full_text = ''.join(text_parts)
+                        logger.info(f"Retrieved text from candidate parts (length: {len(full_text)} chars)")
+                        return full_text.strip()
+                
+                raise Exception(f"Gemini returned empty response (finish_reason: {finish_reason})")
                 
         except Exception as e:
             logger.error(f"Gemini generation error: {e}")

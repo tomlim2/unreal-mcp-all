@@ -341,6 +341,7 @@
   width: 100%;
   min-height: 80px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
@@ -395,6 +396,20 @@
 
 .retryButton:hover {
   color: #cccccc;
+}
+
+.transformationDetails {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #444444;
+  width: 100%;
+}
+
+.styleInfo {
+  color: #888888;
+  font-size: 0.85rem;
+  font-style: italic;
+  display: block;
 }
 
 .retryButton:active {

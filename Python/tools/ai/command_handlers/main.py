@@ -137,6 +137,7 @@ class CommandRegistry:
         from .actor.light import LightCommandHandler
         from .actor.actor import ActorCommandHandler
         from .rendering.screenshot import ScreenshotCommandHandler
+        from .nano_banana.image_edit import NanoBananaImageEditHandler
         
         handlers = [
             UDSCommandHandler(),
@@ -144,7 +145,8 @@ class CommandRegistry:
             CesiumCommandHandler(), 
             LightCommandHandler(),
             ActorCommandHandler(),
-            ScreenshotCommandHandler()
+            ScreenshotCommandHandler(),
+            NanoBananaImageEditHandler()
         ]
         
         for handler in handlers:

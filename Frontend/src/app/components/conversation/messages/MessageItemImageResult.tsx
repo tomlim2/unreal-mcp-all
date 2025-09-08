@@ -57,16 +57,20 @@ export default function MessageItemImageResult({
       return <div></div>; // Return empty div if no image
     }
 
+    // Check if this is a styled image result
+    const resultData = result.result as any;
+    const isStyledImage = resultData.style_prompt || resultData.intensity;
+
     return (
       <div className={styles.screenshotContainer}>
         {!imageLoadError ? (
           <>
             <img
-              src={getFullImageUrl((result.result as any).image_url)}
-              alt="Screenshot"
+              src={getFullImageUrl(resultData.image_url)}
+              alt={isStyledImage ? "Styled Screenshot" : "Screenshot"}
               className={styles.screenshot}
               onError={(e) => {
-                const imageUrl = (result.result as any).image_url || "";
+                const imageUrl = resultData.image_url || "";
                 const fullUrl = getFullImageUrl(imageUrl);
                 const filename = imageUrl.split("/").pop();
 
@@ -80,6 +84,15 @@ export default function MessageItemImageResult({
                 e.preventDefault();
               }}
             />
+            {/* Display transformation details for styled images */}
+            {isStyledImage && (
+              <div className={styles.transformationDetails}>
+                <small className={styles.styleInfo}>
+                  Applied: {resultData.style_prompt}
+                  {resultData.intensity && ` (intensity: ${resultData.intensity})`}
+                </small>
+              </div>
+            )}
           </>
         ) : (
           <div className={styles.screenshotError}>
