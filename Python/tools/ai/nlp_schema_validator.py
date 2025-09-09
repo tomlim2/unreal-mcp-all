@@ -78,13 +78,28 @@ class ValidatedCommand:
 # VALIDATION FUNCTIONS
 # ============================
 
-def validate_time_of_day(time: Union[int, float]) -> List[str]:
-    """Validate time of day parameter"""
+def validate_time_of_day(time: Union[int, float, str]) -> List[str]:
+    """Validate time of day parameter (accepts number or HHMM string format)"""
     errors = []
-    if not isinstance(time, (int, float)):
-        errors.append("time_of_day must be a number")
-    elif time < SKY_CONSTRAINTS["TIME_RANGE"]["min"] or time > SKY_CONSTRAINTS["TIME_RANGE"]["max"]:
+    
+    # Convert string HHMM format to number
+    if isinstance(time, str):
+        try:
+            # Convert string like "0200" to number 200
+            time_num = int(time)
+        except ValueError:
+            errors.append("time_of_day string must be a valid HHMM format (e.g., '0600', '1800')")
+            return errors
+    elif isinstance(time, (int, float)):
+        time_num = int(time)
+    else:
+        errors.append("time_of_day must be a number or HHMM string format")
+        return errors
+    
+    # Validate range
+    if time_num < SKY_CONSTRAINTS["TIME_RANGE"]["min"] or time_num > SKY_CONSTRAINTS["TIME_RANGE"]["max"]:
         errors.append(f"time_of_day must be between {SKY_CONSTRAINTS['TIME_RANGE']['min']} and {SKY_CONSTRAINTS['TIME_RANGE']['max']}")
+    
     return errors
 
 def validate_color_temperature(temp: Union[int, float]) -> List[str]:
@@ -148,10 +163,24 @@ def validate_sky_command(command_type: str, params: Dict[str, Any]) -> Validated
     if command_type == "set_time_of_day":
         if "time_of_day" in params:
             errors.extend(validate_time_of_day(params["time_of_day"]))
+            # Convert string HHMM to number for consistency
+            if isinstance(params["time_of_day"], str):
+                try:
+                    params["time_of_day"] = int(params["time_of_day"])
+                except ValueError:
+                    pass  # Error already captured by validate_time_of_day
         elif "time" in params:
             # Support legacy parameter name
             errors.extend(validate_time_of_day(params["time"]))
-            params["time_of_day"] = params.pop("time")  # Normalize parameter name
+            # Convert string HHMM to number and normalize parameter name
+            time_value = params.pop("time")
+            if isinstance(time_value, str):
+                try:
+                    params["time_of_day"] = int(time_value)
+                except ValueError:
+                    params["time_of_day"] = time_value  # Keep original for error reporting
+            else:
+                params["time_of_day"] = time_value
         else:
             errors.append("set_time_of_day requires time_of_day parameter")
         

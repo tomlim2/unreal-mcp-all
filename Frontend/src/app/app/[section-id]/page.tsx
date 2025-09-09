@@ -1,7 +1,7 @@
 'use client';
 
-import { use } from "react";
-import ChatInput from "../../components/chat/ChatInput";
+import { use, useRef, useEffect } from "react";
+import ChatInput, { ChatInputHandle } from "../../components/chat/ChatInput";
 import ConversationHistory from "../../components/conversation/ConversationHistory";
 import { useConversationContext } from "./layout";
 
@@ -11,6 +11,8 @@ export default function SectionPage({
   params: Promise<{ 'section-id': string }>;
 }) {
   const resolvedParams = use(params);
+  const chatInputRef = useRef<ChatInputHandle>(null);
+  
   const {
     messageInfo,
     contextError,
@@ -19,6 +21,14 @@ export default function SectionPage({
     handleChatSubmit,
     refreshContext
   } = useConversationContext();
+
+  // Force focus on page load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      chatInputRef.current?.focusInput();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, []);
   return (
     <>
       <ConversationHistory 
@@ -27,6 +37,7 @@ export default function SectionPage({
         isNewSessionPage={false}
       />
       <ChatInput 
+        ref={chatInputRef}
         loading={chatLoading}
         error={chatError}
         sessionId={resolvedParams['section-id']}

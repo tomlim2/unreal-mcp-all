@@ -5,7 +5,7 @@ import { createApiService, SessionContext } from "../services";
 import { useSessionContext } from "../layout";
 import Sidebar from "./sidebar/Sidebar";
 import ConversationHistory from "./conversation/ConversationHistory";
-import ChatInput from "./chat/ChatInput";
+import ChatInput, { ChatInputHandle } from "./chat/ChatInput";
 import styles from "./SessionManagerPanel.module.css";
 
 export default function SessionManagerPanel() {
@@ -32,6 +32,7 @@ export default function SessionManagerPanel() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);  
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
+  const chatInputRef = useRef<ChatInputHandle>(null);
 
   const apiService = createApiService();
 
@@ -84,6 +85,11 @@ export default function SessionManagerPanel() {
       contextCache.current.delete(sessionId);
       await fetchSessionContext(sessionId, true);
 
+      // Focus back to input after response is received
+      setTimeout(() => {
+        chatInputRef.current?.focusInput();
+      }, 100);
+
     } catch (error) {
       console.error('Chat error:', error);
       setChatError(error instanceof Error ? error.message : 'Chat failed');
@@ -123,6 +129,7 @@ export default function SessionManagerPanel() {
         sessionsLoaded={sessionsLoaded}
       />
       <ChatInput 
+        ref={chatInputRef}
         loading={chatLoading}
         error={chatError}
         sessionId={sessionId}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import styles from "./ChatInput.module.css";
 
 interface ChatInputProps {
@@ -12,19 +12,30 @@ interface ChatInputProps {
 	onRefreshContext: () => void;
 }
 
-export default function ChatInput({
+export interface ChatInputHandle {
+	focusInput: () => void;
+}
+
+const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	loading,
 	error,
 	sessionId,
 	llmFromDb,
 	onSubmit,
 	onRefreshContext,
-}: ChatInputProps) {
+}, ref) => {
 	const [prompt, setPrompt] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [selectedLlm, setSelectedLlm] = useState<'gemini' | 'gemini-2' | 'claude'>(llmFromDb);
 	const [showExamples, setShowExamples] = useState(false);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+	// Expose focusInput method to parent
+	useImperativeHandle(ref, () => ({
+		focusInput: () => {
+			textareaRef.current?.focus();
+		}
+	}));
 
 	useEffect(() => {
 		setSelectedLlm(llmFromDb);
@@ -77,6 +88,16 @@ export default function ChatInput({
 
 	const isProcessing = loading || submitting;
 	const canSubmit = prompt.trim() && !isProcessing;
+	
+	// Re-focus after loading finishes
+	useEffect(() => {
+		if (!isProcessing && sessionId) {
+			const timer = setTimeout(() => {
+				textareaRef.current?.focus();
+			}, 50);
+			return () => clearTimeout(timer);
+		}
+	}, [isProcessing, sessionId]);
 	
 	// Dynamic placeholder based on whether we have a session
 	const placeholderText = sessionId 
@@ -188,4 +209,8 @@ export default function ChatInput({
 			)}
 		</div>
 	);
-}
+});
+
+ChatInput.displayName = 'ChatInput';
+
+export default ChatInput;
