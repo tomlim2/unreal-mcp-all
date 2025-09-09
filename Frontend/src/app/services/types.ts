@@ -25,6 +25,12 @@ export interface AIResponse {
   session_id?: string;
 }
 
+export interface ApiKeyStatus {
+  google_available: boolean;
+  anthropic_available: boolean;
+  error?: string;
+}
+
 export interface SessionContext {
   session_id: string;
   session_name: string;
@@ -83,5 +89,8 @@ export interface ApiService {
   chat: (prompt: string, sessionId?: string, model?: string) => Promise<AIResponse>;
   
   // Context history
-  getSessionContext: (sessionId: string) => Promise<SessionContext>;
+  getSessionContext: (sessionId: string) => Promise<SessionContext | null>;
+  
+  // API key status
+  getApiKeyStatus: () => Promise<ApiKeyStatus>;
 }

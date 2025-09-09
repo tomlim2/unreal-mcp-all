@@ -542,6 +542,14 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
         # For Nano Banana commands, don't require Unreal Engine connection
         logger.info(f"Executing Nano Banana command {command_type} without Unreal Engine connection")
         
+        # Fix parameter name mismatch: convert image_url to image_path for transform_image_style
+        if command_type == 'transform_image_style' and 'image_url' in command['params'] and 'image_path' not in command['params']:
+            image_filename = command['params']['image_url']
+            command['params']['image_path'] = _resolve_image_path(image_filename)
+            # Remove the image_url parameter to avoid confusion
+            del command['params']['image_url']
+            logger.info(f"Converted image_url '{image_filename}' to image_path '{command['params']['image_path']}'")
+        
         # For take_styled_screenshot, we need Unreal connection for screenshot part
         if command_type == 'take_styled_screenshot':
             from unreal_mcp_server import get_unreal_connection
