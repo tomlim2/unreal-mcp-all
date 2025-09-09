@@ -312,6 +312,20 @@ class SessionContext:
         
         return None
 
+    def get_recent_commands(self, max_commands: int = 5) -> List[Dict[str, Any]]:
+        """Get recent commands from conversation history for context detection."""
+        commands = []
+        
+        # Look through recent messages in reverse order (newest first)
+        for message in reversed(self.conversation_history):
+            if message.commands:
+                for command in message.commands:
+                    commands.append(command)
+                    if len(commands) >= max_commands:
+                        return commands
+        
+        return commands
+
     def get_llm_model(self) -> str:
         """Get the user's preferred model for this session."""
         return self.llm_model

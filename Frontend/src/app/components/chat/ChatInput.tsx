@@ -54,6 +54,10 @@ export default function ChatInput({
 			console.error('Submit failed:', err);
 		} finally {
 			setSubmitting(false);
+			// Keep focus on textarea after command execution
+			if (textareaRef.current) {
+				textareaRef.current.focus();
+			}
 		}
 	};
 

@@ -412,7 +412,6 @@ Your role is to provide intuitive creative control by translating natural langua
 - Geospatial: set_cesium_latitude_longitude, get_cesium_properties
 
 **Scene Objects & Lighting:**
-- Actors: get_actors_in_level, create_actor, delete_actor, set_actor_transform, get_actor_properties  
 - Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
 **Rendering & Capture:**
@@ -423,124 +422,58 @@ Your role is to provide intuitive creative control by translating natural langua
 - take_styled_screenshot: Take new screenshot AND apply style transformation
 
 ## PARAMETER VALIDATION RULES
-**Sky Commands:**
-- time_of_day: Range 0-{SKY_CONSTRAINTS['TIME_RANGE']['max']} (HHMM format)
-- color_temperature: Range {SKY_CONSTRAINTS['COLOR_TEMP_RANGE']['min']}-{SKY_CONSTRAINTS['COLOR_TEMP_RANGE']['max']} Kelvin OR string descriptions
-- sky_name: String (default: "{SKY_CONSTRAINTS['DEFAULT_SKY_NAME']}")
+**Essential Parameters:**
+- time_of_day: HHMM format (e.g., 600=6AM, 1800=6PM)
+- color_temperature: Kelvin number OR "warmer"/"cooler" 
+- light_name: String identifier for lighting operations
+- location: {{"x": number, "y": number, "z": number}}
+- style_prompt: Description for image transformations
 
-**Light Commands:**
-- light_name: Required non-empty string for create/update/delete
-- location: {{"x": number, "y": number, "z": number}} (default: {LIGHT_CONSTRAINTS['DEFAULT_LOCATION']})
-- intensity: Non-negative number (default: {LIGHT_CONSTRAINTS['DEFAULT_INTENSITY']})
-- color: {{"r": 0-255, "g": 0-255, "b": 0-255}} (default: {LIGHT_CONSTRAINTS['DEFAULT_COLOR']})
+## DECISION LOGIC
 
-**Cesium Commands:**
-- latitude: Number between -90 and 90 degrees
-- longitude: Number between -180 and 180 degrees
+**Simple 2-Step Process:**
+1. **Explicit Keywords Override**: "in scene/Unreal" → 3D Mode | "to image/screenshot" → 2D Mode
+2. **Context Continuity**: Stay in current conversation mode (2D Image Mode vs 3D Scene Mode)
 
-**Actor Commands:**
-- name: Required non-empty string for most operations
-- type: Required for create_actor (e.g., "StaticMeshActor", "PointLight")
-- location/rotation/scale: Optional Vector3 objects {{"x": number, "y": number, "z": number}}
+**Available Commands:**
+- **3D Scene**: Lighting, environment, weather, screenshots
+- **2D Image**: Style transformations, styled screenshots
 
-**Screenshot Commands:**
-- take_highresshot: Execute screenshot command
-  - resolution_multiplier: Optional float 1.0-8.0 (default: 1.0)
-  - include_ui: Optional boolean (default: false)
-  - Returns: success confirmation
+## QUICK REFERENCE
+**Time**: sunrise=600, sunset=1800, noon=1200
+**Colors**: red={{"r":255,"g":0,"b":0}}, white={{"r":255,"g":255,"b":255}}
+**Locations**: SF(37.7749,-122.4194), Tokyo(35.6804,139.6917)
 
-**Nano Banana Commands:**
-- transform_image_style: Apply style to existing image
-  - style_prompt: Required string describing desired style (e.g., "Japan punk style")
-  - image_path: Required string path to image file
-  - intensity: Optional float 0.1-1.0 (default: 0.8, higher = stronger transformation)
-- take_styled_screenshot: Take screenshot and apply style
-  - style_prompt: Required string describing desired style
-  - intensity: Optional float 0.1-1.0 (default: 0.8)
-  - resolution_multiplier: Optional float 1.0-8.0 (default: 1.0)
-  - include_ui: Optional boolean (default: false)
-  - Returns: styled image URL and transformation details
-
-## CRITICAL: SCREENSHOT vs TRANSFORMATION WORKFLOW SEPARATION
-
-**WHEN TO USE EACH COMMAND:**
-
-🔸 **take_highresshot** - Pure screenshot taking
-  - User says: "Take a screenshot", "Capture the screen", "Get a shot of this"
-  - NO style/editing requested
-  - Just wants current viewport captured
-
-🔸 **transform_image_style** - Transform existing image 
-  - User says: "Transform image to X style", "Apply X style to image", "Edit the image"
-  - Session has existing images available
-  - User wants to modify/style existing screenshot
-  - NEVER take new screenshot - use existing image
-
-🔸 **take_styled_screenshot** - Screenshot + immediate styling
-  - User says: "Take a cyberpunk screenshot", "Screenshot with anime style"
-  - Combines screenshot + styling in one operation
-  - User wants both actions together
-
-## RANDOM UNIQUENESS
-For random elements use timestamp+suffix for unique IDs:
-- Light names: "mm_light_{timestamp}_{random_suffix}"
-- Wide ranges: Location(-2000,2000), Intensity(500-15000), Colors(0-255 full spectrum)
-- Avoid clustering: Use diverse values across entire ranges
-- Current: timestamp={timestamp}, suffix={random_suffix}
-
-## CONVERSIONS
-**Time:** sunrise→600, sunset→1800, noon→1200, midnight→0
-**ColorTemp:** warm→3200K, cool→6500K, warmer→"warmer", cooler→"cooler"
-**Colors:** red→{{"r":255,"g":0,"b":0}}, white→{{"r":255,"g":255,"b":255}}, random→use full RGB spectrum
-**Cities:** SF(37.7749,-122.4194), NYC(40.7128,-74.0060), Tokyo(35.6804,139.6917)
-
-## VALIDATION RULES
-- "cold morning"→time_of_day | "cold light"→color_temperature
-- "cooler" ALWAYS = color_temperature (never time)
-- All parameters validated by specialized handlers
-- Return ONLY valid JSON with literal numbers (no Math.random, no code)
-- Commands are processed by modular handler system for consistency"""
+Return valid JSON only."""
 
     if session_context:
-        # Add scene state
+        # Determine current conversation mode based on recent commands
+        recent_commands = session_context.get_recent_commands(max_commands=3)
+        current_mode = "3D Scene Mode"  # Default
+        
+        if recent_commands:
+            # Check if recent commands were primarily 2D image editing
+            image_commands = ['transform_image_style', 'take_styled_screenshot']
+            recent_image_commands = [cmd for cmd in recent_commands if cmd.get('type') in image_commands]
+            
+            if len(recent_image_commands) >= len(recent_commands) // 2:  # 50% or more were image commands
+                current_mode = "2D Image Mode"
+        
+        base_prompt += f"\n\n## CURRENT MODE: {current_mode}"
+        if current_mode == "2D Image Mode":
+            base_prompt += "\nContinue image editing workflow. For 'add X' use transform_image_style."
+        else:
+            base_prompt += "\nContinue 3D scene workflow. Use lighting, environment, weather commands."
+        
+        # Add brief scene state
         scene_summary = session_context.get_scene_summary()
         if scene_summary and scene_summary != "No scene state tracked yet.":
-            base_prompt += f"\n\n## CURRENT SCENE STATE\n{scene_summary}"
-            base_prompt += "\n- Use this information to make informed decisions about lighting, positioning, and scene modifications"
-            base_prompt += "\n- Reference existing elements when relevant (e.g., 'move the red light', 'adjust the current sky time')"
+            base_prompt += f"\n\nScene: {scene_summary}"
         
-        # Add recent images context
-        recent_images = session_context.get_recent_images(max_images=3)
-        if recent_images:
-            base_prompt += f"\n\n## RECENT IMAGES IN SESSION"
-            base_prompt += f"\nYou have access to {len(recent_images)} recent screenshot(s) from this session:"
-            
-            for i, img in enumerate(recent_images, 1):
-                base_prompt += f"\n{i}. {img['filename']} - {img['command']} ({img['timestamp'][:16]})"
-                if img.get('style_prompt'):
-                    base_prompt += f" [Style: {img['style_prompt']}]"
-                base_prompt += f"\n   From: \"{img['message_content']}\""
-            
-            latest_filename = session_context.get_latest_image_path()
-            if latest_filename:
-                base_prompt += f"\n\n**CRITICAL: EXISTING IMAGES AVAILABLE - WORKFLOW DECISIONS:**"
-                base_prompt += f"\n- Latest image filename: {latest_filename}"
-                base_prompt += f"\n- Use image_path: \"{latest_filename}\" (not full path, just filename)"
-                base_prompt += f"\n"
-                base_prompt += f"\n📋 **DECISION TREE:**"
-                base_prompt += f"\n  • User wants to transform/edit existing image → use transform_image_style"
-                base_prompt += f"\n  • User wants to take new screenshot only → use take_highresshot"  
-                base_prompt += f"\n  • User wants to take new screenshot + styling → use take_styled_screenshot"
-                base_prompt += f"\n"
-                base_prompt += f"\n🚫 **NEVER DO:**"
-                base_prompt += f"\n  • Use take_highresshot when user wants to transform existing image"
-                base_prompt += f"\n  • Use take_styled_screenshot when user wants to transform existing image"
-                base_prompt += f"\n"
-                base_prompt += f"\n✅ **EXAMPLES:**"
-                base_prompt += f"\n  • 'Transform image to cyberpunk style' → transform_image_style"
-                base_prompt += f"\n  • 'Apply anime style to the image' → transform_image_style"
-                base_prompt += f"\n  • 'Take a new screenshot' → take_highresshot"
-                base_prompt += f"\n  • 'Take a cyberpunk style screenshot' → take_styled_screenshot"
+        # Add latest image if available
+        latest_filename = session_context.get_latest_image_path()
+        if latest_filename:
+            base_prompt += f"\nLatest image: {latest_filename}"
     
     base_prompt += f"\n\nContext: {context}\n\nJSON FORMAT:\n{{\n  \"explanation\": \"Brief description\",\n  \"commands\": [{{\"type\": \"command_name\", \"params\": {{...}}}}],\n  \"expectedResult\": \"What happens\"\n}}"
     
