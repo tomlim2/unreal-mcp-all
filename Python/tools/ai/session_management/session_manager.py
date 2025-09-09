@@ -17,19 +17,19 @@ logger = logging.getLogger("SessionManager")
 
 class SessionManager:
     """
-    Main session manager with database-only storage (Supabase).
+    Main session manager with file-based storage for MegaMelange.
     """
     
     def __init__(self, 
-                 storage_type: str = 'supabase',
+                 storage_type: str = 'file',
                  auto_cleanup: bool = True,
                  cleanup_interval_hours: int = 6,
                  session_max_age_days: int = 30):
         """
-        Initialize session manager with database storage only.
+        Initialize session manager with file-based storage.
         
         Args:
-            storage_type: Storage backend type (default: 'supabase')
+            storage_type: Storage backend type (default: 'file')
             auto_cleanup: Whether to start automatic cleanup
             cleanup_interval_hours: How often to run cleanup
             session_max_age_days: Maximum session age before deletion
@@ -416,12 +416,12 @@ class SessionManager:
 _global_session_manager: Optional[SessionManager] = None
 
 
-def get_session_manager(storage_type: str = 'supabase') -> SessionManager:
+def get_session_manager(storage_type: str = 'file') -> SessionManager:
     """
     Get or create the global session manager instance.
     
     Args:
-        storage_type: Storage backend type (default: 'supabase')
+        storage_type: Storage backend type (default: 'file')
         
     Returns:
         SessionManager instance

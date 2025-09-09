@@ -9,7 +9,17 @@ from .base_storage import BaseStorage
 logger = logging.getLogger("SessionManager.Factory")
 
 # Lazy imports for optional backends
+_FileStorage = None
 _SupabaseStorage = None
+
+
+def _get_file_storage():
+    """Lazy import of FileStorage."""
+    global _FileStorage
+    if _FileStorage is None:
+        from .file_storage import FileStorage
+        _FileStorage = FileStorage
+    return _FileStorage
 
 
 def _get_supabase_storage():
@@ -26,15 +36,15 @@ def _get_supabase_storage():
 
 
 class StorageFactory:
-    """Factory for creating session storage backends (database only)."""
+    """Factory for creating session storage backends (file and database)."""
     
     @staticmethod
-    def create(storage_type: str = 'supabase', **kwargs) -> BaseStorage:
+    def create(storage_type: str = 'file', **kwargs) -> BaseStorage:
         """
         Create a storage backend instance.
         
         Args:
-            storage_type: Type of storage ('supabase')
+            storage_type: Type of storage ('file', 'supabase')
             **kwargs: Additional arguments for storage backend
             
         Returns:
@@ -47,11 +57,14 @@ class StorageFactory:
         storage_type = storage_type.lower()
         
         try:
-            if storage_type == 'supabase':
+            if storage_type == 'file':
+                file_class = _get_file_storage()
+                return file_class(**kwargs)
+            elif storage_type == 'supabase':
                 supabase_class = _get_supabase_storage()
                 return supabase_class(**kwargs)
             else:
-                raise ValueError(f"Unknown storage type: {storage_type}. Only 'supabase' is supported.")
+                raise ValueError(f"Unknown storage type: {storage_type}. Supported types: 'file', 'supabase'")
                 
         except Exception as e:
             logger.error(f"Failed to create {storage_type} storage: {e}")
@@ -66,6 +79,13 @@ class StorageFactory:
             List of available backend names
         """
         backends = []
+        
+        # File storage is always available
+        try:
+            _get_file_storage()
+            backends.append('file')
+        except:
+            pass
         
         # Check if Supabase is available
         try:

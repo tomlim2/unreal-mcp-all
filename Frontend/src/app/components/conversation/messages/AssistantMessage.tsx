@@ -182,7 +182,6 @@ export default function AssistantMessage({ message, sessionName, keyPrefix, sess
 }, null, 2)}
                     </div>
                   </div>
-                  
                   <div className={styles.debugBlock}>
                     <div className={styles.debugLabel}>AI PROCESSING:</div>
                     <div className={styles.debugJson}>
