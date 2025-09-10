@@ -1,4 +1,4 @@
-import { ApiService, Session, AIResponse, SessionContext, ApiKeyStatus } from './types';
+import { ApiService, Session, AIResponse, SessionContext } from './types';
 
 interface SessionsResponse {
   sessions: Session[];
@@ -144,7 +144,7 @@ export function createApiService(): ApiService {
       }
     },
 
-    getSessionContext: async (sessionId: string): Promise<SessionContext | null> => {
+    getSessionContext: async (sessionId: string): Promise<SessionContext> => {
       try {
         const response = await fetch(`/api/sessions/${sessionId}/context`);
         
@@ -156,11 +156,6 @@ export function createApiService(): ApiService {
         
         if (data.error) {
           throw new Error(data.error);
-        }
-        
-        // Check if session was found
-        if ('session_found' in data && !data.session_found) {
-          return null;
         }
         
         return data.context;
@@ -191,27 +186,6 @@ export function createApiService(): ApiService {
       } catch (err) {
         console.error(err instanceof Error ? err.message : "Failed to rename session");
         throw err;
-      }
-    },
-
-    getApiKeyStatus: async (): Promise<ApiKeyStatus> => {
-      try {
-        const response = await fetch('/api/keys/status');
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch API key status: ${response.status}`);
-        }
-        
-        const data: ApiKeyStatus = await response.json();
-        return data;
-      } catch (err) {
-        console.error(err instanceof Error ? err.message : "Failed to fetch API key status");
-        // Return safe defaults on error
-        return {
-          google_available: false,
-          anthropic_available: false,
-          error: err instanceof Error ? err.message : "Unknown error"
-        };
       }
     }
   };

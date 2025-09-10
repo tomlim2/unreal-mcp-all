@@ -50,7 +50,7 @@ class GeminiProvider(BaseModelProvider):
         self, 
         messages: List[Dict[str, str]], 
         system_prompt: str,
-        max_tokens: int = 2048,  # Increased default from 1024
+        max_tokens: int = 1024,
         temperature: float = 0.1
     ) -> str:
         """Generate response using Gemini."""
@@ -66,9 +66,9 @@ class GeminiProvider(BaseModelProvider):
             # Convert messages to Gemini format
             gemini_messages = self._convert_messages_to_gemini_format(messages, system_prompt)
             
-            # Configure generation parameters with higher token limit
+            # Configure generation parameters
             generation_config = genai.types.GenerationConfig(
-                max_output_tokens=max(max_tokens, 2048),  # Ensure minimum 2048 tokens
+                max_output_tokens=max_tokens,
                 temperature=temperature,
             )
             
@@ -87,42 +87,14 @@ class GeminiProvider(BaseModelProvider):
             
             logger.info(f"Gemini finish reason: {finish_reason}")
             
-            # Handle different finish reasons
-            if finish_reason:
-                if finish_reason.name == 'MAX_TOKENS':
-                    logger.warning(f"Gemini response truncated due to MAX_TOKENS. Consider increasing max_output_tokens.")
-                elif finish_reason.name != 'STOP':
-                    logger.warning(f"Gemini response may be incomplete. Finish reason: {finish_reason.name}")
+            # Check for safety issues or other problems
+            if finish_reason and finish_reason.name != 'STOP':
+                logger.warning(f"Gemini response may be incomplete. Finish reason: {finish_reason.name}")
             
-            # Try multiple methods to extract text from response
-            response_text = None
-            
-            # Method 1: Try response.text (may fail with MAX_TOKENS)
-            try:
-                if hasattr(response, 'text') and response.text:
-                    response_text = response.text.strip()
-                    logger.info(f"Gemini response via response.text (length: {len(response_text)} chars)")
-            except Exception as e:
-                logger.debug(f"Could not access response.text: {e}")
-            
-            # Method 2: Try to get text from candidate parts directly
-            if not response_text and candidate.content and candidate.content.parts:
-                try:
-                    text_parts = []
-                    for part in candidate.content.parts:
-                        if hasattr(part, 'text') and part.text:
-                            text_parts.append(part.text)
-                    
-                    if text_parts:
-                        response_text = ''.join(text_parts).strip()
-                        logger.info(f"Gemini response via candidate parts (length: {len(response_text)} chars)")
-                except Exception as e:
-                    logger.debug(f"Could not access candidate parts: {e}")
-            
-            # If we have response text, clean and return it
-            if response_text:
+            if response.text:
+                logger.info(f"Gemini response generated successfully (length: {len(response.text)} chars)")
                 # Clean up markdown code block formatting from Gemini
-                cleaned_response = response_text
+                cleaned_response = response.text.strip()
                 if cleaned_response.startswith('```json'):
                     # Remove ```json at the start and ``` at the end
                     cleaned_response = cleaned_response[7:]  # Remove ```json
@@ -130,22 +102,19 @@ class GeminiProvider(BaseModelProvider):
                         cleaned_response = cleaned_response[:-3]  # Remove ```
                     cleaned_response = cleaned_response.strip()
                 
-                # For MAX_TOKENS, try to make the response valid JSON if it's cut off
-                if finish_reason and finish_reason.name == 'MAX_TOKENS':
-                    # If response looks like incomplete JSON, try to close it
-                    if cleaned_response.count('{') > cleaned_response.count('}'):
-                        logger.info("Attempting to fix truncated JSON response")
-                        # Add missing closing braces
-                        missing_braces = cleaned_response.count('{') - cleaned_response.count('}')
-                        cleaned_response += '}' * missing_braces
-                
                 # Log the full response for debugging
-                logger.info(f"Final Gemini response: {cleaned_response[:200]}..." if len(cleaned_response) > 200 else f"Final Gemini response: {cleaned_response}")
+                logger.info(f"Full Gemini response: {cleaned_response}")
                 return cleaned_response
-            
-            # If we still have no text, return a meaningful error
-            finish_reason_name = finish_reason.name if finish_reason else 'UNKNOWN'
-            raise Exception(f"Gemini returned no usable text content (finish_reason: {finish_reason_name}). This may be due to content filtering or API issues.")
+            else:
+                # Try to get text from candidate directly if response.text is empty
+                if candidate.content and candidate.content.parts:
+                    text_parts = [part.text for part in candidate.content.parts if hasattr(part, 'text')]
+                    if text_parts:
+                        full_text = ''.join(text_parts)
+                        logger.info(f"Retrieved text from candidate parts (length: {len(full_text)} chars)")
+                        return full_text.strip()
+                
+                raise Exception(f"Gemini returned empty response (finish_reason: {finish_reason})")
                 
         except Exception as e:
             logger.error(f"Gemini generation error: {e}")

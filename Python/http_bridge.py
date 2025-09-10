@@ -168,37 +168,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 self.wfile.write(response_json.encode('utf-8'))
                 return
 
-            elif path == '/api/keys/status':
-                # Handle API key status check
-                try:
-                    from tools.ai.model_providers.gemini_provider import GeminiProvider
-                    from tools.ai.model_providers.claude_provider import ClaudeProvider
-                    
-                    # Check provider availability
-                    gemini_provider = GeminiProvider()
-                    claude_provider = ClaudeProvider()
-                    
-                    response = {
-                        'google_available': gemini_provider.is_available(),
-                        'anthropic_available': claude_provider.is_available()
-                    }
-                    
-                    response_json = json.dumps(response)
-                    self.wfile.write(response_json.encode('utf-8'))
-                    return
-                    
-                except Exception as e:
-                    logger.error(f"Error checking API key status: {e}")
-                    # Return safe defaults on error
-                    response = {
-                        'google_available': False,
-                        'anthropic_available': False,
-                        'error': str(e)
-                    }
-                    response_json = json.dumps(response)
-                    self.wfile.write(response_json.encode('utf-8'))
-                    return
-
             elif path == '/sessions':
                 # Handle session list request - bypass NLP, direct to session manager
                 try:
@@ -219,10 +188,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Sort by last_accessed descending
                     session_list.sort(key=lambda s: s['last_accessed'], reverse=True)
                     
-                    # Always return 200 with sessions list (even if empty)
                     response = {
-                        'sessions': session_list,
-                        'count': len(session_list)
+                        'sessions': session_list
                     }
                     response_json = json.dumps(response)
                     self.wfile.write(response_json.encode('utf-8'))
@@ -230,14 +197,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
 
                 except Exception as e:
                     logger.error(f"Error getting session list: {e}")
-                    # Return 200 with empty list instead of error
-                    response = {
-                        'sessions': [],
-                        'count': 0,
-                        'error': f"Failed to get session list: {e}"
-                    }
-                    response_json = json.dumps(response)
-                    self.wfile.write(response_json.encode('utf-8'))
+                    self._send_error(f"Failed to get session list: {e}")
                     return
 
             # Handle other GET requests (404)
@@ -291,19 +251,12 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         session_context = session_manager.get_session(session_id)
                         
                         if not session_context:
-                            # Return 200 with empty context instead of error
-                            result = {
-                                'context': None,
-                                'session_found': False
-                            }
-                            response_json = json.dumps(result)
-                            self.wfile.write(response_json.encode('utf-8'))
+                            self._send_error(f"Session not found: {session_id}")
                             return
                         
                         # Return the session context
                         result = {
-                            'context': session_context.to_dict(),
-                            'session_found': True
+                            'context': session_context.to_dict()
                         }
                         response_json = json.dumps(result)
                         self.wfile.write(response_json.encode('utf-8'))
@@ -332,11 +285,9 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                                 'message': f'Session {session_id} deleted successfully'
                             }
                         else:
-                            # Return 200 with success=false instead of error
                             result = {
                                 'success': False,
-                                'message': f'Session not found: {session_id}',
-                                'session_found': False
+                                'error': f'Session not found: {session_id}'
                             }
                         
                         response_json = json.dumps(result)

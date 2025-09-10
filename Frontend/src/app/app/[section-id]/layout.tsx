@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
-import { useRouter } from "next/navigation";
 import { createApiService, SessionContext } from "../../services";
 import { useSessionContext } from "../layout";
 import styles from "../../components/SessionManagerPanel.module.css";
@@ -42,7 +41,6 @@ function ConversationProvider({
   children: ReactNode;
   sectionId: string;
 }) {
-  const router = useRouter();
   const {
     sessionInfo,
     sessionsLoaded,
@@ -92,21 +90,11 @@ function ConversationProvider({
     setContextLoading(true);
     try {
       const context = await apiService.getSessionContext(sid);
-      
-      // Check if session was found
-      if (!context || (typeof context === 'object' && 'session_found' in context && !context.session_found)) {
-        console.log(`Session ${sid} not found, redirecting to /app`);
-        router.replace('/app');
-        return;
-      }
-      
       contextCache.current.set(sid, context);
       setMessageInfo(context);
     } catch (error) {
       console.error('Failed to fetch session context:', error);
-      // On any error, redirect to main app page
-      console.log('Session context fetch failed, redirecting to /app');
-      router.replace('/app');
+      setContextError('Failed to load conversation history');
     } finally {
       setContextLoading(false);
     }

@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo } from "react";
-import { createApiService } from "../../services";
-import { ApiKeyStatus } from "../../services/types";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import styles from "./ChatInput.module.css";
 
 interface ChatInputProps {
@@ -30,10 +28,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	const [submitting, setSubmitting] = useState(false);
 	const [selectedLlm, setSelectedLlm] = useState<'gemini' | 'gemini-2' | 'claude'>(llmFromDb);
 	const [showExamples, setShowExamples] = useState(false);
-	const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-	const apiService = useMemo(() => createApiService(), []);
 
 	// Expose focusInput method to parent
 	useImperativeHandle(ref, () => ({
@@ -45,31 +40,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	useEffect(() => {
 		setSelectedLlm(llmFromDb);
 	}, [llmFromDb]);
-
-	// Check API key status on mount
-	useEffect(() => {
-		const checkApiKeys = async () => {
-			try {
-				const status = await apiService.getApiKeyStatus();
-				setApiKeyStatus(status);
-				
-				// If current selected model is not available, switch to available one
-				if (selectedLlm === 'claude' && !status.anthropic_available) {
-					if (status.google_available) {
-						setSelectedLlm('gemini');
-					}
-				} else if ((selectedLlm === 'gemini' || selectedLlm === 'gemini-2') && !status.google_available) {
-					if (status.anthropic_available) {
-						setSelectedLlm('claude');
-					}
-				}
-			} catch (error) {
-				console.error('Failed to check API key status:', error);
-			}
-		};
-
-		checkApiKeys();
-	}, [apiService, selectedLlm]);
 
 	// Auto-resize textarea
 	useEffect(() => {
@@ -206,26 +176,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 							onChange={(e) => setSelectedLlm(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
 							className={styles.modelSelect}
 							disabled={isProcessing}
-							title={apiKeyStatus ? 'Select AI model' : 'Checking API key availability...'}
 						>
-							<option 
-								value="gemini" 
-								disabled={apiKeyStatus !== null && !apiKeyStatus.google_available}
-							>
-								Gemini 1.5 Flash {apiKeyStatus && !apiKeyStatus.google_available ? '(API Key Missing)' : ''}
-							</option>
-							<option 
-								value="gemini-2" 
-								disabled={apiKeyStatus !== null && !apiKeyStatus.google_available}
-							>
-								Gemini 2.5 Flash {apiKeyStatus && !apiKeyStatus.google_available ? '(API Key Missing)' : ''}
-							</option>
-							<option 
-								value="claude" 
-								disabled={apiKeyStatus !== null && !apiKeyStatus.anthropic_available}
-							>
-								Claude 3 Haiku {apiKeyStatus && !apiKeyStatus.anthropic_available ? '(API Key Missing)' : ''}
-							</option>
+							<option value="gemini">Gemini 1.5 Flash</option>
+							<option value="gemini-2">Gemini 2.5 Flash</option>
+							<option value="claude">Claude 3 Haiku</option>
 						</select>
 					</div>
 					
