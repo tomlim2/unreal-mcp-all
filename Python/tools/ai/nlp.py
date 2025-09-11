@@ -239,6 +239,51 @@ from .session_management import get_session_manager, SessionContext
 from .model_providers import get_model_provider, get_default_model, get_available_models
 
 
+def _extract_style_essence(user_input: str, provider) -> str:
+    """Extract only style-related content from user input to reduce tokens."""
+    try:
+        # Very minimal prompt for style extraction
+        extraction_prompt = """Extract only the visual style/effect from this request. Keep it under 10 words.
+
+Examples:
+- "Make it cyberpunk style with neon lights" → "cyberpunk neon"
+- "사이버펑크 스타일로 바꿔줘" → "cyberpunk style"  
+- "Apply watercolor effect to the image" → "watercolor effect"
+- "Transform to anime style" → "anime style"
+
+Input: {input}
+Style:"""
+
+        messages = [{
+            "role": "user", 
+            "content": extraction_prompt.format(input=user_input)
+        }]
+        
+        # Use minimal tokens for extraction
+        style_essence = provider.generate_response(
+            messages=messages,
+            system_prompt="Extract visual style keywords only. Be concise.",
+            max_tokens=50,  # Very small - just need style keywords
+            temperature=0.0  # Deterministic
+        )
+        
+        # Clean up the response
+        style_essence = style_essence.strip().strip('"').strip("'")
+        
+        # Fallback if extraction failed
+        if not style_essence or len(style_essence) > 50:
+            # Simple keyword extraction fallback
+            style_keywords = ['cyberpunk', 'anime', 'watercolor', 'punk', 'neon', 'vintage', 'dark', 'bright']
+            found_keywords = [kw for kw in style_keywords if kw in user_input.lower()]
+            style_essence = ' '.join(found_keywords) if found_keywords else user_input
+        
+        logger.info(f"Style extraction: '{user_input}' → '{style_essence}'")
+        return style_essence
+        
+    except Exception as e:
+        logger.warning(f"Style extraction failed: {e}")
+        return user_input  # Fallback to original
+
 def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None) -> Dict[str, Any]:
     try:
         # Get session manager and session context if session_id provided
@@ -272,16 +317,27 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     "executionResults": []
                 }
         
+        # Determine if this is a style request for preprocessing
+        is_style_request = any(keyword in user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it'])
+        
         # Build system prompt with session context
-        system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context)
+        system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context, is_style_request)
         logger.info(f"Processing natural language input with {provider.get_model_name()}: {user_input}")
+        processed_input = user_input
+        
+        # For style requests, extract only the style essence to reduce tokens
+        if is_style_request and session_context and session_context.get_latest_image_path():
+            processed_input = _extract_style_essence(user_input, provider)
+            logger.info(f"Style preprocessing: '{user_input}' → '{processed_input}'")
         
         # Build messages list including conversation history
         messages = []
         
         # Add conversation history as proper messages
         if session_context and session_context.conversation_history:
-            recent_messages = session_context.conversation_history[-4:]  # Last 4 messages (2 turns)
+            # For style requests, use minimal history
+            max_history = 2 if is_style_request else 4
+            recent_messages = session_context.conversation_history[-max_history:]
             for msg in recent_messages:
                 if msg.role in ['user', 'assistant']:
                     messages.append({
@@ -292,7 +348,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         # Add current user input as the final message
         messages.append({
             "role": "user", 
-            "content": f"User request: {user_input}"
+            "content": f"User request: {processed_input}"
         })
         
         # Generate AI response using the selected provider
@@ -346,14 +402,24 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     logger.info(f"Executing command from NLP: {command}")
                     print(f"DEBUG: Executing command from NLP: {command}")
                     
-                    # Fix parameter names for image commands (AI sometimes uses image_url instead of image_path)
+                    # Fix parameter names and ensure image_path for image commands
                     if command.get("type") == "transform_image_style" and command.get("params"):
                         params = command["params"]
+                        
+                        # Convert image_url to image_path if present
                         if "image_url" in params and "image_path" not in params:
-                            # Convert image_url to image_path
                             params["image_path"] = _resolve_image_path(params["image_url"])
                             del params["image_url"]
                             logger.info(f"Converted image_url to image_path: {params['image_path']}")
+                        
+                        # If no image_path specified, use latest image from session
+                        elif "image_path" not in params and session_context:
+                            latest_image = session_context.get_latest_image_path()
+                            if latest_image:
+                                params["image_path"] = _resolve_image_path(latest_image)
+                                logger.info(f"Added latest image path: {params['image_path']}")
+                            else:
+                                logger.warning("No image_path provided and no latest image in session")
                     
                     # Session tracking is now handled by the simple command handlers
                     
@@ -444,18 +510,31 @@ def process_natural_language(user_input: str, context: str = None, session_id: s
             "executionResults": []
         }
 
-def build_system_prompt_with_session(context: str, session_context: SessionContext = None) -> str:
+def build_system_prompt_with_session(context: str, session_context: SessionContext = None, is_style_request: bool = False) -> str:
     """Build system prompt with session context information."""
     import time
     import random
     timestamp = int(time.time() * 1000)
     random_suffix = random.randint(1000, 9999)
     
-    # Get supported commands from registry
-    registry = get_command_registry()
-    supported_commands = registry.get_supported_commands()
-    
-    base_prompt = f"""You are an AI assistant for creative professionals in their 20's (directors, cinematographers, technical artists) working with Unreal Engine for film, game development, and virtual production.
+    # Check if we should use minimal prompt for style requests
+    if is_style_request and session_context and session_context.get_latest_image_path():
+        # Minimal prompt for style transformations - reduces ~75% token usage
+        base_prompt = f"""Transform image styles for creative professionals.
+
+**Commands:**
+- transform_image_style: Apply style to latest image
+- take_styled_screenshot: New screenshot + style
+
+**Format:** {{"explanation": "desc", "commands": [{{"type": "command", "params": {{"style_prompt": "style desc", "intensity": 0.8}}}}], "expectedResult": "result"}}
+
+Latest image available. Return valid JSON only."""
+    else:
+        # Get supported commands from registry for full prompt
+        registry = get_command_registry()
+        supported_commands = registry.get_supported_commands()
+        
+        base_prompt = f"""You are an AI assistant for creative professionals in their 20's (directors, cinematographers, technical artists) working with Unreal Engine for film, game development, and virtual production.
 
 Your role is to provide intuitive creative control by translating natural language requests into precise Unreal Engine commands that support professional workflows and enable real-time creative iteration.
 
@@ -500,7 +579,8 @@ Your role is to provide intuitive creative control by translating natural langua
 
 Return valid JSON only."""
 
-    if session_context:
+    # For style requests, skip complex session context to save tokens
+    if not is_style_request and session_context:
         # Determine current conversation mode based on recent commands
         recent_commands = session_context.get_recent_commands(max_commands=3)
         current_mode = "3D Scene Mode"  # Default

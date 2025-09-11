@@ -675,3 +675,131 @@
   transition: width 0.3s ease;
   border-radius: 2px;
 }
+
+/* Debug Execution Time at Top */
+.debugExecutionTime {
+  color: #999999;
+  font-size: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #333333;
+  text-align: left;
+}
+
+/* Debug Analysis Panels */
+.debugAnalysisPanel {
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.debugPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #333333;
+  background: #252525;
+  border-radius: 6px 6px 0 0;
+}
+
+.debugPanelHeader strong {
+  color: #ffffff;
+  font-size: 0.875rem;
+}
+
+.refreshButton {
+  background: transparent;
+  border: 1px solid #666666;
+  color: #cccccc;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: #333333;
+  border-color: #888888;
+}
+
+.refreshButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debugPanelContent {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.debugMetric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.debugLabel {
+  color: #cccccc;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.debugMetric span:last-child {
+  color: #ffffff;
+  text-align: right;
+}
+
+.debugTip {
+  background: #2a2a1a;
+  border: 1px solid #4a4a2a;
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: #ffeb3b;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.debugError {
+  color: #ff9999;
+  background: #2a1a1a;
+  border: 1px solid #663333;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+}
+
+.debugLoading {
+  color: #999999;
+  text-align: center;
+  padding: 1rem;
+  font-style: italic;
+}
+
+/* Status Colors */
+.statusGreen {
+  color: #4CAF50 !important;
+}
+
+.statusRed {
+  color: #f44336 !important;
+}
+
+.statusOrange {
+  color: #ff9800 !important;
+}
+
+.highUsage {
+  color: #f44336 !important;
+  font-weight: 600;
+}
+
+.normalUsage {
+  color: #4CAF50 !important;
+}

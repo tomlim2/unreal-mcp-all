@@ -35,6 +35,129 @@ interface AssistantMessageProps {
   sessionId?: string;
 }
 
+// Token Analysis Panel Component
+function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
+  const [tokenInfo, setTokenInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const analyzeTokens = async () => {
+    setLoading(true);
+    try {
+      // Estimate tokens from user input
+      const userInput = message.content || '';
+      const hasNonAscii = /[^\x00-\x7F]/.test(userInput);
+      const charCount = userInput.length;
+      const estimatedTokens = hasNonAscii ? Math.ceil(charCount / 2.5) : Math.ceil(charCount / 4);
+      
+      // Check if this involved image commands (Nano Banana)
+      const imageCommands = (message.commands || []).filter(cmd => 
+        cmd.type === 'transform_image_style' || cmd.type === 'take_styled_screenshot'
+      );
+      
+      let imageTokenEstimate = 0;
+      if (imageCommands.length > 0) {
+        // Image generation prompts typically use 800-1000+ tokens
+        imageTokenEstimate = imageCommands.length * 900; // Conservative estimate
+      }
+
+      // Check Nano Banana status
+      let nanoBananaStatus = null;
+      try {
+        const response = await fetch('http://localhost:8080/', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({action: 'check_nano_banana'})
+        });
+        nanoBananaStatus = await response.json();
+      } catch (e) {
+        console.log('Could not fetch Nano Banana status:', e);
+      }
+
+      setTokenInfo({
+        userInput: {
+          characters: charCount,
+          estimatedTokens,
+          hasNonAscii,
+          language: hasNonAscii ? 'Non-English' : 'English'
+        },
+        imageProcessing: {
+          commandCount: imageCommands.length,
+          estimatedTokens: imageTokenEstimate,
+          commands: imageCommands.map(cmd => cmd.type)
+        },
+        totalEstimate: estimatedTokens + imageTokenEstimate,
+        nanoBanana: nanoBananaStatus?.nano_banana || null
+      });
+    } catch (error) {
+      console.error('Token analysis failed:', error);
+      setTokenInfo({ error: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    analyzeTokens();
+  }, [message]);
+
+  if (!tokenInfo && !loading) return null;
+
+  return (
+    <div className={styles.debugAnalysisPanel}>
+      <div className={styles.debugPanelHeader}>
+        <strong>Token Analysis</strong>
+        <button onClick={analyzeTokens} disabled={loading} className={styles.refreshButton}>
+          {loading ? '⟳' : '↻'} Refresh
+        </button>
+      </div>
+      
+      {tokenInfo?.error ? (
+        <div className={styles.debugError}>Error: {tokenInfo.error}</div>
+      ) : tokenInfo ? (
+        <div className={styles.debugPanelContent}>
+          <div className={styles.debugMetric}>
+            <span className={styles.debugLabel}>Input Text:</span>
+            <span>{tokenInfo.userInput.characters} chars, ~{tokenInfo.userInput.estimatedTokens} tokens ({tokenInfo.userInput.language})</span>
+          </div>
+          
+          {tokenInfo.imageProcessing.commandCount > 0 && (
+            <div className={styles.debugMetric}>
+              <span className={styles.debugLabel}>Image Processing:</span>
+              <span>{tokenInfo.imageProcessing.commandCount} commands, ~{tokenInfo.imageProcessing.estimatedTokens} tokens</span>
+            </div>
+          )}
+          
+          <div className={styles.debugMetric}>
+            <span className={styles.debugLabel}>Total Estimate:</span>
+            <span className={tokenInfo.totalEstimate > 500 ? styles.highUsage : styles.normalUsage}>
+              ~{tokenInfo.totalEstimate} tokens
+            </span>
+          </div>
+
+          {tokenInfo.nanoBanana && (
+            <div className={styles.debugMetric}>
+              <span className={styles.debugLabel}>Nano Banana:</span>
+              <span className={tokenInfo.nanoBanana.available ? styles.statusGreen : styles.statusRed}>
+                {tokenInfo.nanoBanana.available ? 'Available' : 'Not Available'}
+                {tokenInfo.nanoBanana.error && ` (${tokenInfo.nanoBanana.error})`}
+              </span>
+            </div>
+          )}
+
+          {tokenInfo.totalEstimate > 800 && (
+            <div className={styles.debugTip}>
+              High token usage - may quickly consume daily quota on free tier
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className={styles.debugLoading}>Analyzing tokens...</div>
+      )}
+    </div>
+  );
+}
+
+
 export default function AssistantMessage({ message, sessionName, keyPrefix, sessionId }: AssistantMessageProps) {
   // Set default expansion based on message role
   const getDefaultExpanded = useCallback(() => {
@@ -137,6 +260,13 @@ export default function AssistantMessage({ message, sessionName, keyPrefix, sess
 
             {activeTab === 'debug' && (
               <div className={styles.debugTab}>
+                {/* Execution time at the top */}
+                <div className={styles.debugExecutionTime}>
+                  {new Date(message.timestamp).toLocaleString()}
+                </div>
+                
+                <TokenAnalysisPanel message={message} />
+                
                 <div className={styles.debugHeader}>
                   <strong>DEBUG FORMAT</strong>
                   <button 
