@@ -8,9 +8,8 @@ from .base_storage import BaseStorage
 
 logger = logging.getLogger("SessionManager.Factory")
 
-# Lazy imports for optional backends
+# Lazy import for file storage
 _FileStorage = None
-_SupabaseStorage = None
 
 
 def _get_file_storage():
@@ -22,21 +21,8 @@ def _get_file_storage():
     return _FileStorage
 
 
-def _get_supabase_storage():
-    """Lazy import of SupabaseStorage to avoid errors if not available."""
-    global _SupabaseStorage
-    if _SupabaseStorage is None:
-        try:
-            from .supabase_storage import SupabaseStorage
-            _SupabaseStorage = SupabaseStorage
-        except ImportError as e:
-            logger.error(f"Supabase storage not available: {e}")
-            raise
-    return _SupabaseStorage
-
-
 class StorageFactory:
-    """Factory for creating session storage backends (file and database)."""
+    """Factory for creating session storage backends (file only)."""
     
     @staticmethod
     def create(storage_type: str = 'file', **kwargs) -> BaseStorage:
@@ -44,7 +30,7 @@ class StorageFactory:
         Create a storage backend instance.
         
         Args:
-            storage_type: Type of storage ('file', 'supabase')
+            storage_type: Type of storage ('file')
             **kwargs: Additional arguments for storage backend
             
         Returns:
@@ -60,11 +46,8 @@ class StorageFactory:
             if storage_type == 'file':
                 file_class = _get_file_storage()
                 return file_class(**kwargs)
-            elif storage_type == 'supabase':
-                supabase_class = _get_supabase_storage()
-                return supabase_class(**kwargs)
             else:
-                raise ValueError(f"Unknown storage type: {storage_type}. Supported types: 'file', 'supabase'")
+                raise ValueError(f"Unknown storage type: {storage_type}. Supported types: 'file'")
                 
         except Exception as e:
             logger.error(f"Failed to create {storage_type} storage: {e}")
@@ -84,13 +67,6 @@ class StorageFactory:
         try:
             _get_file_storage()
             backends.append('file')
-        except:
-            pass
-        
-        # Check if Supabase is available
-        try:
-            _get_supabase_storage()
-            backends.append('supabase')
         except:
             pass
         
