@@ -200,7 +200,7 @@ def _extract_from_partial_response(partial_response: str) -> dict:
                 # Add default parameters
                 command["params"]["intensity"] = 0.8
                 
-            elif command_type == "take_highresshot":
+            elif command_type == "take_screenshot":
                 # Extract resolution multiplier
                 res_match = re.search(r'"resolution_multiplier":\s*([0-9.]+)', partial_response)
                 if res_match:
@@ -299,7 +299,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         ai_response = provider.generate_response(
             messages=messages,
             system_prompt=system_prompt,
-            max_tokens=2048,  # Increased to handle longer responses
+            max_tokens=4096,  # Increased to handle longer responses
             temperature=0.1
         )
         logger.info(f"AI response from {provider.get_model_name()} for '{user_input}': {ai_response}")
@@ -460,7 +460,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
 **Rendering & Capture:**
-- Screenshots: take_highresshot (take new screenshot, returns image URL)
+- Screenshots: take_screenshot (take new screenshot, returns image URL)
 
 **AI Image Editing (Nano Banana):**
 - transform_image_style: Apply style to existing image (no new screenshot)

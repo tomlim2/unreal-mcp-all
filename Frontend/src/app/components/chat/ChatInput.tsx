@@ -86,6 +86,27 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 		}
 	};
 
+	const handleScreenshotClick = async () => {
+		if (isProcessing) return;
+		
+		setSubmitting(true);
+		setShowExamples(false);
+
+		try {
+			const data = await onSubmit("Take a screenshot", selectedLlm);
+			console.log("Screenshot Response:", data);
+			onRefreshContext();
+		} catch (err) {
+			console.error('Screenshot failed:', err);
+		} finally {
+			setSubmitting(false);
+			// Keep focus on textarea after command execution
+			if (textareaRef.current) {
+				textareaRef.current.focus();
+			}
+		}
+	};
+
 	const isProcessing = loading || submitting;
 	const canSubmit = prompt.trim() && !isProcessing;
 	
@@ -138,6 +159,26 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 							disabled={isProcessing}
 						/>
 						
+						{/* Screenshot button */}
+						<button
+							onClick={handleScreenshotClick}
+							disabled={isProcessing}
+							className={`${styles.screenshotButton} ${!isProcessing ? styles.screenshotButtonActive : ''}`}
+							type="button"
+							title="Take Screenshot"
+						>
+							{isProcessing ? (
+								<div className={styles.spinner} />
+							) : (
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+									<path
+										d="M9 2L7.17 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4H16.83L15 2H9ZM12 17C9.24 17 7 14.76 7 12S9.24 7 12 7S17 9.24 17 12S14.76 17 12 17ZM12 9C10.34 9 9 10.34 9 12S10.34 15 12 15S15 13.66 15 12S13.66 9 12 9Z"
+										fill="currentColor"
+									/>
+								</svg>
+							)}
+						</button>
+
 						{/* Send button */}
 						<button
 							onClick={() => handleSubmit()}

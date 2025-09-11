@@ -237,8 +237,7 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
                 ResultJson = ActorCommands->HandleCommand(CommandType, Params);
             }
             // Editor Commands
-            else if (CommandType == TEXT("focus_viewport") || 
-                     CommandType == TEXT("take_screenshot"))
+            else if (CommandType == TEXT("focus_viewport"))
             {
                 ResultJson = EditorCommands->HandleCommand(CommandType, Params);
             }
@@ -269,7 +268,7 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
             {
                 ResultJson = BlueprintNodeCommands->HandleCommand(CommandType, Params);
             }
-			else if (CommandType == TEXT("take_highresshot"))
+			else if (CommandType == TEXT("take_screenshot"))
 			{
 				ResultJson = RenderingCommands->HandleCommand(CommandType, Params);
 			}

@@ -9,6 +9,7 @@ import logging
 import os
 import asyncio
 import mimetypes
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
@@ -353,14 +354,38 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     
                     # Process with session-aware NLP
                     from tools.ai.nlp import process_natural_language
-                    result = process_natural_language(
-                        user_input, context, session_id, llm_model
-                    )
-                    
-                    # Send response back to frontend
-                    response_json = json.dumps(result)
-                    self.wfile.write(response_json.encode('utf-8'))
-                    return
+                    try:
+                        result = process_natural_language(
+                            user_input, context, session_id, llm_model
+                        )
+                        
+                        # Send response back to frontend
+                        response_json = json.dumps(result)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+                    except Exception as e:
+                        logger.error(f"Error in NLP processing: {e}")
+                        error_response = {
+                            "conversation_context": {
+                                "user_input": user_input,
+                                "timestamp": datetime.now().isoformat()
+                            },
+                            "ai_processing": {
+                                "explanation": "",
+                                "generated_commands": [],
+                                "expected_result": "",
+                                "processing_error": str(e),
+                                "fallback_used": False
+                            },
+                            "execution_results": [],
+                            "debug_notes": {
+                                "message_role": "error",
+                                "session_context": f"Session: {session_id}" if session_id else "No session"
+                            }
+                        }
+                        response_json = json.dumps(error_response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
                 else:
                     # No action matched and no prompt provided
                     if action:

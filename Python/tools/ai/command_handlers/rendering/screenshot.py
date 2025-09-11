@@ -19,7 +19,7 @@ class ScreenshotCommandHandler(BaseCommandHandler):
     """Handler for screenshot commands.
     
     Supported Commands:
-    - take_highresshot: Execute screenshot command
+    - take_screenshot: Execute screenshot command
     
     Input Constraints:
     - resolution_multiplier: Optional float (1.0-8.0), defaults to 1.0
@@ -30,13 +30,13 @@ class ScreenshotCommandHandler(BaseCommandHandler):
     """
     
     def get_supported_commands(self) -> List[str]:
-        return ["take_highresshot"]
+        return ["take_screenshot"]
     
     def validate_command(self, command_type: str, params: Dict[str, Any]) -> ValidatedCommand:
         """Validate screenshot commands with parameter checks."""
         errors = []
         
-        if command_type == "take_highresshot":
+        if command_type == "take_screenshot":
             # Validate optional parameters
             if "resolution_multiplier" in params:
                 multiplier = params["resolution_multiplier"]
@@ -60,14 +60,12 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         """Apply default values and normalize parameters."""
         processed = params.copy()
         
-        if command_type == "take_highresshot":
+        if command_type == "take_screenshot":
             # Apply defaults
             processed.setdefault("resolution_multiplier", 1.0)
             processed.setdefault("include_ui", False)
             
-            # Remove filename parameter - let Unreal handle naming
-            if "filename" in processed:
-                del processed["filename"]
+            # Keep filename parameter if provided - let C++ handle it
         
         return processed
     

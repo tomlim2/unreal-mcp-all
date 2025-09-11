@@ -147,6 +147,10 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         """Execute Nano Banana commands."""
         logger.info(f"Nano Banana Handler: Executing {command_type} with params: {params}")
         
+        # Translate style_prompt if it's in a non-English language
+        if "style_prompt" in params:
+            params["style_prompt"] = self._translate_style_prompt_if_needed(params["style_prompt"])
+        
         if command_type == "transform_image_style":
             return self._transform_existing_image(params)
         elif command_type == "take_styled_screenshot":
@@ -197,7 +201,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         
         # Take screenshot via Unreal connection
         logger.info("Taking screenshot before styling...")
-        response = connection.send_command("take_highresshot", screenshot_params)
+        response = connection.send_command("take_screenshot", screenshot_params)
         
         if response and response.get("status") == "error":
             raise Exception(response.get("error", "Unknown screenshot error"))
@@ -415,6 +419,41 @@ Keep the image recognizable but with clear stylistic changes. Generate the trans
         except Exception as e:
             logger.error(f"Error finding newest screenshot: {e}")
             return None
+    
+    def _translate_style_prompt_if_needed(self, style_prompt: str) -> str:
+        """Translate style prompt to English if it appears to be in another language."""
+        # Simple detection: if it contains non-ASCII characters, assume it needs translation
+        if any(ord(char) > 127 for char in style_prompt):
+            logger.info(f"Non-English style prompt detected: '{style_prompt}'")
+            
+            if not self._ensure_gemini_initialized():
+                logger.warning("Gemini not available for translation, using original prompt")
+                return style_prompt
+            
+            try:
+                # Use Gemini to translate the style prompt to English
+                translation_prompt = f"""Translate this image style description to English. 
+Only return the English translation, nothing else:
+
+{style_prompt}"""
+                
+                response = self._model.generate_content(translation_prompt)
+                
+                if response and response.text:
+                    translated = response.text.strip()
+                    logger.info(f"Translated style prompt: '{style_prompt}' -> '{translated}'")
+                    return translated
+                else:
+                    logger.warning("Translation failed, using original prompt")
+                    return style_prompt
+                    
+            except Exception as e:
+                logger.error(f"Translation error: {e}")
+                logger.info("Using original prompt due to translation failure")
+                return style_prompt
+        
+        # If it's already in English (ASCII characters only), return as-is
+        return style_prompt
     
     def _resolve_image_path(self, image_path_param: str) -> Optional[str]:
         """Resolve image path - handles both full paths and filenames from session context."""

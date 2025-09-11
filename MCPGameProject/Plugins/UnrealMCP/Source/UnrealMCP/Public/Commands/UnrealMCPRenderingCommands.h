@@ -14,7 +14,5 @@ public:
 
 private:
     // Screenshot command handlers
-    TSharedPtr<FJsonObject> HandleTakeShot(const TSharedPtr<FJsonObject>& Params);
-    TSharedPtr<FJsonObject> HandleTakeHighResShot(const TSharedPtr<FJsonObject>& Params);
-    TSharedPtr<FJsonObject> HandleQuickScreenshot(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleTakeScreenshot(const TSharedPtr<FJsonObject>& Params);
 };
