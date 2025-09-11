@@ -346,6 +346,15 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     logger.info(f"Executing command from NLP: {command}")
                     print(f"DEBUG: Executing command from NLP: {command}")
                     
+                    # Fix parameter names for image commands (AI sometimes uses image_url instead of image_path)
+                    if command.get("type") == "transform_image_style" and command.get("params"):
+                        params = command["params"]
+                        if "image_url" in params and "image_path" not in params:
+                            # Convert image_url to image_path
+                            params["image_path"] = _resolve_image_path(params["image_url"])
+                            del params["image_url"]
+                            logger.info(f"Converted image_url to image_path: {params['image_path']}")
+                    
                     # Session tracking is now handled by the simple command handlers
                     
                     # Commands are now validated by handler system in execute_command_direct
