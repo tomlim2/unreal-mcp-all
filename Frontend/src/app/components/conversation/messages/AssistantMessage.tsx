@@ -41,7 +41,7 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
   const [tokenInfo, setTokenInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const calculateCosts = (tokens: number, imageTokens: number, modelUsed?: string) => {
+  const calculateCosts = (tokens: number, imageTokens: number, modelUsed?: string, backendImageCost?: number) => {
     // Model-specific pricing (as of 2024)
     const MODEL_PRICING = {
       'gemini': {
@@ -78,7 +78,10 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
     const outputTokens = Math.floor(tokens * 0.3); // 30% output
 
     const nlpCost = (inputTokens * pricing.input) + (outputTokens * pricing.output);
-    const imageCost = imageTokens > 0 ? (imageTokens * GEMINI_IMAGE_GENERATION) : 0;
+    // Use backend-provided cost if available, otherwise fall back to frontend calculation
+    const imageCost = backendImageCost !== undefined && backendImageCost > 0 
+      ? backendImageCost 
+      : (imageTokens > 0 ? (imageTokens * GEMINI_IMAGE_GENERATION) : 0);
     
     return {
       nlp: nlpCost,
@@ -114,7 +117,7 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
         
         if (imageResults && (imageResults.result as any).image_metadata) {
           imageMetadata = (imageResults.result as any).image_metadata;
-          // Use actual token count from metadata
+          // Use actual token count from backend calculation
           imageTokenEstimate = imageMetadata.tokens || 900;
         } else {
           // Fallback to conservative estimate
@@ -123,7 +126,17 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       }
 
       // Calculate costs with model-specific pricing
-      const costs = calculateCosts(estimatedTokens, imageTokenEstimate, message.model_used);
+      // If backend provides cost calculation, use that for images; otherwise calculate
+      let backendImageCost = 0;
+      if (imageMetadata && imageMetadata.estimated_cost) {
+        // Parse cost from backend (format: "$0.003")
+        const costMatch = imageMetadata.estimated_cost.match(/\$(\d+\.?\d*)/);
+        if (costMatch) {
+          backendImageCost = parseFloat(costMatch[1]);
+        }
+      }
+      
+      const costs = calculateCosts(estimatedTokens, imageTokenEstimate, message.model_used, backendImageCost);
 
       // Check Nano Banana status
       let nanoBananaStatus = null;
@@ -181,57 +194,34 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
             onClick={() => {
               if (!tokenInfo || tokenInfo.error) return;
               
-              let analysisText = "# Token Analysis Report\n\n";
+              let analysisText = "# Token Analysis\n\n";
               
-              // Input text analysis
-              analysisText += `## Input Text\n`;
-              analysisText += `- Characters: ${tokenInfo.userInput.characters}\n`;
-              analysisText += `- Estimated Tokens: ${tokenInfo.userInput.estimatedTokens}\n`;
-              analysisText += `- Language: ${tokenInfo.userInput.language}\n\n`;
+              // Usage Summary
+              analysisText += `## Usage Summary\n`;
+              analysisText += `- Total Tokens: ${tokenInfo.totalEstimate.toLocaleString()}\n`;
+              analysisText += `- Total Cost: $${tokenInfo.costs.total.toFixed(6)}\n\n`;
               
-              // Image processing if present
+              // Breakdown by Category
+              analysisText += `## Breakdown by Category\n`;
+              analysisText += `1. **NLP (Text Processing)**\n`;
+              analysisText += `   - Tokens: ${tokenInfo.userInput.estimatedTokens}\n`;
+              analysisText += `   - Model: ${tokenInfo.costs.modelName}\n`;
+              analysisText += `   - Cost: $${tokenInfo.costs.nlp.toFixed(6)}\n\n`;
+              
               if (tokenInfo.imageProcessing.commandCount > 0) {
-                analysisText += `## Image Processing\n`;
-                analysisText += `- Commands: ${tokenInfo.imageProcessing.commandCount} (${tokenInfo.imageProcessing.commands.join(', ')})\n`;
-                analysisText += `- Estimated Tokens: ${tokenInfo.imageProcessing.estimatedTokens}\n\n`;
-                
-                // Image metadata if available
+                analysisText += `2. **Image (Visual Processing)**\n`;
+                analysisText += `   - Tokens: ${tokenInfo.imageProcessing.estimatedTokens.toLocaleString()}\n`;
+                analysisText += `   - Service: Nano Banana\n`;
                 if (tokenInfo.imageProcessing.metadata) {
                   const meta = tokenInfo.imageProcessing.metadata;
-                  analysisText += `## Image Metadata\n`;
-                  analysisText += `- Original Size: ${meta.original_size}\n`;
-                  analysisText += `- Processed Size: ${meta.processed_size}\n`;
-                  analysisText += `- File Size: ${meta.file_size}\n`;
-                  analysisText += `- Tokens: ${meta.tokens} (Base: 1290)\n`;
-                  analysisText += `- Processing Cost: ${meta.estimated_cost}\n\n`;
+                  analysisText += `   - Image Details: ${meta.processed_size || meta.original_size} • ${meta.file_size}\n`;
                 }
+                analysisText += `   - Cost: $${tokenInfo.costs.image.toFixed(6)}\n\n`;
               }
               
-              // Cost breakdown
-              analysisText += `## Cost Analysis\n`;
-              analysisText += `- Model Used: ${tokenInfo.costs.modelName}\n`;
-              analysisText += `- NLP Processing: $${tokenInfo.costs.nlp.toFixed(6)}\n`;
-              if (tokenInfo.costs.image > 0) {
-                analysisText += `- Image Processing: $${tokenInfo.costs.image.toFixed(6)}\n`;
-              }
-              analysisText += `- Total Cost: $${tokenInfo.costs.total.toFixed(6)}\n`;
-              analysisText += `- Total Tokens: ${tokenInfo.totalEstimate}\n\n`;
-              
-              // Nano Banana status
-              if (tokenInfo.nanoBanana) {
-                analysisText += `## Nano Banana Status\n`;
-                analysisText += `- Available: ${tokenInfo.nanoBanana.available ? 'Yes' : 'No'}\n`;
-                if (tokenInfo.nanoBanana.error) {
-                  analysisText += `- Error: ${tokenInfo.nanoBanana.error}\n`;
-                }
-                analysisText += `\n`;
-              }
-              
-              // Usage efficiency
+              // High usage warning
               if (tokenInfo.totalEstimate > 800) {
-                analysisText += `## Usage Notes\n`;
-                analysisText += `- High token usage detected (${tokenInfo.totalEstimate} tokens)\n`;
-                analysisText += `- May quickly consume daily quota on free tier\n`;
+                analysisText += `⚠️ High usage (${tokenInfo.totalEstimate} tokens) - may consume daily quota quickly\n\n`;
               }
               
               navigator.clipboard.writeText(analysisText);
@@ -248,66 +238,34 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
         <div className={styles.debugError}>Error: {tokenInfo.error}</div>
       ) : tokenInfo ? (
         <div className={styles.debugJson}>
+          {/* Usage Summary */}
           <div className={styles.debugMetric}>
-            <span className={styles.debugLabel}>Input Text:</span>
-            <span>{tokenInfo.userInput.characters} chars, ~{tokenInfo.userInput.estimatedTokens} tokens ({tokenInfo.userInput.language})</span>
+            <span className={styles.debugLabel}>Total Tokens:</span>
+            <span>{tokenInfo.totalEstimate.toLocaleString()}</span>
+          </div>
+          <div className={styles.debugMetric}>
+            <span className={styles.debugLabel}>Total Cost:</span>
+            <span className={styles.totalCost}>${tokenInfo.costs?.total.toFixed(6) || '0.000000'}</span>
+          </div>
+          
+          {/* Breakdown by Category */}
+          <div className={styles.debugMetric}>
+            <span className={styles.debugLabel}>1. NLP (Text Processing):</span>
+            <span>{tokenInfo.userInput.estimatedTokens} tokens • {tokenInfo.costs?.modelName || 'Unknown'} • ${tokenInfo.costs?.nlp.toFixed(6) || '0.000000'}</span>
           </div>
           
           {tokenInfo.imageProcessing.commandCount > 0 && (
             <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>Image Processing:</span>
-              <span>{tokenInfo.imageProcessing.commandCount} commands, ~{tokenInfo.imageProcessing.estimatedTokens} tokens</span>
-            </div>
-          )}
-          
-          {tokenInfo.imageProcessing.metadata && (
-            <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>Image Metadata</span>
-              <div className={styles.imageMetadataTable}>
-                <div className={styles.metadataRow}>
-                  <span className={styles.metadataLabel}>Original:</span>
-                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.original_size}</span>
-                </div>
-                <div className={styles.metadataRow}>
-                  <span className={styles.metadataLabel}>Processed:</span>
-                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.processed_size}</span>
-                </div>
-                <div className={styles.metadataRow}>
-                  <span className={styles.metadataLabel}>File Size:</span>
-                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.file_size}</span>
-                </div>
-                <div className={styles.metadataRow}>
-                  <span className={styles.metadataLabel}>Tokens:</span>
-                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.tokens} (Base: 1290)</span>
-                </div>
-                <div className={styles.metadataRow}>
-                  <span className={styles.metadataLabel}>Cost:</span>
-                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.estimated_cost}</span>
-                </div>
+              <span className={styles.debugLabel}>2. Image (Visual Processing):</span>
+              <div>
+                <div>{tokenInfo.imageProcessing.estimatedTokens.toLocaleString()} tokens • Nano Banana • ${tokenInfo.costs?.image.toFixed(6) || '0.000000'}</div>
+                {tokenInfo.imageProcessing.metadata && (
+                  <div style={{fontSize: '0.9em', color: '#666', marginTop: '2px'}}>
+                    {tokenInfo.imageProcessing.metadata.processed_size || tokenInfo.imageProcessing.metadata.original_size} • {tokenInfo.imageProcessing.metadata.file_size}
+                  </div>
+                )}
               </div>
             </div>
-          )}
-          
-          <div className={styles.debugMetric}>
-            <span className={styles.debugLabel}>Total Estimate:</span>
-            <span className={tokenInfo.totalEstimate > 500 ? styles.highUsage : styles.normalUsage}>
-              ~{tokenInfo.totalEstimate} tokens
-            </span>
-          </div>
-
-          {tokenInfo.costs && (
-            <>
-              <div className={styles.debugMetric}>
-                <span className={styles.debugLabel}>Cost Breakdown:</span>
-                <div className={styles.costBreakdown}>
-                  <div>{tokenInfo.costs.modelName} (NLP): ${tokenInfo.costs.nlp.toFixed(6)}</div>
-                  {tokenInfo.costs.image > 0 && (
-                    <div>Gemini (Images): ${tokenInfo.costs.image.toFixed(6)}</div>
-                  )}
-                  <div className={styles.totalCost}>Total: ${tokenInfo.costs.total.toFixed(6)}</div>
-                </div>
-              </div>
-            </>
           )}
 
           {tokenInfo.nanoBanana && (

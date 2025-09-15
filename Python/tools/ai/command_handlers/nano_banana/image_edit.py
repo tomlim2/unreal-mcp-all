@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
+from ...pricing_manager import get_pricing_manager
 
 try:
     from PIL import Image
@@ -85,14 +86,16 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     def get_supported_commands(self) -> List[str]:
         return ["transform_image_style", "take_styled_screenshot"]
     
-    def _extract_image_metadata(self, image_path: str, resolution_multiplier: float = 1.0) -> Dict[str, Any]:
-        """Extract image metadata with tile-based token calculation."""
+    def _extract_image_metadata(self, image_path: str, resolution_multiplier: float = 1.0, model: str = "gemini-2") -> Dict[str, Any]:
+        """Extract image metadata with accurate Google tile-based token calculation."""
         metadata = {
             "width": 0,
             "height": 0,
             "file_size_mb": 0.0,
             "tokens": 0,
-            "estimated_cost": "$0.000"
+            "estimated_cost": "$0.000",
+            "resolution_multiplier": resolution_multiplier,
+            "model": model
         }
         
         try:
@@ -102,21 +105,37 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 file_size_bytes = file_path.stat().st_size
                 metadata["file_size_mb"] = round(file_size_bytes / (1024 * 1024), 1)
             
-            # Extract image dimensions using PIL if available
+            # Extract image dimensions and calculate tokens using PIL if available
             if PIL_AVAILABLE:
+                pricing_manager = get_pricing_manager()
+                
                 with Image.open(image_path) as img:
                     metadata["width"] = img.width
                     metadata["height"] = img.height
                     
-                    # Tile-based token calculation
-                    tiles_x = math.ceil(img.width / 1024)
-                    tiles_y = math.ceil(img.height / 1024)
-                    tokens = int(tiles_x * tiles_y * 1290 * resolution_multiplier)
+                    # Use accurate Google tile-based calculation from pricing manager
+                    tokens = pricing_manager.calculate_image_tokens(
+                        img.width, img.height, resolution_multiplier
+                    )
                     metadata["tokens"] = tokens
                     
-                    # Calculate cost at $30 per 1M tokens (2025 Gemini pricing)
-                    cost = tokens * 30.0 / 1000000
+                    # Calculate cost using pricing config
+                    cost = pricing_manager.calculate_token_cost(tokens, model, "image_processing")
                     metadata["estimated_cost"] = f"${cost:.3f}"
+                    
+                    # Add debug info for tile calculation
+                    if img.width <= 384 and img.height <= 384:
+                        metadata["calculation_method"] = "small_image_flat_rate"
+                        metadata["tile_count"] = 1
+                    else:
+                        effective_width = int(img.width * resolution_multiplier)
+                        effective_height = int(img.height * resolution_multiplier)
+                        tiles_x = math.ceil(effective_width / 768)
+                        tiles_y = math.ceil(effective_height / 768)
+                        metadata["calculation_method"] = "tile_based"
+                        metadata["tile_count"] = tiles_x * tiles_y
+                        metadata["tiles_x"] = tiles_x
+                        metadata["tiles_y"] = tiles_y
             
         except Exception as e:
             logger.warning(f"Failed to extract image metadata from {image_path}: {e}")
@@ -224,8 +243,9 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             filename = Path(styled_image_path).name
             
             # Extract metadata for both images
-            original_metadata = self._extract_image_metadata(resolved_image_path)
-            styled_metadata = self._extract_image_metadata(styled_image_path)
+            model = params.get("model", "gemini-2")  # Get model from params or default
+            original_metadata = self._extract_image_metadata(resolved_image_path, model=model)
+            styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
             
             return {
                 "success": True,
@@ -285,8 +305,9 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             
             # Extract metadata for both images
             resolution_multiplier = params["resolution_multiplier"]
-            original_metadata = self._extract_image_metadata(str(screenshot_path))
-            styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier)
+            model = params.get("model", "gemini-2")  # Get model from params or default
+            original_metadata = self._extract_image_metadata(str(screenshot_path), model=model)
+            styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier, model)
             
             return {
                 "success": True,

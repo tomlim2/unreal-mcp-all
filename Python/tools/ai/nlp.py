@@ -319,7 +319,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                 }
         
         # Determine if this is a style request for preprocessing
-        is_style_request = any(keyword in user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it'])
+        is_style_request = any(keyword in user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it', 'nano banana', 'nano-banana'])
         
         # Build system prompt with session context
         system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context, is_style_request)
@@ -534,6 +534,8 @@ Your role is to provide intuitive creative control by translating natural langua
 - transform_image_style: Apply style to existing image (no new screenshot)
 - take_styled_screenshot: Take new screenshot AND apply style transformation
 
+**Image Processing Keywords:** When users mention "nano banana", "style", "transform", "cyberpunk", "anime", "watercolor", or similar visual style terms, they want image processing operations.
+
 ## PARAMETER VALIDATION RULES
 **Essential Parameters:**
 - time_of_day: HHMM format (e.g., 600=6AM, 1800=6PM)
@@ -556,6 +558,12 @@ Your role is to provide intuitive creative control by translating natural langua
 **Time**: sunrise=600, sunset=1800, noon=1200
 **Colors**: red={{"r":255,"g":0,"b":0}}, white={{"r":255,"g":255,"b":255}}
 **Locations**: SF(37.7749,-122.4194), Tokyo(35.6804,139.6917)
+
+**Nano Banana Examples:**
+- "Use nano banana to make it cyberpunk" → transform_image_style with cyberpunk style
+- "Apply nano banana anime style" → transform_image_style with anime aesthetic  
+- "Nano banana this image watercolor" → transform_image_style with watercolor effect
+- "Take screenshot with nano banana punk style" → take_styled_screenshot
 
 Return valid JSON only."""
 
