@@ -687,55 +687,11 @@
 }
 
 /* Debug Analysis Panels */
-.debugAnalysisPanel {
-  background: #1a1a1a;
-  border: 1px solid #333333;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-
-.debugPanelHeader {
+/* Button group for debug headers */
+.buttonGroup {
   display: flex;
-  justify-content: space-between;
+  gap: 8px;
   align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #333333;
-  background: #252525;
-  border-radius: 6px 6px 0 0;
-}
-
-.debugPanelHeader strong {
-  color: #ffffff;
-  font-size: 0.875rem;
-}
-
-.refreshButton {
-  background: transparent;
-  border: 1px solid #666666;
-  color: #cccccc;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  transition: all 0.2s ease;
-}
-
-.refreshButton:hover:not(:disabled) {
-  background: #333333;
-  border-color: #888888;
-}
-
-.refreshButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.debugPanelContent {
-  padding: 0.75rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
 }
 
 .debugMetric {

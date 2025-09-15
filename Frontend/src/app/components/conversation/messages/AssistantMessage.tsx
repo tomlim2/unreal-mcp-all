@@ -66,9 +66,8 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       }
     };
 
-    // Image processing pricing (Gemini only)
-    const GEMINI_IMAGE_INPUT = 0.0025 / 1000;     // $2.50 per 1M tokens (image analysis)
-    const GEMINI_IMAGE_OUTPUT = 0.01 / 1000;      // $10.00 per 1M tokens (image generation)
+    // Image processing pricing (Gemini image generation - 2025 pricing)
+    const GEMINI_IMAGE_GENERATION = 0.03 / 1000;  // $30.00 per 1M tokens (image generation)
 
     // Get model pricing, default to gemini-2 if unknown
     const modelKey = modelUsed || 'gemini-2';
@@ -79,7 +78,7 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
     const outputTokens = Math.floor(tokens * 0.3); // 30% output
 
     const nlpCost = (inputTokens * pricing.input) + (outputTokens * pricing.output);
-    const imageCost = imageTokens > 0 ? (imageTokens * GEMINI_IMAGE_INPUT) + (imageTokens * 0.5 * GEMINI_IMAGE_OUTPUT) : 0;
+    const imageCost = imageTokens > 0 ? (imageTokens * GEMINI_IMAGE_GENERATION) : 0;
     
     return {
       nlp: nlpCost,
@@ -171,18 +170,84 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
   if (!tokenInfo && !loading) return null;
 
   return (
-    <div className={styles.debugAnalysisPanel}>
-      <div className={styles.debugPanelHeader}>
-        <strong>Token Analysis</strong>
-        <button onClick={analyzeTokens} disabled={loading} className={styles.refreshButton}>
-          {loading ? '⟳' : '↻'} Refresh
-        </button>
+    <div className={styles.debugBlock}>
+      <div className={styles.debugHeader}>
+        <strong>TOKEN ANALYSIS</strong>
+        <div className={styles.buttonGroup}>
+          <button onClick={analyzeTokens} disabled={loading} className={styles.copyButton}>
+            {loading ? '⟳' : '↻'} Refresh
+          </button>
+          <button 
+            onClick={() => {
+              if (!tokenInfo || tokenInfo.error) return;
+              
+              let analysisText = "# Token Analysis Report\n\n";
+              
+              // Input text analysis
+              analysisText += `## Input Text\n`;
+              analysisText += `- Characters: ${tokenInfo.userInput.characters}\n`;
+              analysisText += `- Estimated Tokens: ${tokenInfo.userInput.estimatedTokens}\n`;
+              analysisText += `- Language: ${tokenInfo.userInput.language}\n\n`;
+              
+              // Image processing if present
+              if (tokenInfo.imageProcessing.commandCount > 0) {
+                analysisText += `## Image Processing\n`;
+                analysisText += `- Commands: ${tokenInfo.imageProcessing.commandCount} (${tokenInfo.imageProcessing.commands.join(', ')})\n`;
+                analysisText += `- Estimated Tokens: ${tokenInfo.imageProcessing.estimatedTokens}\n\n`;
+                
+                // Image metadata if available
+                if (tokenInfo.imageProcessing.metadata) {
+                  const meta = tokenInfo.imageProcessing.metadata;
+                  analysisText += `## Image Metadata\n`;
+                  analysisText += `- Original Size: ${meta.original_size}\n`;
+                  analysisText += `- Processed Size: ${meta.processed_size}\n`;
+                  analysisText += `- File Size: ${meta.file_size}\n`;
+                  analysisText += `- Tokens: ${meta.tokens} (Base: 1290)\n`;
+                  analysisText += `- Processing Cost: ${meta.estimated_cost}\n\n`;
+                }
+              }
+              
+              // Cost breakdown
+              analysisText += `## Cost Analysis\n`;
+              analysisText += `- Model Used: ${tokenInfo.costs.modelName}\n`;
+              analysisText += `- NLP Processing: $${tokenInfo.costs.nlp.toFixed(6)}\n`;
+              if (tokenInfo.costs.image > 0) {
+                analysisText += `- Image Processing: $${tokenInfo.costs.image.toFixed(6)}\n`;
+              }
+              analysisText += `- Total Cost: $${tokenInfo.costs.total.toFixed(6)}\n`;
+              analysisText += `- Total Tokens: ${tokenInfo.totalEstimate}\n\n`;
+              
+              // Nano Banana status
+              if (tokenInfo.nanoBanana) {
+                analysisText += `## Nano Banana Status\n`;
+                analysisText += `- Available: ${tokenInfo.nanoBanana.available ? 'Yes' : 'No'}\n`;
+                if (tokenInfo.nanoBanana.error) {
+                  analysisText += `- Error: ${tokenInfo.nanoBanana.error}\n`;
+                }
+                analysisText += `\n`;
+              }
+              
+              // Usage efficiency
+              if (tokenInfo.totalEstimate > 800) {
+                analysisText += `## Usage Notes\n`;
+                analysisText += `- High token usage detected (${tokenInfo.totalEstimate} tokens)\n`;
+                analysisText += `- May quickly consume daily quota on free tier\n`;
+              }
+              
+              navigator.clipboard.writeText(analysisText);
+            }}
+            className={styles.copyButton}
+            disabled={!tokenInfo || tokenInfo.error}
+          >
+            Copy Analysis
+          </button>
+        </div>
       </div>
       
       {tokenInfo?.error ? (
         <div className={styles.debugError}>Error: {tokenInfo.error}</div>
       ) : tokenInfo ? (
-        <div className={styles.debugPanelContent}>
+        <div className={styles.debugJson}>
           <div className={styles.debugMetric}>
             <span className={styles.debugLabel}>Input Text:</span>
             <span>{tokenInfo.userInput.characters} chars, ~{tokenInfo.userInput.estimatedTokens} tokens ({tokenInfo.userInput.language})</span>
