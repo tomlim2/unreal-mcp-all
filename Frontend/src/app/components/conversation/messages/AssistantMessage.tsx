@@ -259,11 +259,6 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
               <span className={styles.debugLabel}>2. Image (Visual Processing):</span>
               <div>
                 <div>{tokenInfo.imageProcessing.estimatedTokens.toLocaleString()} tokens • Nano Banana • ${tokenInfo.costs?.image.toFixed(6) || '0.000000'}</div>
-                {tokenInfo.imageProcessing.metadata && (
-                  <div style={{fontSize: '0.9em', color: '#666', marginTop: '2px'}}>
-                    {tokenInfo.imageProcessing.metadata.processed_size || tokenInfo.imageProcessing.metadata.original_size} • {tokenInfo.imageProcessing.metadata.file_size}
-                  </div>
-                )}
               </div>
             </div>
           )}
