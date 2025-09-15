@@ -26,6 +26,7 @@ interface ChatMessage {
   expectedResult?: string;
   error?: string;
   fallback?: boolean;
+  model_used?: string; // Track which model was used for this message
 }
 
 interface AssistantMessageProps {
@@ -39,6 +40,54 @@ interface AssistantMessageProps {
 function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
   const [tokenInfo, setTokenInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  const calculateCosts = (tokens: number, imageTokens: number, modelUsed?: string) => {
+    // Model-specific pricing (as of 2024)
+    const MODEL_PRICING = {
+      'gemini': {
+        input: 0.000075 / 1000,   // $0.075 per 1M tokens (Gemini-1.5-Flash)
+        output: 0.0003 / 1000,    // $0.30 per 1M tokens
+        name: 'Gemini-1.5-Flash'
+      },
+      'gemini-2': {
+        input: 0.000075 / 1000,   // $0.075 per 1M tokens (Gemini-2.5-Flash)  
+        output: 0.0003 / 1000,    // $0.30 per 1M tokens
+        name: 'Gemini-2.5-Flash'
+      },
+      'claude': {
+        input: 0.003 / 1000,      // $3.00 per 1M tokens (Claude-3-Sonnet)
+        output: 0.015 / 1000,     // $15.00 per 1M tokens
+        name: 'Claude-3-Sonnet'
+      },
+      'claude-3-haiku-20240307': {
+        input: 0.00025 / 1000,    // $0.25 per 1M tokens (Claude-3-Haiku)
+        output: 0.00125 / 1000,   // $1.25 per 1M tokens
+        name: 'Claude-3-Haiku'
+      }
+    };
+
+    // Image processing pricing (Gemini only)
+    const GEMINI_IMAGE_INPUT = 0.0025 / 1000;     // $2.50 per 1M tokens (image analysis)
+    const GEMINI_IMAGE_OUTPUT = 0.01 / 1000;      // $10.00 per 1M tokens (image generation)
+
+    // Get model pricing, default to gemini-2 if unknown
+    const modelKey = modelUsed || 'gemini-2';
+    const pricing = MODEL_PRICING[modelKey] || MODEL_PRICING['gemini-2'];
+
+    // Estimate input/output split (rough approximation)
+    const inputTokens = Math.ceil(tokens * 0.7); // 70% input
+    const outputTokens = Math.floor(tokens * 0.3); // 30% output
+
+    const nlpCost = (inputTokens * pricing.input) + (outputTokens * pricing.output);
+    const imageCost = imageTokens > 0 ? (imageTokens * GEMINI_IMAGE_INPUT) + (imageTokens * 0.5 * GEMINI_IMAGE_OUTPUT) : 0;
+    
+    return {
+      nlp: nlpCost,
+      image: imageCost,
+      total: nlpCost + imageCost,
+      modelName: pricing.name
+    };
+  };
 
   const analyzeTokens = async () => {
     setLoading(true);
@@ -55,10 +104,27 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       );
       
       let imageTokenEstimate = 0;
+      let imageMetadata = null;
+      
       if (imageCommands.length > 0) {
-        // Image generation prompts typically use 800-1000+ tokens
-        imageTokenEstimate = imageCommands.length * 900; // Conservative estimate
+        // Look for actual image metadata in execution results
+        const imageResults = (message.execution_results || []).find(result => 
+          result.result && typeof result.result === 'object' && 
+          (result.result as any).image_metadata
+        );
+        
+        if (imageResults && (imageResults.result as any).image_metadata) {
+          imageMetadata = (imageResults.result as any).image_metadata;
+          // Use actual token count from metadata
+          imageTokenEstimate = imageMetadata.tokens || 900;
+        } else {
+          // Fallback to conservative estimate
+          imageTokenEstimate = imageCommands.length * 900;
+        }
       }
+
+      // Calculate costs with model-specific pricing
+      const costs = calculateCosts(estimatedTokens, imageTokenEstimate, message.model_used);
 
       // Check Nano Banana status
       let nanoBananaStatus = null;
@@ -83,9 +149,11 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
         imageProcessing: {
           commandCount: imageCommands.length,
           estimatedTokens: imageTokenEstimate,
-          commands: imageCommands.map(cmd => cmd.type)
+          commands: imageCommands.map(cmd => cmd.type),
+          metadata: imageMetadata
         },
         totalEstimate: estimatedTokens + imageTokenEstimate,
+        costs: costs,
         nanoBanana: nanoBananaStatus?.nano_banana || null
       });
     } catch (error) {
@@ -127,12 +195,55 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
             </div>
           )}
           
+          {tokenInfo.imageProcessing.metadata && (
+            <div className={styles.debugMetric}>
+              <span className={styles.debugLabel}>Image Metadata</span>
+              <div className={styles.imageMetadataTable}>
+                <div className={styles.metadataRow}>
+                  <span className={styles.metadataLabel}>Original:</span>
+                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.original_size}</span>
+                </div>
+                <div className={styles.metadataRow}>
+                  <span className={styles.metadataLabel}>Processed:</span>
+                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.processed_size}</span>
+                </div>
+                <div className={styles.metadataRow}>
+                  <span className={styles.metadataLabel}>File Size:</span>
+                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.file_size}</span>
+                </div>
+                <div className={styles.metadataRow}>
+                  <span className={styles.metadataLabel}>Tokens:</span>
+                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.tokens} (Base: 1290)</span>
+                </div>
+                <div className={styles.metadataRow}>
+                  <span className={styles.metadataLabel}>Cost:</span>
+                  <span className={styles.metadataValue}>{tokenInfo.imageProcessing.metadata.estimated_cost}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className={styles.debugMetric}>
             <span className={styles.debugLabel}>Total Estimate:</span>
             <span className={tokenInfo.totalEstimate > 500 ? styles.highUsage : styles.normalUsage}>
               ~{tokenInfo.totalEstimate} tokens
             </span>
           </div>
+
+          {tokenInfo.costs && (
+            <>
+              <div className={styles.debugMetric}>
+                <span className={styles.debugLabel}>Cost Breakdown:</span>
+                <div className={styles.costBreakdown}>
+                  <div>{tokenInfo.costs.modelName} (NLP): ${tokenInfo.costs.nlp.toFixed(6)}</div>
+                  {tokenInfo.costs.image > 0 && (
+                    <div>Gemini (Images): ${tokenInfo.costs.image.toFixed(6)}</div>
+                  )}
+                  <div className={styles.totalCost}>Total: ${tokenInfo.costs.total.toFixed(6)}</div>
+                </div>
+              </div>
+            </>
+          )}
 
           {tokenInfo.nanoBanana && (
             <div className={styles.debugMetric}>
@@ -147,6 +258,12 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
           {tokenInfo.totalEstimate > 800 && (
             <div className={styles.debugTip}>
               High token usage - may quickly consume daily quota on free tier
+            </div>
+          )}
+
+          {tokenInfo.costs && tokenInfo.costs.total > 0.001 && (
+            <div className={styles.debugTip}>
+              Cost per interaction: ${tokenInfo.costs.total.toFixed(6)} (~${(tokenInfo.costs.total * 1000).toFixed(3)} per 1000 interactions)
             </div>
           )}
         </div>

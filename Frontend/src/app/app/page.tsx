@@ -63,6 +63,7 @@ export default function AppHome() {
         llmFromDb="gemini-2"
         onSubmit={handleChatSubmit}
         onRefreshContext={refreshContext}
+        allowModelSwitching={true}
       />
     </>
   );

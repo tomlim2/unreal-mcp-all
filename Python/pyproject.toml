@@ -13,6 +13,7 @@ dependencies = [
   "requests",
   "anthropic>=0.59.0",
   "google-generativeai>=0.3.0",
+  "pillow>=11.3.0",
 ]
 
 [build-system]

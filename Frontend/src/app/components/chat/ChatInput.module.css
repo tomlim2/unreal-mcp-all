@@ -49,6 +49,13 @@
   cursor: not-allowed;
 }
 
+.modelSelectDisabled {
+  background-color: #1a1a1a !important;
+  color: #666666 !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
+
 /* Main Input Container */
 .inputContainer {
   display: flex;

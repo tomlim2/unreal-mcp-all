@@ -10,6 +10,7 @@ interface ChatInputProps {
 	llmFromDb: 'gemini' | 'gemini-2' | 'claude';
 	onSubmit: (prompt: string, model?: string) => Promise<unknown>;
 	onRefreshContext: () => void;
+	allowModelSwitching?: boolean; // New prop to control model switcher
 }
 
 export interface ChatInputHandle {
@@ -23,6 +24,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	llmFromDb,
 	onSubmit,
 	onRefreshContext,
+	allowModelSwitching = true, // Default to true for backward compatibility
 }, ref) => {
 	const [prompt, setPrompt] = useState("");
 	const [submitting, setSubmitting] = useState(false);
@@ -214,9 +216,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 						
 						<select
 							value={selectedLlm}
-							onChange={(e) => setSelectedLlm(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
-							className={styles.modelSelect}
-							disabled={isProcessing}
+							onChange={(e) => allowModelSwitching && setSelectedLlm(e.target.value as 'gemini' | 'gemini-2' | 'claude')}
+							className={`${styles.modelSelect} ${!allowModelSwitching ? styles.modelSelectDisabled : ''}`}
+							disabled={isProcessing || !allowModelSwitching}
 						>
 							<option value="gemini">Gemini 1.5 Flash</option>
 							<option value="gemini-2">Gemini 2.5 Flash</option>

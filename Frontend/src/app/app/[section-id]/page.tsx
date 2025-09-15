@@ -44,6 +44,7 @@ export default function SectionPage({
         llmFromDb={messageInfo?.llm_model || 'gemini-2'}
         onSubmit={handleChatSubmit}
         onRefreshContext={refreshContext}
+        allowModelSwitching={false}
       />
     </>
   );

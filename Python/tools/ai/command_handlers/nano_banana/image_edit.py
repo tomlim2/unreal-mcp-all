@@ -8,10 +8,18 @@ import logging
 import os
 import base64
 import time
+import math
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    logging.warning("PIL/Pillow not available - image metadata extraction disabled")
 
 logger = logging.getLogger("UnrealMCP")
 
@@ -76,6 +84,44 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     
     def get_supported_commands(self) -> List[str]:
         return ["transform_image_style", "take_styled_screenshot"]
+    
+    def _extract_image_metadata(self, image_path: str, resolution_multiplier: float = 1.0) -> Dict[str, Any]:
+        """Extract image metadata with tile-based token calculation."""
+        metadata = {
+            "width": 0,
+            "height": 0,
+            "file_size_mb": 0.0,
+            "tokens": 0,
+            "estimated_cost": "$0.000"
+        }
+        
+        try:
+            # Get file size
+            file_path = Path(image_path)
+            if file_path.exists():
+                file_size_bytes = file_path.stat().st_size
+                metadata["file_size_mb"] = round(file_size_bytes / (1024 * 1024), 1)
+            
+            # Extract image dimensions using PIL if available
+            if PIL_AVAILABLE:
+                with Image.open(image_path) as img:
+                    metadata["width"] = img.width
+                    metadata["height"] = img.height
+                    
+                    # Tile-based token calculation
+                    tiles_x = math.ceil(img.width / 1024)
+                    tiles_y = math.ceil(img.height / 1024)
+                    tokens = int(tiles_x * tiles_y * 1290 * resolution_multiplier)
+                    metadata["tokens"] = tokens
+                    
+                    # Calculate cost at $30 per 1M tokens (2025 Gemini pricing)
+                    cost = tokens * 30.0 / 1000000
+                    metadata["estimated_cost"] = f"${cost:.3f}"
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract image metadata from {image_path}: {e}")
+        
+        return metadata
     
     def validate_command(self, command_type: str, params: Dict[str, Any]) -> ValidatedCommand:
         """Validate Nano Banana commands with parameter checks."""
@@ -176,6 +222,11 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         
         if styled_image_path:
             filename = Path(styled_image_path).name
+            
+            # Extract metadata for both images
+            original_metadata = self._extract_image_metadata(resolved_image_path)
+            styled_metadata = self._extract_image_metadata(styled_image_path)
+            
             return {
                 "success": True,
                 "message": f"Image styled successfully: {filename}",
@@ -183,7 +234,15 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 "styled_image_path": styled_image_path,
                 "style_prompt": style_prompt,
                 "intensity": intensity,
-                "image_url": f"/api/screenshot-file/{filename}"
+                "image_url": f"/api/screenshot-file/{filename}",
+                "image_metadata": {
+                    "original_size": f"{original_metadata['width']}x{original_metadata['height']}",
+                    "processed_size": f"{styled_metadata['width']}x{styled_metadata['height']}",
+                    "file_size": f"{styled_metadata['file_size_mb']} MB",
+                    "resolution_multiplier": 1.0,
+                    "tokens": styled_metadata['tokens'],
+                    "estimated_cost": styled_metadata['estimated_cost']
+                }
             }
         else:
             raise Exception("Failed to apply style transformation")
@@ -223,6 +282,12 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         
         if styled_image_path:
             filename = Path(styled_image_path).name
+            
+            # Extract metadata for both images
+            resolution_multiplier = params["resolution_multiplier"]
+            original_metadata = self._extract_image_metadata(str(screenshot_path))
+            styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier)
+            
             return {
                 "success": True,
                 "message": f"Screenshot taken and styled: {filename}",
@@ -230,7 +295,15 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 "styled_image_path": styled_image_path,
                 "style_prompt": style_prompt,
                 "intensity": intensity,
-                "image_url": f"/api/screenshot-file/{filename}"
+                "image_url": f"/api/screenshot-file/{filename}",
+                "image_metadata": {
+                    "original_size": f"{original_metadata['width']}x{original_metadata['height']}",
+                    "processed_size": f"{styled_metadata['width']}x{styled_metadata['height']} ({resolution_multiplier}x)",
+                    "file_size": f"{styled_metadata['file_size_mb']} MB",
+                    "resolution_multiplier": resolution_multiplier,
+                    "tokens": styled_metadata['tokens'],
+                    "estimated_cost": styled_metadata['estimated_cost']
+                }
             }
         else:
             raise Exception("Screenshot taken but style transformation failed")

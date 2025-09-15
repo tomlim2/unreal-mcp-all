@@ -314,7 +314,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     "error": f"No AI models available. Configure ANTHROPIC_API_KEY or GOOGLE_API_KEY",
                     "explanation": "Natural language processing unavailable",
                     "commands": [],
-                    "executionResults": []
+                    "executionResults": [],
+                    "modelUsed": "none"
                 }
         
         # Determine if this is a style request for preprocessing
@@ -447,7 +448,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             "explanation": parsed_response.get("explanation", "Processed your request"),
             "commands": parsed_response.get("commands", []),
             "expectedResult": parsed_response.get("expectedResult", "Commands executed"),
-            "executionResults": execution_results
+            "executionResults": execution_results,
+            "modelUsed": selected_model  # Include which model was used for cost tracking
         }
         
         # Update session with this interaction and model preference if session_id provided
@@ -456,31 +458,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             session_manager.add_interaction(session_id, user_input, result)
             logger.debug(f"Updated session {session_id} with interaction")
             
-            # Then update preferred model if explicitly provided (after interaction is saved)
-            if llm_model:
-                current_model = session_context.get_llm_model()
-                logger.info(f"Current model: {current_model}, Requested model: {llm_model}")
-                
-                if llm_model != current_model:
-                    try:
-                        # Get fresh session context after interaction was added
-                        updated_session = session_manager.get_session(session_id)
-                        if updated_session:
-                            logger.info(f"Updating model from {updated_session.get_llm_model()} to {llm_model}")
-                            updated_session.set_llm_model(llm_model)
-                            success = session_manager.update_session(updated_session)
-                            logger.info(f"Updated preferred model for session {session_id} to {llm_model}, success: {success}")
-                            
-                            # Verify the update
-                            verification_session = session_manager.get_session(session_id)
-                            if verification_session:
-                                logger.info(f"Verification: model is now {verification_session.get_llm_model()}")
-                        else:
-                            logger.warning(f"Could not retrieve session {session_id} for model update")
-                    except Exception as save_error:
-                        logger.error(f"Error saving model preference: {save_error}")
-                else:
-                    logger.info(f"Model already set to {llm_model}, no update needed")
+            # Note: Removed session-locked LLM model restriction - models can now be switched per request
         
         return result
     except Exception as e:
@@ -489,7 +467,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             "error": str(e),
             "explanation": "An error occurred while processing your request",
             "commands": [],
-            "executionResults": []
+            "executionResults": [],
+            "modelUsed": selected_model if 'selected_model' in locals() else "unknown"
         }
 
 def register_nlp_tools(mcp: FastMCP):
@@ -507,7 +486,8 @@ def process_natural_language(user_input: str, context: str = None, session_id: s
             "error": str(e),
             "explanation": "An error occurred while processing your request",
             "commands": [],
-            "executionResults": []
+            "executionResults": [],
+            "modelUsed": selected_model if 'selected_model' in locals() else "unknown"
         }
 
 def build_system_prompt_with_session(context: str, session_context: SessionContext = None, is_style_request: bool = False) -> str:
