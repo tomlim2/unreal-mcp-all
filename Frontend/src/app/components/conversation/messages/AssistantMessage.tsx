@@ -464,12 +464,59 @@ export default function AssistantMessage({ message, sessionName, keyPrefix, sess
                     <div className={styles.debugBlock}>
                       <div className={styles.debugLabel}>EXECUTION RESULTS:</div>
                       <div className={styles.debugJson}>
-{JSON.stringify(message.execution_results.map(result => ({
-  command_type: result.command,
-  success: result.success,
-  result_data: result.result || null,
-  error_message: result.error || null
-})), null, 2)}
+{JSON.stringify(message.execution_results.map(result => {
+  const baseResult = {
+    command_type: result.command,
+    success: result.success,
+    error_message: result.error || null
+  };
+  
+  // Enhanced display for image-related commands
+  if (result.result && typeof result.result === 'object') {
+    const resultData = result.result as any;
+    
+    // Handle screenshot results
+    if (result.command === 'take_screenshot' && resultData.image_uid) {
+      return {
+        ...baseResult,
+        result_data: {
+          message: resultData.message,
+          image_uid: resultData.image_uid,
+          image_url: resultData.image_url,
+          image_metadata: resultData.image_metadata
+        }
+      };
+    }
+    
+    // Handle nano banana results 
+    if ((result.command === 'transform_image_style' || result.command === 'take_styled_screenshot') && 
+        (resultData.parent_uid || resultData.image_uid)) {
+      return {
+        ...baseResult,
+        result_data: {
+          message: resultData.message,
+          parent_uid: resultData.parent_uid,
+          image_uid: resultData.image_uid,
+          style_prompt: resultData.style_prompt,
+          intensity: resultData.intensity,
+          image_url: resultData.image_url,
+          image_metadata: resultData.image_metadata
+        }
+      };
+    }
+    
+    // Default for other commands
+    return {
+      ...baseResult,
+      result_data: resultData
+    };
+  }
+  
+  return {
+    ...baseResult,
+    result_data: result.result || null
+  };
+}), null, 2)}
                       </div>
                     </div>
                   )}

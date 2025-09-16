@@ -41,18 +41,20 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     
     Input Constraints:
     - style_prompt: Required string describing the desired style
-    - image_path: Required string for transform_image_style
+    - image_uid: Required string for transform_image_style (replaces image_path)
     - intensity: Optional float (0.1-1.0), defaults to 0.8
     - resolution_multiplier: Optional float for screenshots (1.0-8.0), defaults to 1.0
     
     Output:
-    - Returns styled image path and transformation details
+    - Returns styled image UID and transformation details
     """
     
     def __init__(self):
         super().__init__()
         self._model = None
         self._model_initialized = False
+        self._uid_counter = 0
+        self._uid_to_path_map = {}
     
     def _ensure_gemini_initialized(self):
         """Initialize Gemini API lazily when needed."""
@@ -157,8 +159,8 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             # Required parameters
             if not params.get("style_prompt"):
                 errors.append("style_prompt is required")
-            if not params.get("image_path"):
-                errors.append("image_path is required")
+            if not params.get("image_uid"):
+                errors.append("image_uid is required")
             
             # Validate optional parameters
             if "intensity" in params:
@@ -225,7 +227,8 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     
     def _transform_existing_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Transform an existing image with style."""
-        image_path_param = params["image_path"]
+        image_uid = params["image_uid"]
+        image_path_param = self._resolve_uid_to_path(image_uid)
         style_prompt = params["style_prompt"]
         intensity = params["intensity"]
         
@@ -250,8 +253,8 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             return {
                 "success": True,
                 "message": f"Image styled successfully: {filename}",
-                "original_image": resolved_image_path,
-                "styled_image_path": styled_image_path,
+                "parent_uid": self._get_uid_for_path(resolved_image_path),
+                "image_uid": self._get_uid_for_path(styled_image_path),
                 "style_prompt": style_prompt,
                 "intensity": intensity,
                 "image_url": f"/api/screenshot-file/{filename}",
@@ -312,8 +315,8 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             return {
                 "success": True,
                 "message": f"Screenshot taken and styled: {filename}",
-                "original_screenshot": str(screenshot_path),
-                "styled_image_path": styled_image_path,
+                "parent_uid": self._get_uid_for_path(str(screenshot_path)),
+                "image_uid": self._get_uid_for_path(styled_image_path),
                 "style_prompt": style_prompt,
                 "intensity": intensity,
                 "image_url": f"/api/screenshot-file/{filename}",
@@ -580,3 +583,32 @@ Only return the English translation, nothing else:
         
         logger.warning(f"Could not resolve image path for: {image_path_param}")
         return None
+    
+    def _generate_uid(self) -> str:
+        """Generate sequential UID for images."""
+        self._uid_counter += 1
+        return f"img_{self._uid_counter:03d}"
+    
+    def _get_uid_for_path(self, file_path: str) -> str:
+        """Get or create UID for a file path."""
+        # Check if we already have a UID for this path
+        for uid, path in self._uid_to_path_map.items():
+            if path == file_path:
+                return uid
+        
+        # Generate new UID
+        uid = self._generate_uid()
+        self._uid_to_path_map[uid] = file_path
+        return uid
+    
+    def _resolve_uid_to_path(self, uid: str) -> Optional[str]:
+        """Resolve UID to file path."""
+        # First check our UID mapping
+        if uid in self._uid_to_path_map:
+            path = self._uid_to_path_map[uid]
+            if os.path.exists(path):
+                return path
+        
+        # If UID not found or path doesn't exist, treat as legacy path/filename
+        logger.info(f"UID {uid} not found in mapping, treating as legacy path/filename")
+        return self._resolve_image_path(uid)
