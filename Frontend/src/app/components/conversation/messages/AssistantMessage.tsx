@@ -112,13 +112,25 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
         // Look for actual image metadata in execution results
         const imageResults = (message.execution_results || []).find(result => 
           result.result && typeof result.result === 'object' && 
-          (result.result as any).image_metadata
+          ((result.result as any).image?.metadata || (result.result as any).cost?.tokens)
         );
         
-        if (imageResults && (imageResults.result as any).image_metadata) {
-          imageMetadata = (imageResults.result as any).image_metadata;
-          // Use actual token count from backend calculation
-          imageTokenEstimate = imageMetadata.tokens || 900;
+        if (imageResults && (imageResults.result as any)) {
+          const resultData = imageResults.result as any;
+          
+          // Handle hierarchical schema (only supported format)
+          if (resultData.image?.metadata) {
+            imageMetadata = resultData.image.metadata;
+            // Use cost data for token count
+            if (resultData.cost?.tokens) {
+              imageTokenEstimate = resultData.cost.tokens;
+            } else {
+              imageTokenEstimate = 900; // Fallback estimate
+            }
+          } else {
+            // Fallback to conservative estimate
+            imageTokenEstimate = imageCommands.length * 900;
+          }
         } else {
           // Fallback to conservative estimate
           imageTokenEstimate = imageCommands.length * 900;
@@ -126,13 +138,20 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       }
 
       // Calculate costs with model-specific pricing
-      // If backend provides cost calculation, use that for images; otherwise calculate
+      // Use hierarchical schema cost data
       let backendImageCost = 0;
-      if (imageMetadata && imageMetadata.estimated_cost) {
-        // Parse cost from backend (format: "$0.003")
-        const costMatch = imageMetadata.estimated_cost.match(/\$(\d+\.?\d*)/);
-        if (costMatch) {
-          backendImageCost = parseFloat(costMatch[1]);
+      
+      // Check for cost in hierarchical format
+      const imageResults = (message.execution_results || []).find(result => 
+        result.result && typeof result.result === 'object'
+      );
+      
+      if (imageResults) {
+        const resultData = imageResults.result as any;
+        
+        // Hierarchical format has direct cost value
+        if (resultData.cost?.value) {
+          backendImageCost = resultData.cost.value;
         }
       }
       
@@ -214,7 +233,18 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
                 analysisText += `   - Service: Nano Banana\n`;
                 if (tokenInfo.imageProcessing.metadata) {
                   const meta = tokenInfo.imageProcessing.metadata;
-                  analysisText += `   - Image Details: ${meta.processed_size || meta.original_size} • ${meta.file_size}\n`;
+                  // Handle hierarchical format only
+                  let sizeInfo = '';
+                  if (meta.size) {
+                    sizeInfo = meta.size.processed || meta.size.original || 'Unknown';
+                  }
+                  
+                  let fileSize = '';
+                  if (meta.file_size) {
+                    fileSize = meta.file_size.display || 'Unknown';
+                  }
+                  
+                  analysisText += `   - Image Details: ${sizeInfo} • ${fileSize}\n`;
                 }
                 analysisText += `   - Cost: $${tokenInfo.costs.image.toFixed(6)}\n\n`;
               }
@@ -475,33 +505,50 @@ export default function AssistantMessage({ message, sessionName, keyPrefix, sess
   if (result.result && typeof result.result === 'object') {
     const resultData = result.result as any;
     
-    // Handle screenshot results
-    if (result.command === 'take_screenshot' && resultData.image_uid) {
-      return {
-        ...baseResult,
-        result_data: {
-          message: resultData.message,
-          image_uid: resultData.image_uid,
-          image_url: resultData.image_url,
-          image_metadata: resultData.image_metadata
-        }
+    // Handle hierarchical schema (v1.0.0) - now the only supported format
+    if (resultData.uids || resultData.processing) {
+      const displayData: any = {
+        message: resultData.message,
+        status_code: resultData.status_code,
+        processing_model: resultData.processing?.model,
+        origin: resultData.processing?.origin
       };
-    }
-    
-    // Handle nano banana results 
-    if ((result.command === 'transform_image_style' || result.command === 'take_styled_screenshot') && 
-        (resultData.parent_uid || resultData.image_uid)) {
+      
+      // Add UIDs
+      if (resultData.uids) {
+        displayData.image_uid = resultData.uids.image;
+        if (resultData.uids.parent) {
+          displayData.parent_uid = resultData.uids.parent;
+        }
+      }
+      
+      // Add image info
+      if (resultData.image) {
+        displayData.image_url = resultData.image.url;
+        displayData.image_metadata = resultData.image.metadata;
+      }
+      
+      // Add cost info
+      if (resultData.cost) {
+        displayData.cost = {
+          tokens: resultData.cost.tokens,
+          value: `$${resultData.cost.value.toFixed(6)}`,
+          currency: resultData.cost.currency
+        };
+      }
+      
+      // Add audit info
+      if (resultData.audit) {
+        displayData.audit = {
+          request_id: resultData.audit.request_id,
+          duration_ms: resultData.audit.duration_ms,
+          server: resultData.audit.server
+        };
+      }
+      
       return {
         ...baseResult,
-        result_data: {
-          message: resultData.message,
-          parent_uid: resultData.parent_uid,
-          image_uid: resultData.image_uid,
-          style_prompt: resultData.style_prompt,
-          intensity: resultData.intensity,
-          image_url: resultData.image_url,
-          image_metadata: resultData.image_metadata
-        }
+        result_data: displayData
       };
     }
     

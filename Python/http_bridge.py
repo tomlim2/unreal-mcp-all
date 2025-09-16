@@ -50,10 +50,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         path = parsed_url.path
         
-        if path.startswith('/api/screenshot-file/'):
+        if path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/'):
             # Handle HEAD request for screenshot files
             path_parts = path.split('/')
-            if len(path_parts) == 4 and path_parts[1] == 'api' and path_parts[2] == 'screenshot-file':
+            if len(path_parts) == 4 and path_parts[1] == 'api' and (path_parts[2] == 'screenshot-file' or path_parts[2] == 'screenshot'):
                 filename = path_parts[3]
                 try:
                     # Get project path from environment
@@ -111,10 +111,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             path = parsed_url.path
             
             # Handle file requests first (before sending any headers)
-            if path.startswith('/api/screenshot-file/'):
-                # Handle direct screenshot file serving: /api/screenshot-file/{filename}
+            if path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/'):
+                # Handle screenshot file serving: /api/screenshot-file/{filename} or /api/screenshot/{filename}
                 path_parts = path.split('/')
-                if len(path_parts) == 4 and path_parts[1] == 'api' and path_parts[2] == 'screenshot-file':
+                if len(path_parts) == 4 and path_parts[1] == 'api' and (path_parts[2] == 'screenshot-file' or path_parts[2] == 'screenshot'):
                     filename = path_parts[3]
                     try:
                         # Get project path from environment

@@ -46,31 +46,33 @@ export default function MessageItemImageResult({
   const [imageLoadError, setImageLoadError] = useState(false);
 
   if (result.success) {
-    const hasImageUrl =
-      result.result &&
-      typeof result.result === "object" &&
-      result.result !== null &&
-      "image_url" in result.result &&
-      typeof (result.result as any).image_url === "string";
-
-    if (!hasImageUrl) {
+    const resultData = result.result as any;
+    
+    // Check for new hierarchical schema (image.url)
+    const hasNewImageUrl = resultData?.image?.url && typeof resultData.image.url === "string";
+    
+    // Check for legacy schema (image_url)
+    const hasLegacyImageUrl = resultData?.image_url && typeof resultData.image_url === "string";
+    
+    if (!hasNewImageUrl && !hasLegacyImageUrl) {
       return <div></div>; // Return empty div if no image
     }
 
-    // Check if this is a styled image result
-    const resultData = result.result as any;
-    const isStyledImage = resultData.style_prompt || resultData.intensity;
+    // Get image URL from either new hierarchical or legacy format
+    const imageUrl = resultData?.image?.url || resultData?.image_url;
+    
+    // Check if this is a styled image result (new hierarchical or legacy)
+    const isStyledImage = resultData?.image?.metadata?.style?.prompt || resultData?.style_prompt || resultData?.intensity;
 
     return (
       <div className={styles.screenshotContainer}>
         {!imageLoadError ? (
           <>
             <img
-              src={getFullImageUrl(resultData.image_url)}
+              src={getFullImageUrl(imageUrl)}
               alt={isStyledImage ? "Styled Screenshot" : "Screenshot"}
               className={styles.screenshot}
               onError={(e) => {
-                const imageUrl = resultData.image_url || "";
                 const fullUrl = getFullImageUrl(imageUrl);
                 const filename = imageUrl.split("/").pop();
 
@@ -88,8 +90,9 @@ export default function MessageItemImageResult({
             {isStyledImage && (
               <div className={styles.transformationDetails}>
                 <small className={styles.styleInfo}>
-                  Applied: {resultData.style_prompt}
-                  {resultData.intensity && ` (intensity: ${resultData.intensity})`}
+                  Applied: {resultData?.image?.metadata?.style?.prompt || resultData?.style_prompt}
+                  {(resultData?.image?.metadata?.style?.intensity || resultData?.intensity) && 
+                    ` (intensity: ${resultData?.image?.metadata?.style?.intensity || resultData?.intensity})`}
                 </small>
               </div>
             )}
@@ -99,7 +102,7 @@ export default function MessageItemImageResult({
             <div className={styles.errorText}>
 			  <small>
                 The image file &quot;
-                {((result.result as any).image_url || "").split("/").pop()}
+                {imageUrl.split("/").pop()}
                 &quot; could not be loaded
               </small>
 			  <br />

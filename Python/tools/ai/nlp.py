@@ -406,21 +406,18 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     # Fix parameter names and ensure image_path for image commands
                     if command.get("type") == "transform_image_style" and command.get("params"):
                         params = command["params"]
+                        command_type = command.get("type")
                         
-                        # Convert image_url to image_path if present
-                        if "image_url" in params and "image_path" not in params:
-                            params["image_path"] = _resolve_image_path(params["image_url"])
-                            del params["image_url"]
-                            logger.info(f"Converted image_url to image_path: {params['image_path']}")
-                        
-                        # If no image_path specified, use latest image from session
-                        elif "image_path" not in params and session_context:
-                            latest_image = session_context.get_latest_image_path()
-                            if latest_image:
-                                params["image_path"] = _resolve_image_path(latest_image)
-                                logger.info(f"Added latest image path: {params['image_path']}")
-                            else:
-                                logger.warning("No image_path provided and no latest image in session")
+                        # Handle image_uid parameter for transform commands
+                        if command_type == "transform_image_style":
+                            # If no image_uid specified, use latest image from session
+                            if "image_uid" not in params and session_context:
+                                latest_image_uid = session_context.get_latest_image_uid()
+                                if latest_image_uid:
+                                    params["image_uid"] = latest_image_uid
+                                    logger.info(f"Added latest image UID: {params['image_uid']}")
+                                else:
+                                    logger.warning("No image_uid provided and no latest image in session")
                     
                     # Session tracking is now handled by the simple command handlers
                     

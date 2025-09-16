@@ -267,49 +267,64 @@ class SessionContext:
         for message in reversed(self.conversation_history):
             if message.execution_results:
                 for result in message.execution_results:
-                    if (result.get('success') and 
-                        result.get('result') and 
-                        isinstance(result.get('result'), dict) and
-                        'image_url' in result.get('result', {})):
-                        
+                    if result.get('success') and result.get('result') and isinstance(result.get('result'), dict):
                         result_data = result.get('result', {})
-                        image_url = result_data.get('image_url', '')
                         
-                        # Extract filename from URL
-                        filename = image_url.split('/')[-1] if image_url else ''
-                        
-                        image_info = {
-                            'image_url': image_url,
-                            'command': result.get('command', 'unknown'),
-                            'timestamp': message.timestamp.isoformat(),
-                            'filename': filename,
-                            'message_content': message.content[:100] + '...' if len(message.content) > 100 else message.content
-                        }
-                        
-                        # Add style info if available (for styled images)
-                        if 'style_prompt' in result_data:
-                            image_info['style_prompt'] = result_data.get('style_prompt')
-                            image_info['intensity'] = result_data.get('intensity')
-                        
-                        images.append(image_info)
+                        # Only support hierarchical schema
+                        if 'uids' in result_data and 'image' in result_data:
+                            # Hierarchical schema
+                            image_url = result_data.get('image', {}).get('url', '')
+                            image_uid = result_data.get('uids', {}).get('image', '')
+                            
+                            # Extract filename from URL
+                            filename = image_url.split('/')[-1] if image_url else ''
+                            
+                            image_info = {
+                                'image_url': image_url,
+                                'image_uid': image_uid,
+                                'uids': result_data.get('uids', {}),
+                                'image': result_data.get('image', {}),
+                                'command': result.get('command', 'unknown'),
+                                'timestamp': message.timestamp.isoformat(),
+                                'filename': filename,
+                                'message_content': message.content[:100] + '...' if len(message.content) > 100 else message.content
+                            }
+                            
+                            # Add style info if available (for styled images)
+                            # Check hierarchical schema for style info
+                            style_info = result_data.get('image', {}).get('metadata', {}).get('style', {})
+                            if style_info:
+                                image_info['style_prompt'] = style_info.get('prompt', '')
+                                image_info['intensity'] = style_info.get('intensity', '')
+                            
+                            # Also check for cost and processing info
+                            if 'cost' in result_data:
+                                image_info['cost'] = result_data['cost']
+                            if 'processing' in result_data:
+                                image_info['processing'] = result_data['processing']
+                            
+                            images.append(image_info)
                         
                         if len(images) >= max_images:
                             return images
         
         return images
     
+    def get_latest_image_uid(self) -> Optional[str]:
+        """Get the most recent image UID for transformation commands."""
+        recent_images = self.get_recent_images(max_images=1)
+        if recent_images and 'uids' in recent_images[0] and 'image' in recent_images[0]['uids']:
+            return recent_images[0]['uids']['image']
+        return None
+    
     def get_latest_image_path(self) -> Optional[str]:
         """Get the most recent image path for transformation commands."""
         recent_images = self.get_recent_images(max_images=1)
-        if recent_images:
-            # Convert image URL to actual file path
-            image_url = recent_images[0]['image_url']
+        if recent_images and 'image' in recent_images[0] and 'url' in recent_images[0]['image']:
+            # Extract filename from URL
+            image_url = recent_images[0]['image']['url']
             filename = recent_images[0]['filename']
-            
-            # Return the filename for the transform_image_style command
-            # The handler will resolve the full path based on the screenshot directory
             return filename
-        
         return None
 
     def get_recent_commands(self, max_commands: int = 5) -> List[Dict[str, Any]]:

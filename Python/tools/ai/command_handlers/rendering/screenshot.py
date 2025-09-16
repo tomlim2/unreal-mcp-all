@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
-from ...pricing_manager import get_pricing_manager
+from ...image_schema_utils import (
+    build_screenshot_response,
+    build_error_response,
+    generate_request_id
+)
 
 try:
     from PIL import Image
@@ -84,51 +88,63 @@ class ScreenshotCommandHandler(BaseCommandHandler):
     
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         """Execute screenshot commands synchronously."""
-        logger.info(f"Screenshot Handler: Executing {command_type} with params: {params}")
+        start_time = time.time()
+        request_id = generate_request_id()
         
-        # Take screenshot via Unreal connection
-        response = connection.send_command(command_type, params)
+        logger.info(f"Screenshot Handler: Executing {command_type} with params: {params} [req_id: {request_id}]")
         
-        if response and response.get("status") == "error":
-            raise Exception(response.get("error", f"Unknown Unreal {command_type} error"))
-        
-        # Wait a moment for file to be created
-        time.sleep(0.5)
-        
-        # Find newest screenshot file
-        screenshot_file = self._find_newest_screenshot()
-        
-        if screenshot_file:
-            # Generate UID for screenshot
-            image_uid = self._get_uid_for_path(str(screenshot_file))
-            filename = screenshot_file.name
+        try:
+            # Take screenshot via Unreal connection
+            response = connection.send_command(command_type, params)
             
-            # Extract image metadata
-            resolution_multiplier = params.get("resolution_multiplier", 1.0)
-            model = params.get("model", "gemini-2")
-            metadata = self._extract_image_metadata(str(screenshot_file), resolution_multiplier, model)
+            if response and response.get("status") == "error":
+                return build_error_response(
+                    response.get("error", f"Unknown Unreal {command_type} error"),
+                    "unreal_command_error",
+                    request_id,
+                    start_time
+                )
             
-            return {
-                "success": True,
-                "message": f"Screenshot saved: {filename}",
-                "image_uid": image_uid,
-                "image_url": f"/api/screenshot-file/{filename}",
-                "image_metadata": {
-                    "size": f"{metadata['width']}x{metadata['height']}",
-                    "file_size": f"{metadata['file_size_mb']} MB",
-                    "resolution_multiplier": resolution_multiplier,
-                    "tokens": metadata['tokens'],
-                    "estimated_cost": metadata['estimated_cost']
-                }
-            }
-        else:
-            # Return success but no file found (fallback)
-            return {
-                "success": True,
-                "message": "Screenshot command executed (file not immediately available)",
-                "image_uid": None,
-                "image_url": None
-            }
+            # Wait a moment for file to be created
+            time.sleep(0.5)
+            
+            # Find newest screenshot file
+            screenshot_file = self._find_newest_screenshot()
+            
+            if screenshot_file:
+                # Generate UID for screenshot
+                image_uid = self._get_uid_for_path(str(screenshot_file))
+                filename = screenshot_file.name
+                
+                # Extract image dimensions
+                width, height = self._get_image_dimensions(str(screenshot_file))
+                
+                # Build standardized response
+                return build_screenshot_response(
+                    image_uid=image_uid,
+                    filename=filename,
+                    image_path=str(screenshot_file),
+                    width=width,
+                    height=height,
+                    request_id=request_id,
+                    start_time=start_time
+                )
+            else:
+                return build_error_response(
+                    "Screenshot command executed but file not found",
+                    "file_not_found",
+                    request_id,
+                    start_time
+                )
+                
+        except Exception as e:
+            logger.error(f"Screenshot execution failed: {e}")
+            return build_error_response(
+                f"Screenshot execution failed: {str(e)}",
+                "execution_error",
+                request_id,
+                start_time
+            )
 
     def _find_newest_screenshot(self) -> Optional[Path]:
         """Find the newest screenshot file in the WindowsEditor directory."""
@@ -178,44 +194,13 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         self._uid_to_path_map[uid] = file_path
         return uid
     
-    def _extract_image_metadata(self, image_path: str, resolution_multiplier: float = 1.0, model: str = "gemini-2") -> Dict[str, Any]:
-        """Extract image metadata with accurate Google tile-based token calculation."""
-        metadata = {
-            "width": 0,
-            "height": 0,
-            "file_size_mb": 0.0,
-            "tokens": 0,
-            "estimated_cost": "$0.000",
-            "resolution_multiplier": resolution_multiplier,
-            "model": model
-        }
-        
+    def _get_image_dimensions(self, image_path: str) -> tuple[int, int]:
+        """Get image dimensions using PIL if available."""
         try:
-            # Get file size
-            file_path = Path(image_path)
-            if file_path.exists():
-                file_size_bytes = file_path.stat().st_size
-                metadata["file_size_mb"] = round(file_size_bytes / (1024 * 1024), 1)
-            
-            # Extract image dimensions and calculate tokens using PIL if available
             if PIL_AVAILABLE:
-                pricing_manager = get_pricing_manager()
-                
                 with Image.open(image_path) as img:
-                    metadata["width"] = img.width
-                    metadata["height"] = img.height
-                    
-                    # Use accurate Google tile-based calculation from pricing manager
-                    tokens = pricing_manager.calculate_image_tokens(
-                        img.width, img.height, resolution_multiplier
-                    )
-                    metadata["tokens"] = tokens
-                    
-                    # Calculate cost using pricing config
-                    cost = pricing_manager.calculate_token_cost(tokens, model, "image_processing")
-                    metadata["estimated_cost"] = f"${cost:.3f}"
-            
+                    return img.width, img.height
         except Exception as e:
-            logger.warning(f"Failed to extract image metadata from {image_path}: {e}")
+            logger.warning(f"Failed to get image dimensions from {image_path}: {e}")
         
-        return metadata
+        return 0, 0

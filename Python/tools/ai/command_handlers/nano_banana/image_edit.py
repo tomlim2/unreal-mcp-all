@@ -14,6 +14,12 @@ from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 from ...pricing_manager import get_pricing_manager
+from ...image_schema_utils import (
+    build_transform_response,
+    build_error_response,
+    generate_request_id,
+    extract_style_name
+)
 
 try:
     from PIL import Image
@@ -227,110 +233,177 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     
     def _transform_existing_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Transform an existing image with style."""
+        start_time = time.time()
+        request_id = generate_request_id()
+        
         image_uid = params["image_uid"]
         image_path_param = self._resolve_uid_to_path(image_uid)
         style_prompt = params["style_prompt"]
         intensity = params["intensity"]
         
-        # Resolve the image path (could be filename or full path)
-        resolved_image_path = self._resolve_image_path(image_path_param)
-        if not resolved_image_path:
-            raise Exception(f"Image file not found: {image_path_param}")
+        logger.info(f"Transform Image: {image_uid} -> {style_prompt} [req_id: {request_id}]")
         
-        # Apply style transformation
-        styled_image_path = self._apply_nano_banana_style(
-            resolved_image_path, style_prompt, intensity
-        )
-        
-        if styled_image_path:
-            filename = Path(styled_image_path).name
+        try:
+            # Resolve the image path (could be filename or full path)
+            resolved_image_path = self._resolve_image_path(image_path_param)
+            if not resolved_image_path:
+                return build_error_response(
+                    f"Image file not found: {image_path_param}",
+                    "image_not_found",
+                    request_id,
+                    start_time
+                )
             
-            # Extract metadata for both images
-            model = params.get("model", "gemini-2")  # Get model from params or default
-            original_metadata = self._extract_image_metadata(resolved_image_path, model=model)
-            styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
+            # Apply style transformation
+            styled_image_path = self._apply_nano_banana_style(
+                resolved_image_path, style_prompt, intensity
+            )
             
-            return {
-                "success": True,
-                "message": f"Image styled successfully: {filename}",
-                "parent_uid": self._get_uid_for_path(resolved_image_path),
-                "image_uid": self._get_uid_for_path(styled_image_path),
-                "style_prompt": style_prompt,
-                "intensity": intensity,
-                "image_url": f"/api/screenshot-file/{filename}",
-                "image_metadata": {
-                    "original_size": f"{original_metadata['width']}x{original_metadata['height']}",
-                    "processed_size": f"{styled_metadata['width']}x{styled_metadata['height']}",
-                    "file_size": f"{styled_metadata['file_size_mb']} MB",
-                    "resolution_multiplier": 1.0,
-                    "tokens": styled_metadata['tokens'],
-                    "estimated_cost": styled_metadata['estimated_cost']
-                }
-            }
-        else:
-            raise Exception("Failed to apply style transformation")
+            if styled_image_path:
+                filename = Path(styled_image_path).name
+                
+                # Extract metadata for both images
+                model = params.get("model", "gemini-2")
+                original_metadata = self._extract_image_metadata(resolved_image_path, model=model)
+                styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
+                
+                # Generate UIDs
+                parent_uid = self._get_uid_for_path(resolved_image_path)
+                new_image_uid = self._get_uid_for_path(styled_image_path)
+                
+                # Build standardized response
+                return build_transform_response(
+                    image_uid=new_image_uid,
+                    parent_uid=parent_uid,
+                    filename=filename,
+                    image_path=styled_image_path,
+                    original_width=original_metadata['width'],
+                    original_height=original_metadata['height'],
+                    processed_width=styled_metadata['width'],
+                    processed_height=styled_metadata['height'],
+                    style_name=extract_style_name(style_prompt),
+                    style_prompt=style_prompt,
+                    intensity=intensity,
+                    tokens=styled_metadata['tokens'],
+                    cost=float(styled_metadata['estimated_cost'].replace('$', '')),
+                    request_id=request_id,
+                    start_time=start_time,
+                    origin="transform"
+                )
+            else:
+                return build_error_response(
+                    "Failed to apply style transformation",
+                    "transformation_failed",
+                    request_id,
+                    start_time
+                )
+                
+        except Exception as e:
+            logger.error(f"Transform failed: {e}")
+            return build_error_response(
+                f"Transform failed: {str(e)}",
+                "execution_error",
+                request_id,
+                start_time
+            )
     
     def _take_and_transform_screenshot(self, connection, params: Dict[str, Any]) -> Dict[str, Any]:
         """Take screenshot and apply style transformation."""
+        start_time = time.time()
+        request_id = generate_request_id()
+        
         style_prompt = params["style_prompt"]
         intensity = params["intensity"]
         
-        # Prepare screenshot parameters
-        screenshot_params = {
-            "resolution_multiplier": params["resolution_multiplier"],
-            "include_ui": params["include_ui"]
-        }
+        logger.info(f"Take Styled Screenshot: {style_prompt} [req_id: {request_id}]")
         
-        # Take screenshot via Unreal connection
-        logger.info("Taking screenshot before styling...")
-        response = connection.send_command("take_screenshot", screenshot_params)
-        
-        if response and response.get("status") == "error":
-            raise Exception(response.get("error", "Unknown screenshot error"))
-        
-        # Wait for screenshot to be saved
-        time.sleep(1.0)
-        
-        # Find newest screenshot
-        screenshot_path = self._find_newest_screenshot()
-        if not screenshot_path:
-            raise Exception("Screenshot was taken but file not found")
-        
-        logger.info(f"Screenshot taken: {screenshot_path}")
-        
-        # Apply style transformation
-        styled_image_path = self._apply_nano_banana_style(
-            str(screenshot_path), style_prompt, intensity
-        )
-        
-        if styled_image_path:
-            filename = Path(styled_image_path).name
-            
-            # Extract metadata for both images
-            resolution_multiplier = params["resolution_multiplier"]
-            model = params.get("model", "gemini-2")  # Get model from params or default
-            original_metadata = self._extract_image_metadata(str(screenshot_path), model=model)
-            styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier, model)
-            
-            return {
-                "success": True,
-                "message": f"Screenshot taken and styled: {filename}",
-                "parent_uid": self._get_uid_for_path(str(screenshot_path)),
-                "image_uid": self._get_uid_for_path(styled_image_path),
-                "style_prompt": style_prompt,
-                "intensity": intensity,
-                "image_url": f"/api/screenshot-file/{filename}",
-                "image_metadata": {
-                    "original_size": f"{original_metadata['width']}x{original_metadata['height']}",
-                    "processed_size": f"{styled_metadata['width']}x{styled_metadata['height']} ({resolution_multiplier}x)",
-                    "file_size": f"{styled_metadata['file_size_mb']} MB",
-                    "resolution_multiplier": resolution_multiplier,
-                    "tokens": styled_metadata['tokens'],
-                    "estimated_cost": styled_metadata['estimated_cost']
-                }
+        try:
+            # Prepare screenshot parameters
+            screenshot_params = {
+                "resolution_multiplier": params["resolution_multiplier"],
+                "include_ui": params["include_ui"]
             }
-        else:
-            raise Exception("Screenshot taken but style transformation failed")
+            
+            # Take screenshot via Unreal connection
+            logger.info("Taking screenshot before styling...")
+            response = connection.send_command("take_screenshot", screenshot_params)
+            
+            if response and response.get("status") == "error":
+                return build_error_response(
+                    response.get("error", "Unknown screenshot error"),
+                    "screenshot_error",
+                    request_id,
+                    start_time
+                )
+            
+            # Wait for screenshot to be saved
+            time.sleep(1.0)
+            
+            # Find newest screenshot
+            screenshot_path = self._find_newest_screenshot()
+            if not screenshot_path:
+                return build_error_response(
+                    "Screenshot was taken but file not found",
+                    "screenshot_file_not_found",
+                    request_id,
+                    start_time
+                )
+            
+            logger.info(f"Screenshot taken: {screenshot_path}")
+            
+            # Apply style transformation
+            styled_image_path = self._apply_nano_banana_style(
+                str(screenshot_path), style_prompt, intensity
+            )
+            
+            if styled_image_path:
+                filename = Path(styled_image_path).name
+                
+                # Extract metadata for both images
+                resolution_multiplier = params["resolution_multiplier"]
+                model = params.get("model", "gemini-2")
+                original_metadata = self._extract_image_metadata(str(screenshot_path), model=model)
+                styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier, model)
+                
+                # Generate UIDs
+                parent_uid = self._get_uid_for_path(str(screenshot_path))
+                new_image_uid = self._get_uid_for_path(styled_image_path)
+                
+                # Build standardized response
+                return build_transform_response(
+                    image_uid=new_image_uid,
+                    parent_uid=parent_uid,
+                    filename=filename,
+                    image_path=styled_image_path,
+                    original_width=original_metadata['width'],
+                    original_height=original_metadata['height'],
+                    processed_width=styled_metadata['width'],
+                    processed_height=styled_metadata['height'],
+                    style_name=extract_style_name(style_prompt),
+                    style_prompt=style_prompt,
+                    intensity=intensity,
+                    tokens=styled_metadata['tokens'],
+                    cost=float(styled_metadata['estimated_cost'].replace('$', '')),
+                    request_id=request_id,
+                    start_time=start_time,
+                    origin="screenshot"
+                )
+            else:
+                return build_error_response(
+                    "Screenshot taken but style transformation failed",
+                    "transformation_failed",
+                    request_id,
+                    start_time
+                )
+                
+        except Exception as e:
+            logger.error(f"Styled screenshot failed: {e}")
+            return build_error_response(
+                f"Styled screenshot failed: {str(e)}",
+                "execution_error",
+                request_id,
+                start_time
+            )
     
     def _apply_nano_banana_style(self, image_path: str, style_prompt: str, intensity: float) -> Optional[str]:
         """Apply Gemini image generation style transformation to image."""
@@ -609,6 +682,13 @@ Only return the English translation, nothing else:
             if os.path.exists(path):
                 return path
         
-        # If UID not found or path doesn't exist, treat as legacy path/filename
-        logger.info(f"UID {uid} not found in mapping, treating as legacy path/filename")
-        return self._resolve_image_path(uid)
+        # UID mapping lost (server restart) - find most recent screenshot
+        logger.warning(f"UID {uid} not found in mapping (server restart?), finding latest screenshot")
+        latest_screenshot = self._find_newest_screenshot()
+        if latest_screenshot:
+            # Cache it for future use
+            self._uid_to_path_map[uid] = str(latest_screenshot)
+            return str(latest_screenshot)
+        
+        logger.error(f"Could not resolve UID {uid} to any screenshot file")
+        return None

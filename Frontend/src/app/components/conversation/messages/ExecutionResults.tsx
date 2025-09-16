@@ -22,12 +22,22 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
 
   // Filter results based on excludeImages prop
   const filteredResults = excludeImages 
-    ? executionResults.filter(result => !(
-        result.result && 
-        typeof result.result === 'object' && 
-        result.result !== null &&
-        'image_url' in result.result
-      ))
+    ? executionResults.filter(result => {
+        if (!result.result || typeof result.result !== 'object' || result.result === null) {
+          return true; // Keep non-object results
+        }
+        
+        const resultData = result.result as any;
+        
+        // Check for new hierarchical schema (image.url)
+        const hasNewImageUrl = resultData?.image?.url;
+        
+        // Check for legacy schema (image_url)  
+        const hasLegacyImageUrl = resultData?.image_url;
+        
+        // Exclude if it has either type of image URL
+        return !(hasNewImageUrl || hasLegacyImageUrl);
+      })
     : executionResults;
 
   if (filteredResults.length === 0) {
