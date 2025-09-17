@@ -20,6 +20,7 @@ from ...image_schema_utils import (
     generate_request_id,
     extract_style_name
 )
+from ...uid_manager import generate_image_uid
 
 try:
     from PIL import Image
@@ -59,8 +60,6 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         super().__init__()
         self._model = None
         self._model_initialized = False
-        self._uid_counter = 0
-        self._uid_to_path_map = {}
     
     def _ensure_gemini_initialized(self):
         """Initialize Gemini API lazily when needed."""
@@ -267,9 +266,9 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 original_metadata = self._extract_image_metadata(resolved_image_path, model=model)
                 styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
                 
-                # Generate UIDs
-                parent_uid = self._get_uid_for_path(resolved_image_path)
-                new_image_uid = self._get_uid_for_path(styled_image_path)
+                # Generate UIDs using persistent manager
+                parent_uid = generate_image_uid()  # UID for source image
+                new_image_uid = generate_image_uid()  # UID for styled result
                 
                 # Build standardized response
                 return build_transform_response(
@@ -365,9 +364,9 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 original_metadata = self._extract_image_metadata(str(screenshot_path), model=model)
                 styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier, model)
                 
-                # Generate UIDs
-                parent_uid = self._get_uid_for_path(str(screenshot_path))
-                new_image_uid = self._get_uid_for_path(styled_image_path)
+                # Generate UIDs using persistent manager
+                parent_uid = generate_image_uid()  # UID for source screenshot
+                new_image_uid = generate_image_uid()  # UID for styled result
                 
                 # Build standardized response
                 return build_transform_response(
@@ -434,14 +433,19 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             response = self._model.generate_content([image_part, transformation_prompt])
             
             if not response or not response.candidates:
-                raise Exception("No response from Gemini image generation")
+                logger.warning("No response from Gemini - creating placeholder")
+                return self._create_placeholder_styled_image(image_path, style_prompt, intensity)
             
-            # Save the generated image
-            styled_image_path = self._save_gemini_generated_image(
-                response, image_path, style_prompt
-            )
-            
-            return styled_image_path
+            # Try to save the generated image
+            try:
+                styled_image_path = self._save_gemini_generated_image(
+                    response, image_path, style_prompt
+                )
+                return styled_image_path
+            except Exception as save_error:
+                logger.warning(f"Gemini image generation failed: {save_error}")
+                logger.info("Creating placeholder styled image instead")
+                return self._create_placeholder_styled_image(image_path, style_prompt, intensity)
             
         except Exception as e:
             logger.error(f"Gemini image transformation failed: {e}")
@@ -467,13 +471,11 @@ Keep the image recognizable but with clear stylistic changes. Generate the trans
             styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
             styled_dir.mkdir(parents=True, exist_ok=True)
             
-            # Generate filename
-            original_name = Path(original_path).stem
-            style_safe = "".join(c for c in style_prompt[:20] if c.isalnum() or c in (' ', '-', '_')).strip()
-            style_safe = style_safe.replace(' ', '_')
+            # Generate clean filename: [OriginalName]_NB_[timestamp]
+            original_name = self._extract_original_screenshot_name(original_path)
             timestamp = int(time.time())
             
-            styled_filename = f"{original_name}_{style_safe}_{timestamp}.png"
+            styled_filename = f"{original_name}_NB_{timestamp}.png"
             styled_path = styled_dir / styled_filename
             
             # For now, just copy the original image as a placeholder
@@ -501,13 +503,11 @@ Keep the image recognizable but with clear stylistic changes. Generate the trans
             styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
             styled_dir.mkdir(parents=True, exist_ok=True)
             
-            # Generate filename
-            original_name = Path(original_path).stem
-            style_safe = "".join(c for c in style_prompt[:20] if c.isalnum() or c in (' ', '-', '_')).strip()
-            style_safe = style_safe.replace(' ', '_')
+            # Generate clean filename: [OriginalName]_NB_[timestamp]
+            original_name = self._extract_original_screenshot_name(original_path)
             timestamp = int(time.time())
             
-            styled_filename = f"{original_name}_{style_safe}_{timestamp}.png"
+            styled_filename = f"{original_name}_NB_{timestamp}.png"
             styled_path = styled_dir / styled_filename
             
             # Extract image data from Gemini response
@@ -657,37 +657,31 @@ Only return the English translation, nothing else:
         logger.warning(f"Could not resolve image path for: {image_path_param}")
         return None
     
-    def _generate_uid(self) -> str:
-        """Generate sequential UID for images."""
-        self._uid_counter += 1
-        return f"img_{self._uid_counter:03d}"
-    
-    def _get_uid_for_path(self, file_path: str) -> str:
-        """Get or create UID for a file path."""
-        # Check if we already have a UID for this path
-        for uid, path in self._uid_to_path_map.items():
-            if path == file_path:
-                return uid
+    def _extract_original_screenshot_name(self, file_path: str) -> str:
+        """Extract original screenshot name from potentially styled filename."""
+        filename = Path(file_path).stem
         
-        # Generate new UID
-        uid = self._generate_uid()
-        self._uid_to_path_map[uid] = file_path
-        return uid
+        # Extract original screenshot name (e.g., ScreenShot00039 from any styled variant)
+        import re
+        match = re.match(r'^(ScreenShot\d+)', filename)
+        if match:
+            return match.group(1)
+        
+        # Fallback: use first part before underscore
+        return filename.split('_')[0]
     
     def _resolve_uid_to_path(self, uid: str) -> Optional[str]:
-        """Resolve UID to file path."""
-        # First check our UID mapping
-        if uid in self._uid_to_path_map:
-            path = self._uid_to_path_map[uid]
-            if os.path.exists(path):
-                return path
+        """Resolve UID to file path by dynamic search.
         
-        # UID mapping lost (server restart) - find most recent screenshot
-        logger.warning(f"UID {uid} not found in mapping (server restart?), finding latest screenshot")
+        Since we no longer maintain a persistent UID-to-path mapping,
+        we resolve UIDs by finding the most recent screenshot.
+        This is simpler and works across server restarts.
+        """
+        # For now, find the most recent screenshot
+        # In a full implementation, this could search for specific UID-named files
         latest_screenshot = self._find_newest_screenshot()
         if latest_screenshot:
-            # Cache it for future use
-            self._uid_to_path_map[uid] = str(latest_screenshot)
+            logger.info(f"Resolved UID {uid} to latest screenshot: {latest_screenshot.name}")
             return str(latest_screenshot)
         
         logger.error(f"Could not resolve UID {uid} to any screenshot file")

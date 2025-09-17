@@ -16,6 +16,7 @@ from ...image_schema_utils import (
     build_error_response,
     generate_request_id
 )
+from ...uid_manager import generate_image_uid
 
 try:
     from PIL import Image
@@ -43,8 +44,6 @@ class ScreenshotCommandHandler(BaseCommandHandler):
     
     def __init__(self):
         super().__init__()
-        self._uid_counter = 0
-        self._uid_to_path_map = {}
     
     def get_supported_commands(self) -> List[str]:
         return ["take_screenshot"]
@@ -112,8 +111,8 @@ class ScreenshotCommandHandler(BaseCommandHandler):
             screenshot_file = self._find_newest_screenshot()
             
             if screenshot_file:
-                # Generate UID for screenshot
-                image_uid = self._get_uid_for_path(str(screenshot_file))
+                # Generate UID for screenshot using persistent manager
+                image_uid = generate_image_uid()
                 filename = screenshot_file.name
                 
                 # Extract image dimensions
@@ -176,23 +175,6 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error finding newest screenshot: {e}")
             return None
-    
-    def _generate_uid(self) -> str:
-        """Generate sequential UID for images."""
-        self._uid_counter += 1
-        return f"img_{self._uid_counter:03d}"
-    
-    def _get_uid_for_path(self, file_path: str) -> str:
-        """Get or create UID for a file path."""
-        # Check if we already have a UID for this path
-        for uid, path in self._uid_to_path_map.items():
-            if path == file_path:
-                return uid
-        
-        # Generate new UID
-        uid = self._generate_uid()
-        self._uid_to_path_map[uid] = file_path
-        return uid
     
     def _get_image_dimensions(self, image_path: str) -> tuple[int, int]:
         """Get image dimensions using PIL if available."""
