@@ -410,14 +410,16 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                         
                         # Handle image_uid parameter for transform commands
                         if command_type == "transform_image_style":
-                            # If no image_uid specified, use latest image from session
-                            if "image_uid" not in params and session_context:
+                            # Always use latest image from session for style transforms
+                            if session_context:
                                 latest_image_uid = session_context.get_latest_image_uid()
                                 if latest_image_uid:
                                     params["image_uid"] = latest_image_uid
-                                    logger.info(f"Added latest image UID: {params['image_uid']}")
+                                    logger.info(f"Using latest image UID from session: {params['image_uid']}")
                                 else:
-                                    logger.warning("No image_uid provided and no latest image in session")
+                                    logger.warning("No latest image found in session for transform")
+                            elif "image_uid" not in params:
+                                logger.warning("No session context and no image_uid provided")
                     
                     # Session tracking is now handled by the simple command handlers
                     
