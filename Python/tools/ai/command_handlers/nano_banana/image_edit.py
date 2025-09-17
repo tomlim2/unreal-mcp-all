@@ -267,7 +267,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
                 
                 # Generate UIDs using persistent manager
-                parent_uid = generate_image_uid()  # UID for source image
+                parent_uid = image_uid  # Use the input image_uid as parent
                 new_image_uid = generate_image_uid()  # UID for styled result
                 
                 # Build standardized response

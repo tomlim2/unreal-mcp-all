@@ -9,7 +9,7 @@ import logging
 import os
 import asyncio
 import mimetypes
-from datetime import datetime
+import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
@@ -311,11 +311,11 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         # Create session using session manager
                         from tools.ai.session_management.session_context import SessionContext
                         from tools.ai.session_management.utils.session_helpers import generate_session_id
-                        from datetime import datetime
+                        import datetime
                         
                         session_manager = get_session_manager()
                         session_id = generate_session_id()
-                        now = datetime.now()
+                        now = datetime.datetime.now()
                         session_context = SessionContext(
                             session_id=session_id,
                             session_name=session_name.strip(),
@@ -355,20 +355,47 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Process with session-aware NLP
                     from tools.ai.nlp import process_natural_language
                     try:
+                        # Get timestamp before any potential variable shadowing
+                        import datetime as _dt_module
+                        current_timestamp = _dt_module.datetime.now().isoformat()
+                        
                         result = process_natural_language(
                             user_input, context, session_id, llm_model
                         )
                         
+                        # Wrap the NLP result in the expected frontend structure
+                        wrapped_response = {
+                            "conversation_context": {
+                                "user_input": user_input,
+                                "timestamp": current_timestamp
+                            },
+                            "ai_processing": {
+                                "explanation": result.get("explanation", ""),
+                                "generated_commands": result.get("commands", []),
+                                "expected_result": result.get("expectedResult", ""),
+                                "processing_error": result.get("error"),
+                                "fallback_used": result.get("fallback", False)
+                            },
+                            "execution_results": result.get("executionResults", []),
+                            "debug_notes": {
+                                "message_role": "assistant",
+                                "session_context": f"Session: {session_id}" if session_id else "No session"
+                            }
+                        }
+                        
                         # Send response back to frontend
-                        response_json = json.dumps(result)
+                        response_json = json.dumps(wrapped_response)
                         self.wfile.write(response_json.encode('utf-8'))
                         return
                     except Exception as e:
                         logger.error(f"Error in NLP processing: {e}")
+                        # Get timestamp for error response
+                        import datetime as _dt_module2
+                        error_timestamp = _dt_module2.datetime.now().isoformat()
                         error_response = {
                             "conversation_context": {
                                 "user_input": user_input,
-                                "timestamp": datetime.now().isoformat()
+                                "timestamp": error_timestamp
                             },
                             "ai_processing": {
                                 "explanation": "",
