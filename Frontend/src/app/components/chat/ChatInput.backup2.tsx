@@ -112,20 +112,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 		"Take a screenshot and make it cyberpunk style",
 		"Apply watercolor effect to last screenshot",
 		"Transform image to Japan punk style",
-		"Make the screenshot look like an anime",
-	], []);
-
-	// Handle example click
-	const handleExampleClick = useCallback((example: string) => {
-		setPrompt(example);
-		setShowExamples(false);
-		setFocusedExampleIndex(-1);
-		if (textareaRef.current) {
-			textareaRef.current.focus();
-		}
-	}, []);
-
-	// Keyboard navigation for examples
+		"Make the screenshot look like an anime",	], []);	// Handle example click	const handleExampleClick = useCallback((example: string) => {		setPrompt(example);		setShowExamples(false);		setFocusedExampleIndex(-1);		if (textareaRef.current) {			textareaRef.current.focus();		}	}, []);	// Keyboard navigation for examples
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (!showExamples) return;
@@ -166,7 +153,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
 		document.addEventListener('keydown', handleKeyDown);
 		return () => document.removeEventListener('keydown', handleKeyDown);
-	}, [showExamples, focusedExampleIndex, examplePrompts, handleExampleClick]);
+	}, [showExamples, focusedExampleIndex, examplePrompts]);
 
 	const handleSubmit = async (e?: React.FormEvent) => {
 		if (e) e.preventDefault();

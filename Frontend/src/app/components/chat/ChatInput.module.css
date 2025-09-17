@@ -209,17 +209,54 @@
   cursor: not-allowed;
 }
 
+/* Floating Examples Panel */
+.examplesPanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  max-width: 800px;
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.examplesPanelTop {
+  bottom: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.examplesPanelBottom {
+  top: 100%;
+  margin-top: 0.5rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Examples Grid (like Gemini) */
 .examplesGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 0.75rem;
-  margin-bottom: 1rem;
 }
 
 .exampleCard {
-  background: #1a1a1a;
-  border: 1px solid #333333;
+  background: #2a2a2a;
+  border: 1px solid #404040;
   border-radius: 8px;
   padding: 0.875rem 1rem;
   color: #ffffff;
@@ -230,8 +267,14 @@
   text-align: left;
 }
 
+.exampleCardFocused {
+  background: #3a3a3a;
+  border-color: #666666;
+  box-shadow: 0 0 0 2px rgba(102, 102, 102, 0.3);
+}
+
 .exampleCard:hover:not(:disabled) {
-  background: #2a2a2a;
+  background: #3a3a3a;
   border-color: #555555;
 }
 
@@ -273,6 +316,11 @@
   
   .messageInput {
     font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .examplesPanel {
+    max-height: 300px;
+    padding: 0.75rem;
   }
   
   .examplesGrid {
