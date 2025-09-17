@@ -413,9 +413,14 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                             # Always use latest image from session for style transforms
                             if session_context:
                                 latest_image_uid = session_context.get_latest_image_uid()
+                                latest_image_path = session_context.get_latest_image_path()
                                 if latest_image_uid:
                                     params["image_uid"] = latest_image_uid
-                                    logger.info(f"Using latest image UID from session: {params['image_uid']}")
+                                    if latest_image_path:
+                                        params["image_path"] = latest_image_path
+                                        logger.info(f"Using latest image from session: {latest_image_uid} -> {latest_image_path}")
+                                    else:
+                                        logger.info(f"Using latest image UID from session: {params['image_uid']}")
                                 else:
                                     logger.warning("No latest image found in session for transform")
                             elif "image_uid" not in params:

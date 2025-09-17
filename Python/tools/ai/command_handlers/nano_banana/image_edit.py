@@ -236,9 +236,16 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         request_id = generate_request_id()
         
         image_uid = params["image_uid"]
-        image_path_param = self._resolve_uid_to_path(image_uid)
         style_prompt = params["style_prompt"]
         intensity = params["intensity"]
+        
+        # Use provided image_path if available, otherwise resolve from UID
+        if "image_path" in params:
+            image_path_param = params["image_path"]
+            logger.info(f"Using provided image path: {image_path_param}")
+        else:
+            image_path_param = self._resolve_uid_to_path(image_uid)
+            logger.info(f"Resolved UID {image_uid} to path: {image_path_param}")
         
         logger.info(f"Transform Image: {image_uid} -> {style_prompt} [req_id: {request_id}]")
         
@@ -671,18 +678,41 @@ Only return the English translation, nothing else:
         return filename.split('_')[0]
     
     def _resolve_uid_to_path(self, uid: str) -> Optional[str]:
-        """Resolve UID to file path by dynamic search.
+        """Resolve UID to file path by searching for styled images and original screenshots.
         
-        Since we no longer maintain a persistent UID-to-path mapping,
-        we resolve UIDs by finding the most recent screenshot.
-        This is simpler and works across server restarts.
+        Searches both styled and original directories to find the image corresponding to the UID.
         """
-        # For now, find the most recent screenshot
-        # In a full implementation, this could search for specific UID-named files
-        latest_screenshot = self._find_newest_screenshot()
-        if latest_screenshot:
-            logger.info(f"Resolved UID {uid} to latest screenshot: {latest_screenshot.name}")
-            return str(latest_screenshot)
-        
-        logger.error(f"Could not resolve UID {uid} to any screenshot file")
-        return None
+        try:
+            project_path = os.getenv('UNREAL_PROJECT_PATH')
+            if not project_path:
+                logger.warning("UNREAL_PROJECT_PATH not set - cannot resolve UID")
+                return None
+            
+            # Search directories in order of preference
+            search_dirs = [
+                Path(project_path) / "Saved" / "Screenshots" / "styled",
+                Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+            ]
+            
+            # For now, find the newest file across all directories
+            # This is a temporary solution - ideally we'd maintain a proper UID->file mapping
+            all_files = []
+            
+            for search_dir in search_dirs:
+                if search_dir.exists():
+                    png_files = list(search_dir.glob("*.png"))
+                    for file_path in png_files:
+                        all_files.append(file_path)
+            
+            if all_files:
+                # Sort by modification time and return the newest
+                newest_file = max(all_files, key=lambda f: f.stat().st_mtime)
+                logger.info(f"Resolved UID {uid} to newest file: {newest_file.name}")
+                return str(newest_file)
+            
+            logger.error(f"No image files found for UID {uid}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error resolving UID {uid}: {e}")
+            return None
