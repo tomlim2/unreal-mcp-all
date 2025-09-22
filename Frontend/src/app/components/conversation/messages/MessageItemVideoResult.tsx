@@ -112,26 +112,13 @@ export default function MessageItemVideoResult({
               Your browser does not support the video tag.
             </video>
 
-            {/* Display video generation details */}
+            {/* Display UID and filename only */}
             <div className={styles.transformationDetails}>
-              <div className={styles.videoInfo}>
-                <small className={styles.styleInfo}>
-                  <strong>Video Generation:</strong> {prompt}
-                </small>
-                <div className={styles.videoMetadata}>
-                  <small>
-                    <span className={styles.metadataItem}>📏 {resolution} ({aspectRatio})</span>
-                    <span className={styles.metadataItem}>⏱️ {duration}</span>
-                    <span className={styles.metadataItem}>💰 {cost}</span>
-                    <span className={styles.metadataItem}>📁 {fileSize}</span>
-                  </small>
-                </div>
-                <div className={styles.videoTech}>
-                  <small className={styles.techInfo}>
-                    🤖 {model} • 🔊 Audio • 🔗 Watermarked
-                  </small>
-                </div>
-              </div>
+              <small className={styles.styleInfo}>
+                {resultData?.uids?.video && `UID: ${resultData.uids.video}`}
+                {resultData?.uids?.video && resultData?.filename && ` | `}
+                {resultData?.filename && `File: ${resultData.filename}`}
+              </small>
             </div>
           </>
         ) : (

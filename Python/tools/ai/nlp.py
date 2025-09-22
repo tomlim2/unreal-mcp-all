@@ -217,6 +217,27 @@ def _extract_from_partial_response(partial_response: str) -> dict:
                 command["params"]["intensity"] = 0.8
                 command["params"]["resolution_multiplier"] = 2.0
                 command["params"]["include_ui"] = False
+
+            elif command_type == "generate_video_from_image":
+                # Extract prompt (required)
+                prompt_match = re.search(r'"prompt":\s*"([^"]*)', partial_response)
+                if prompt_match:
+                    command["params"]["prompt"] = prompt_match.group(1)
+
+                # Extract image_url (optional)
+                image_url_match = re.search(r'"image_url":\s*"([^"]*)', partial_response)
+                if image_url_match:
+                    command["params"]["image_url"] = image_url_match.group(1)
+
+                # Extract aspect_ratio (optional)
+                aspect_ratio_match = re.search(r'"aspect_ratio":\s*"([^"]*)', partial_response)
+                if aspect_ratio_match:
+                    command["params"]["aspect_ratio"] = aspect_ratio_match.group(1)
+
+                # Extract resolution (optional)
+                resolution_match = re.search(r'"resolution":\s*"([^"]*)', partial_response)
+                if resolution_match:
+                    command["params"]["resolution"] = resolution_match.group(1)
             
             result["commands"] = [command]
             result["expectedResult"] = f"Executing {command_type} based on partial response"
@@ -237,6 +258,42 @@ from .session_management import get_session_manager, SessionContext
 
 # Import model providers
 from .model_providers import get_model_provider, get_default_model, get_available_models
+
+
+def _auto_assign_latest_image_if_needed(command, session_context):
+    """이미지 관련 명령에 최신 이미지 UID 자동 할당
+
+    IMPORTANT: Only assigns image UIDs (img_XXX), never video UIDs (vid_XXX).
+    """
+    if not command.get("params"):
+        command["params"] = {}
+
+    params = command["params"]
+    command_type = command.get("type")
+
+    # image_url이 없는 이미지 관련 명령들
+    image_commands = ["transform_image_style", "generate_video_from_image"]
+
+    if command_type in image_commands and "image_url" not in params and "image_uid" not in params:
+        if session_context:
+            latest_uid = session_context.get_latest_image_uid()
+            latest_path = session_context.get_latest_image_path()
+
+            # Double-check: ensure we only use image UIDs, never video UIDs
+            if latest_uid and latest_uid.startswith('img_'):
+                # For transform_image_style, use both image_url and image_uid/image_path
+                if command_type == "transform_image_style":
+                    params["image_uid"] = latest_uid
+                    params["image_url"] = latest_uid
+                    if latest_path:
+                        params["image_path"] = latest_path
+                # For generate_video_from_image, use image_url only
+                elif command_type == "generate_video_from_image":
+                    params["image_url"] = latest_uid
+
+                logger.info(f"Auto-assigned latest image UID for {command_type}: {latest_uid}")
+            else:
+                logger.warning(f"No valid image UID found in session for {command_type} (latest_uid: {latest_uid})")
 
 
 def _extract_style_essence(user_input: str, provider) -> str:
@@ -297,22 +354,26 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             logger.info("No session ID provided, processing without session context")
         
         # Determine which model to use
-        selected_model = llm_model
+        selected_model = llm_model or get_default_model()
         logger.info(f"Using model: {selected_model}")
+
         # Get the model provider
         provider = get_model_provider(selected_model)
         if not provider:
-            # Try to fall back to any available model
-            available_models = get_available_models()
-            if available_models:
-                fallback_model = available_models[0]
-                provider = get_model_provider(fallback_model)
-                selected_model = fallback_model
-                logger.warning(f"Model {selected_model} not available, using {fallback_model}")
-            else:
+            # If user explicitly requested a specific model, return error (no fallback)
+            if llm_model:
                 return {
-                    "error": f"No AI models available. Configure ANTHROPIC_API_KEY or GOOGLE_API_KEY",
-                    "explanation": "Natural language processing unavailable",
+                    "error": f"Requested model '{llm_model}' is not available or not configured",
+                    "explanation": f"The '{llm_model}' model is not available. Please check your API key configuration.",
+                    "commands": [],
+                    "executionResults": [],
+                    "modelUsed": llm_model
+                }
+            else:
+                # If using default model and it's not available, return configuration error
+                return {
+                    "error": f"Default model '{selected_model}' is not available. Configure GOOGLE_API_KEY or ANTHROPIC_API_KEY",
+                    "explanation": "Natural language processing unavailable - no AI models configured",
                     "commands": [],
                     "executionResults": [],
                     "modelUsed": "none"
@@ -413,28 +474,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                         command["params"]["session_id"] = session_id
                         logger.debug(f"Added session_id {session_id} to command {command.get('type')}")
 
-                    # Fix parameter names and ensure image_path for image commands
-                    if command.get("type") == "transform_image_style" and command.get("params"):
-                        params = command["params"]
-                        command_type = command.get("type")
-                        
-                        # Handle image_uid parameter for transform commands
-                        if command_type == "transform_image_style":
-                            # Always use latest image from session for style transforms
-                            if session_context:
-                                latest_image_uid = session_context.get_latest_image_uid()
-                                latest_image_path = session_context.get_latest_image_path()
-                                if latest_image_uid:
-                                    params["image_uid"] = latest_image_uid
-                                    if latest_image_path:
-                                        params["image_path"] = latest_image_path
-                                        logger.info(f"Using latest image from session: {latest_image_uid} -> {latest_image_path}")
-                                    else:
-                                        logger.info(f"Using latest image UID from session: {params['image_uid']}")
-                                else:
-                                    logger.warning("No latest image found in session for transform")
-                            elif "image_uid" not in params:
-                                logger.warning("No session context and no image_uid provided")
+                    # Auto-assign latest image for image-related commands if needed
+                    _auto_assign_latest_image_if_needed(command, session_context)
                     
                     # Session tracking is now handled by the simple command handlers
                     
@@ -545,11 +586,11 @@ Your role is to provide intuitive creative control by translating natural langua
 - Screenshots: take_screenshot (take new screenshot, returns image URL)
 
 **AI Image Editing (Nano Banana):**
-- transform_image_style: Apply style to existing image (no new screenshot)
+- transform_image_style: Apply style to existing image (auto-uses latest if image_url omitted)
 - take_styled_screenshot: Take new screenshot AND apply style transformation
 
 **AI Video Generation (Veo-3):**
-- generate_video_from_image: Create 8-second video from latest screenshot with animation prompt
+- generate_video_from_image: Create 8-second video from SPECIFIED IMAGE ONLY (requires image_url parameter)
 
 **Image Processing Keywords:** When users mention "nano banana", "style", "transform", "cyberpunk", "anime", "watercolor", or similar visual style terms, they want image processing operations.
 
@@ -563,6 +604,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - location: {{"x": number, "y": number, "z": number}}
 - style_prompt: Description for image transformations
 - prompt: Description for video animation (required for generate_video_from_image)
+- image_url: UID of specific image to use (e.g., "img_074") - REQUIRED for video generation
 - aspect_ratio: "16:9" or "9:16" (optional for video generation)
 - resolution: "720p" or "1080p" (optional for video generation)
 
@@ -581,17 +623,24 @@ Your role is to provide intuitive creative control by translating natural langua
 **Colors**: red={{"r":255,"g":0,"b":0}}, white={{"r":255,"g":255,"b":255}}
 **Locations**: SF(37.7749,-122.4194), Tokyo(35.6804,139.6917)
 
-**Nano Banana Examples:**
-- "Use nano banana to make it cyberpunk" → transform_image_style with cyberpunk style
-- "Apply nano banana anime style" → transform_image_style with anime aesthetic
-- "Nano banana this image watercolor" → transform_image_style with watercolor effect
+**Nano Banana Examples (ALWAYS require image UID):**
+- "Use nano banana to make img_079 cyberpunk" → transform_image_style with cyberpunk style and image_url: "img_079"
+- "Apply nano banana anime style to img_075" → transform_image_style with anime aesthetic and image_url: "img_075"
+- "Nano banana watercolor img_074" → transform_image_style with watercolor effect and image_url: "img_074"
 - "Take screenshot with nano banana punk style" → take_styled_screenshot
 
 **Video Generation Examples:**
-- "Create a video where the scene becomes animated" → generate_video_from_image with animation prompt
-- "Make a flying camera movement video" → generate_video_from_image with camera movement description
-- "Generate video with smooth motion through the scene" → generate_video_from_image with motion prompt
-- "Animate this scene as if it's moving" → generate_video_from_image with movement description
+- "Create video with flying motion" → generate_video_from_image (auto-uses latest image)
+- "Make a video from img_074" → generate_video_from_image with specified image_url
+- "Generate animation" → generate_video_from_image (auto-uses latest image)
+- "Use img_075 to create video" → generate_video_from_image with specific image_url
+
+**IMPORTANT**:
+- Video generation REQUIRES an image source - uses latest image if image_url not specified
+- If no images available in session, user must take screenshot first
+- Image editing (transform_image_style) uses latest image if image_url not specified
+- NEVER use "latest_screenshot" or filenames - omit image_url parameter to auto-use latest image
+- Only use UID format (img_XXX) when explicitly specifying different image
 
 Return valid JSON only."""
 
@@ -620,10 +669,13 @@ Return valid JSON only."""
         if scene_summary and scene_summary != "No scene state tracked yet.":
             base_prompt += f"\n\nScene: {scene_summary}"
         
-        # Add latest image if available
+        # Add latest image UID if available
+        latest_image_uid = session_context.get_latest_image_uid()
         latest_filename = session_context.get_latest_image_path()
-        if latest_filename:
-            base_prompt += f"\nLatest image: {latest_filename}"
+        if latest_image_uid and latest_filename:
+            base_prompt += f"\nLatest image: {latest_image_uid} ({latest_filename}) - auto-used if image_url not specified"
+        elif latest_filename:
+            base_prompt += f"\nLatest image: {latest_filename} (no UID available)"
     
     base_prompt += f"\n\nContext: {context}\n\nJSON FORMAT:\n{{\n  \"explanation\": \"Brief description\",\n  \"commands\": [{{\"type\": \"command_name\", \"params\": {{...}}}}],\n  \"expectedResult\": \"What happens\"\n}}"
     

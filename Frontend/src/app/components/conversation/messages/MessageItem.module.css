@@ -596,6 +596,7 @@
   font-size: 0.85rem;
   font-style: italic;
   display: block;
+  padding: 8px 12px;
 }
 
 .retryButton:active {

@@ -86,16 +86,14 @@ export default function MessageItemImageResult({
                 e.preventDefault();
               }}
             />
-            {/* Display transformation details for styled images */}
-            {isStyledImage && (
-              <div className={styles.transformationDetails}>
-                <small className={styles.styleInfo}>
-                  Applied: {resultData?.image?.metadata?.style?.prompt || resultData?.style_prompt}
-                  {(resultData?.image?.metadata?.style?.intensity || resultData?.intensity) && 
-                    ` (intensity: ${resultData?.image?.metadata?.style?.intensity || resultData?.intensity})`}
-                </small>
-              </div>
-            )}
+            {/* Display UID and filename only */}
+            <div className={styles.transformationDetails}>
+              <small className={styles.styleInfo}>
+                {resultData?.uids?.image && `UID: ${resultData.uids.image}`}
+                {resultData?.uids?.image && resultData?.filename && ` | `}
+                {resultData?.filename && `File: ${resultData.filename}`}
+              </small>
+            </div>
           </>
         ) : (
           <div className={styles.screenshotError}>

@@ -596,36 +596,23 @@ export default function AssistantMessage({ message, sessionName, keyPrefix, sess
         origin: resultData.processing?.origin
       };
       
-      // Add UIDs
+      // Add UIDs and filename only
       if (resultData.uids) {
         displayData.image_uid = resultData.uids.image;
         if (resultData.uids.parent) {
           displayData.parent_uid = resultData.uids.parent;
         }
       }
-      
-      // Add image info
+
+      // Add image filename only
       if (resultData.image) {
-        displayData.image_url = resultData.image.url;
-        displayData.image_metadata = resultData.image.metadata;
+        displayData.image_filename = resultData.image.metadata?.filename;
       }
-      
-      // Add cost info
-      if (resultData.cost) {
-        displayData.cost = {
-          tokens: resultData.cost.tokens,
-          value: `$${resultData.cost.value.toFixed(6)}`,
-          currency: resultData.cost.currency
-        };
-      }
-      
-      // Add audit info
-      if (resultData.audit) {
-        displayData.audit = {
-          request_id: resultData.audit.request_id,
-          duration_ms: resultData.audit.duration_ms,
-          server: resultData.audit.server
-        };
+
+      // Add video UIDs and filename only
+      if (resultData.video) {
+        displayData.video_uid = resultData.uids?.video;
+        displayData.video_filename = resultData.video.metadata?.filename;
       }
       
       return {

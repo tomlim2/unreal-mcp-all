@@ -21,7 +21,7 @@ from ...video_schema_utils import (
     extract_parent_filename,
     generate_video_filename
 )
-from ...uid_manager import generate_image_uid, generate_video_uid
+from ...uid_manager import generate_image_uid, generate_video_uid, add_uid_mapping
 
 try:
     from PIL import Image
@@ -113,8 +113,8 @@ class VideoGenerationHandler(BaseCommandHandler):
         metadata = {
             "duration_seconds": 8,  # Veo-3 always generates 8-second videos
             "file_size_mb": 0.0,
-            "cost": 6.0,  # $0.75 per second * 8 seconds
-            "estimated_cost": "$6.000",
+            "cost": 3.2,  # $0.40 per second * 8 seconds (2025 updated pricing)
+            "estimated_cost": "$3.200",
             "prompt": prompt,
             "has_audio": True,
             "watermarked": True
@@ -147,6 +147,37 @@ class VideoGenerationHandler(BaseCommandHandler):
             # Required parameters
             if not params.get("prompt"):
                 errors.append("prompt is required")
+
+            if not params.get("image_url"):
+                # 세션에서 최신 이미지 자동 할당 시도
+                session_id = params.get("session_id")
+                if session_id:
+                    try:
+                        from ...session_management import get_session_manager
+                        session_manager = get_session_manager()
+                        session_context = session_manager.get_session(session_id)
+                        if session_context:
+                            latest_uid = session_context.get_latest_image_uid()
+                            # Double-check: ensure it's an image UID, not a video UID
+                            if latest_uid and latest_uid.startswith('img_'):
+                                params["image_url"] = latest_uid
+                                logger.info(f"Auto-assigned latest image UID for video generation: {latest_uid}")
+                            else:
+                                errors.append("비디오 생성에는 이미지가 필요합니다. 먼저 스크린샷을 찍어주세요.")
+                        else:
+                            errors.append("비디오 생성에는 이미지가 필요합니다. 먼저 스크린샷을 찍어주세요.")
+                    except Exception as e:
+                        logger.error(f"Failed to get session context: {e}")
+                        errors.append("비디오 생성에는 이미지가 필요합니다. 먼저 스크린샷을 찍어주세요.")
+                else:
+                    errors.append("비디오 생성에는 이미지가 필요합니다. 먼저 스크린샷을 찍어주세요.")
+
+            # Validate image_url format if it exists (either provided or auto-assigned)
+            if params.get("image_url"):
+                image_url = params["image_url"]
+                # Validate UID format: must be img_XXX where XXX is digits
+                if not (image_url.startswith('img_') and image_url[4:].isdigit()):
+                    errors.append("image_url must be a valid UID format (e.g., 'img_074'). Filenames not supported.")
 
             # Validate optional parameters
             if "aspect_ratio" in params:
@@ -191,24 +222,36 @@ class VideoGenerationHandler(BaseCommandHandler):
         request_id = generate_request_id()
 
         prompt = params["prompt"]
-        aspect_ratio = params["aspect_ratio"]
-        resolution = params["resolution"]
+        aspect_ratio = params.get("aspect_ratio", "16:9")
+        resolution = params.get("resolution", "720p")
         negative_prompt = params.get("negative_prompt")
 
-        logger.info(f"Generate Video: latest screenshot -> {prompt} [req_id: {request_id}]")
+        logger.info(f"Generate Video: image -> {prompt} [req_id: {request_id}]")
 
         try:
-            # Find latest screenshot automatically
-            latest_screenshot = self._find_newest_screenshot()
-            if not latest_screenshot:
+            # image_url is now REQUIRED - no fallback to latest screenshot
+            image_url = params.get("image_url")
+            if not image_url:
                 return build_error_response(
-                    "No screenshot found in WindowsEditor directory",
-                    "screenshot_not_found",
+                    "image_url parameter is required for video generation. Please specify an image UID (e.g., 'img_074')",
+                    "image_url_required",
                     request_id,
                     start_time
                 )
 
-            logger.info(f"Using latest screenshot: {latest_screenshot.name}")
+            # Resolve the specified image (supports UID only)
+            from ...uid_manager import get_uid_mapping
+            source_image = self._resolve_image_path(image_url)
+            if not source_image:
+                return build_error_response(
+                    f"Specified image not found: {image_url}. Please use a valid image UID (e.g., 'img_074')",
+                    "specified_image_not_found",
+                    request_id,
+                    start_time
+                )
+
+            latest_screenshot = Path(source_image)
+            logger.info(f"Using specified image: {image_url} -> {latest_screenshot.name}")
 
             # Generate video using Veo-3
             video_path = self._generate_video_with_veo3(
@@ -226,11 +269,48 @@ class VideoGenerationHandler(BaseCommandHandler):
                 parent_uid = generate_image_uid()  # UID for source screenshot
                 video_uid = generate_video_uid()  # UID for video result
 
+                # Extract session_id from params if available
+                session_id = params.get('session_id')
+
                 # Parse resolution to get dimensions
                 if resolution == "720p":
                     video_width, video_height = (1280, 720) if aspect_ratio == "16:9" else (720, 1280)
                 else:  # 1080p
                     video_width, video_height = (1920, 1080) if aspect_ratio == "16:9" else (1080, 1920)
+
+                # Add mappings for both screenshot and video
+                # 1. Original screenshot
+                add_uid_mapping(
+                    parent_uid,
+                    'image',
+                    Path(latest_screenshot).name,
+                    session_id=session_id,
+                    metadata={
+                        'width': screenshot_metadata.get('width', 0),
+                        'height': screenshot_metadata.get('height', 0),
+                        'file_path': str(latest_screenshot),
+                        'video_source': True
+                    }
+                )
+
+                # 2. Generated video
+                add_uid_mapping(
+                    video_uid,
+                    'video',
+                    filename,
+                    parent_uid=parent_uid,
+                    session_id=session_id,
+                    metadata={
+                        'width': video_width,
+                        'height': video_height,
+                        'file_path': video_path,
+                        'duration_seconds': video_metadata['duration_seconds'],
+                        'prompt': prompt,
+                        'aspect_ratio': aspect_ratio,
+                        'resolution': resolution,
+                        'cost': video_metadata['cost']
+                    }
+                )
 
                 # Build standardized video response
                 return build_video_transform_response(
@@ -408,4 +488,33 @@ class VideoGenerationHandler(BaseCommandHandler):
                 logger.warning(f"Failed to extract image metadata: {e}")
 
         return metadata
+
+    def _resolve_image_path(self, image_path_param: str) -> Optional[str]:
+        """Resolve image path - handles UIDs, full paths, and filenames."""
+        from ...uid_manager import get_uid_mapping
+
+        # Check if it's a UID (format: img_XXX)
+        if image_path_param.startswith('img_') and image_path_param[4:].isdigit():
+            logger.info(f"Resolving UID: {image_path_param}")
+            mapping = get_uid_mapping(image_path_param)
+            if not mapping:
+                logger.error(f"UID not found in mapping table: {image_path_param}")
+                return None
+
+            # Get file path from mapping metadata
+            file_path = mapping.get('metadata', {}).get('file_path')
+            if file_path and os.path.exists(file_path):
+                logger.info(f"Resolved UID {image_path_param} to: {file_path}")
+                return file_path
+            else:
+                logger.error(f"File not found for UID {image_path_param}: {file_path}")
+                return None
+
+        # If it's already a full path and exists, use it
+        if os.path.isabs(image_path_param) and os.path.exists(image_path_param):
+            return image_path_param
+
+        # For non-UID inputs, return None (no fallback search)
+        logger.error(f"Image path not supported: {image_path_param}. Use UID (img_XXX) or full path only.")
+        return None
 

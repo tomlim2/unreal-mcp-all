@@ -155,6 +155,11 @@ UNREAL/SOURCE/
 # testing
 /coverage
 
+# Python test files
+Python/tests/
+*test*.py
+test_*.py
+
 # next.js
 /.next/
 /out/

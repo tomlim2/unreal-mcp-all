@@ -200,23 +200,39 @@ class SessionContext:
     
     
     def get_conversation_summary(self, max_messages: int = 10) -> str:
-        """Get a summary of recent conversation for AI context."""
+        """Get a summary of recent conversation for AI context including UID information."""
         if not self.conversation_history:
             return "No previous conversation history."
-        
+
         recent_messages = self.conversation_history[-max_messages:]
         summary_parts = []
-        
+
         for msg in recent_messages:
             if msg.role == 'user':
                 summary_parts.append(f"User: {msg.content}")
             elif msg.role == 'assistant':
                 if msg.commands:
                     cmd_summary = ", ".join([cmd.get('type', 'unknown') for cmd in msg.commands])
-                    summary_parts.append(f"Assistant: {msg.content} (Executed: {cmd_summary})")
+
+                    # Add UID information from execution results
+                    uid_info = []
+                    if msg.execution_results:
+                        for result in msg.execution_results:
+                            if result.get('success') and result.get('result'):
+                                result_data = result.get('result', {})
+                                # Check for UID information
+                                if 'uids' in result_data:
+                                    uids = result_data.get('uids', {})
+                                    if 'image' in uids:
+                                        uid_info.append(f"→ {uids['image']}")
+                                    if 'video' in uids:
+                                        uid_info.append(f"→ {uids['video']}")
+
+                    uid_summary = f" {', '.join(uid_info)}" if uid_info else ""
+                    summary_parts.append(f"Assistant: {msg.content} (Executed: {cmd_summary}{uid_summary})")
                 else:
                     summary_parts.append(f"Assistant: {msg.content}")
-        
+
         return "\n".join(summary_parts)
     
     def get_scene_summary(self) -> str:
@@ -311,20 +327,40 @@ class SessionContext:
         return images
     
     def get_latest_image_uid(self) -> Optional[str]:
-        """Get the most recent image UID for transformation commands."""
-        recent_images = self.get_recent_images(max_images=1)
-        if recent_images and 'uids' in recent_images[0] and 'image' in recent_images[0]['uids']:
-            return recent_images[0]['uids']['image']
+        """Get the most recent image UID for transformation commands.
+
+        IMPORTANT: Only returns image UIDs (img_XXX), never video UIDs (vid_XXX).
+        """
+        # Look through recent messages in reverse order (newest first)
+        for message in reversed(self.conversation_history):
+            if message.execution_results:
+                for result in message.execution_results:
+                    if result.get('success') and result.get('result'):
+                        result_data = result.get('result', {})
+                        # Check for UID information - ONLY 'image' key, never 'video'
+                        if 'uids' in result_data and 'image' in result_data['uids']:
+                            image_uid = result_data['uids']['image']
+                            # Double-check: ensure it's an image UID format (img_XXX), not video (vid_XXX)
+                            if image_uid and image_uid.startswith('img_'):
+                                return image_uid
         return None
     
     def get_latest_image_path(self) -> Optional[str]:
         """Get the most recent image path for transformation commands."""
-        recent_images = self.get_recent_images(max_images=1)
-        if recent_images and 'image' in recent_images[0] and 'url' in recent_images[0]['image']:
-            # Extract filename from URL
-            image_url = recent_images[0]['image']['url']
-            filename = recent_images[0]['filename']
-            return filename
+        # Look through recent messages in reverse order (newest first)
+        for message in reversed(self.conversation_history):
+            if message.execution_results:
+                for result in message.execution_results:
+                    if result.get('success') and result.get('result'):
+                        result_data = result.get('result', {})
+                        # Check for image information
+                        if 'image' in result_data and 'url' in result_data['image']:
+                            # Extract filename from URL
+                            image_url = result_data['image']['url']
+                            filename = image_url.split('/')[-1] if image_url else ''
+                            return filename
+                        elif 'filename' in result_data:
+                            return result_data['filename']
         return None
 
     def get_recent_commands(self, max_commands: int = 5) -> List[Dict[str, Any]]:

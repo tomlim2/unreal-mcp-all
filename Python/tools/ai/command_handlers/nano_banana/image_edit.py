@@ -20,7 +20,7 @@ from ...image_schema_utils import (
     generate_request_id,
     extract_style_name
 )
-from ...uid_manager import generate_image_uid
+from ...uid_manager import generate_image_uid, add_uid_mapping, get_uid_mapping
 
 try:
     from PIL import Image
@@ -164,8 +164,13 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             # Required parameters
             if not params.get("style_prompt"):
                 errors.append("style_prompt is required")
-            if not params.get("image_uid"):
-                errors.append("image_uid is required")
+            if not params.get("image_url"):
+                errors.append("image_url is required - please specify an image UID (e.g., 'img_079')")
+            else:
+                image_url = params["image_url"]
+                # Validate UID format: must be img_XXX where XXX is digits
+                if not (image_url.startswith('img_') and image_url[4:].isdigit()):
+                    errors.append("image_url must be a valid UID format (e.g., 'img_079'). Filenames not supported.")
             
             # Validate optional parameters
             if "intensity" in params:
@@ -234,28 +239,29 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         """Transform an existing image with style."""
         start_time = time.time()
         request_id = generate_request_id()
-        
-        image_uid = params["image_uid"]
+
         style_prompt = params["style_prompt"]
-        intensity = params["intensity"]
-        
-        # Use provided image_path if available, otherwise resolve from UID
-        if "image_path" in params:
-            image_path_param = params["image_path"]
-            logger.info(f"Using provided image path: {image_path_param}")
-        else:
-            image_path_param = self._resolve_uid_to_path(image_uid)
-            logger.info(f"Resolved UID {image_uid} to path: {image_path_param}")
-        
-        logger.info(f"Transform Image: {image_uid} -> {style_prompt} [req_id: {request_id}]")
-        
+        intensity = params.get("intensity", 0.8)
+
+        # image_url is now REQUIRED - no fallback
+        image_url = params.get("image_url")
+        if not image_url:
+            return build_error_response(
+                "image_url parameter is required for image editing. Please specify an image UID (e.g., 'img_079')",
+                "image_url_required",
+                request_id,
+                start_time
+            )
+
+        logger.info(f"Transform Image: {image_url} -> {style_prompt} [req_id: {request_id}]")
+
         try:
-            # Resolve the image path (could be filename or full path)
-            resolved_image_path = self._resolve_image_path(image_path_param)
+            # Resolve the image UID to file path (only supports UIDs)
+            resolved_image_path = self._resolve_image_path(image_url)
             if not resolved_image_path:
                 return build_error_response(
-                    f"Image file not found: {image_path_param}",
-                    "image_not_found",
+                    f"Specified image not found: {image_url}. Please use a valid image UID (e.g., 'img_079')",
+                    "specified_image_not_found",
                     request_id,
                     start_time
                 )
@@ -274,8 +280,27 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
                 
                 # Generate UIDs using persistent manager
-                parent_uid = image_uid  # Use the input image_uid as parent
+                parent_uid = image_url  # Use the input image_url as parent
                 new_image_uid = generate_image_uid()  # UID for styled result
+
+                # Extract session_id from params if available
+                session_id = params.get('session_id')
+
+                # Add mapping for the styled image
+                add_uid_mapping(
+                    new_image_uid,
+                    'image',
+                    filename,
+                    parent_uid=parent_uid,
+                    session_id=session_id,
+                    metadata={
+                        'width': styled_metadata['width'],
+                        'height': styled_metadata['height'],
+                        'file_path': styled_image_path,
+                        'style_type': 'transform_image_style',
+                        'model': model
+                    }
+                )
                 
                 # Build standardized response
                 return build_transform_response(
@@ -374,6 +399,43 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 # Generate UIDs using persistent manager
                 parent_uid = generate_image_uid()  # UID for source screenshot
                 new_image_uid = generate_image_uid()  # UID for styled result
+
+                # Extract session_id from params if available
+                session_id = params.get('session_id')
+
+                # Add mappings for both images
+                # 1. Original screenshot
+                add_uid_mapping(
+                    parent_uid,
+                    'image',
+                    Path(screenshot_path).name,
+                    session_id=session_id,
+                    metadata={
+                        'width': original_metadata['width'],
+                        'height': original_metadata['height'],
+                        'file_path': str(screenshot_path),
+                        'resolution_multiplier': resolution_multiplier,
+                        'style_type': 'original_screenshot'
+                    }
+                )
+
+                # 2. Styled result
+                add_uid_mapping(
+                    new_image_uid,
+                    'image',
+                    filename,
+                    parent_uid=parent_uid,
+                    session_id=session_id,
+                    metadata={
+                        'width': styled_metadata['width'],
+                        'height': styled_metadata['height'],
+                        'file_path': styled_image_path,
+                        'style_type': 'take_styled_screenshot',
+                        'model': model,
+                        'style_prompt': style_prompt,
+                        'intensity': intensity
+                    }
+                )
                 
                 # Build standardized response
                 return build_transform_response(
@@ -633,35 +695,27 @@ Only return the English translation, nothing else:
         return style_prompt
     
     def _resolve_image_path(self, image_path_param: str) -> Optional[str]:
-        """Resolve image path - handles both full paths and filenames from session context."""
-        # If it's already a full path and exists, use it
-        if os.path.isabs(image_path_param) and os.path.exists(image_path_param):
-            return image_path_param
-        
-        # Otherwise, treat it as a filename and search for it
-        project_path = os.getenv('UNREAL_PROJECT_PATH')
-        if not project_path:
-            logger.warning("UNREAL_PROJECT_PATH not set - cannot resolve image path")
-            return None
-        
-        # Search locations in order of preference
-        search_locations = [
-            # Styled images directory (most recent transformations)
-            Path(project_path) / "Saved" / "Screenshots" / "styled",
-            # Original screenshots directory
-            Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor",
-        ]
-        
-        filename = Path(image_path_param).name  # Extract just the filename
-        
-        for location in search_locations:
-            if location.exists():
-                potential_path = location / filename
-                if potential_path.exists():
-                    logger.info(f"Resolved image path: {potential_path}")
-                    return str(potential_path)
-        
-        logger.warning(f"Could not resolve image path for: {image_path_param}")
+        """Resolve image path - ONLY supports UIDs (img_XXX format)."""
+
+        # Check if it's a UID (format: img_XXX)
+        if image_path_param.startswith('img_') and image_path_param[4:].isdigit():
+            logger.info(f"Resolving UID: {image_path_param}")
+            mapping = get_uid_mapping(image_path_param)
+            if not mapping:
+                logger.error(f"UID not found in mapping table: {image_path_param}")
+                return None
+
+            # Get file path from mapping metadata
+            file_path = mapping.get('metadata', {}).get('file_path')
+            if file_path and os.path.exists(file_path):
+                logger.info(f"Resolved UID {image_path_param} to: {file_path}")
+                return file_path
+            else:
+                logger.error(f"File not found for UID {image_path_param}: {file_path}")
+                return None
+
+        # Reject all non-UID inputs - no fallbacks allowed
+        logger.error(f"Only UID format (img_XXX) is supported for image editing. Received: {image_path_param}")
         return None
     
     def _extract_original_screenshot_name(self, file_path: str) -> str:
@@ -677,42 +731,3 @@ Only return the English translation, nothing else:
         # Fallback: use first part before underscore
         return filename.split('_')[0]
     
-    def _resolve_uid_to_path(self, uid: str) -> Optional[str]:
-        """Resolve UID to file path by searching for styled images and original screenshots.
-        
-        Searches both styled and original directories to find the image corresponding to the UID.
-        """
-        try:
-            project_path = os.getenv('UNREAL_PROJECT_PATH')
-            if not project_path:
-                logger.warning("UNREAL_PROJECT_PATH not set - cannot resolve UID")
-                return None
-            
-            # Search directories in order of preference
-            search_dirs = [
-                Path(project_path) / "Saved" / "Screenshots" / "styled",
-                Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
-            ]
-            
-            # For now, find the newest file across all directories
-            # This is a temporary solution - ideally we'd maintain a proper UID->file mapping
-            all_files = []
-            
-            for search_dir in search_dirs:
-                if search_dir.exists():
-                    png_files = list(search_dir.glob("*.png"))
-                    for file_path in png_files:
-                        all_files.append(file_path)
-            
-            if all_files:
-                # Sort by modification time and return the newest
-                newest_file = max(all_files, key=lambda f: f.stat().st_mtime)
-                logger.info(f"Resolved UID {uid} to newest file: {newest_file.name}")
-                return str(newest_file)
-            
-            logger.error(f"No image files found for UID {uid}")
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error resolving UID {uid}: {e}")
-            return None
