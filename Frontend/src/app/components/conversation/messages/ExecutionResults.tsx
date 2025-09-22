@@ -2,6 +2,7 @@
 
 import styles from './MessageItem.module.css';
 import MessageItemImageResult from './MessageItemImageResult';
+import MessageItemVideoResult from './MessageItemVideoResult';
 
 interface ExecutionResultData {
   command: string;
@@ -13,32 +14,43 @@ interface ExecutionResultData {
 interface ExecutionResultsProps {
   executionResults?: ExecutionResultData[];
   excludeImages?: boolean;
+  excludeVideos?: boolean;
 }
 
-export default function ExecutionResults({ executionResults, excludeImages = false }: ExecutionResultsProps) {
+export default function ExecutionResults({ executionResults, excludeImages = false, excludeVideos = false }: ExecutionResultsProps) {
   if (!executionResults || executionResults.length === 0) {
     return null;
   }
 
-  // Filter results based on excludeImages prop
-  const filteredResults = excludeImages 
-    ? executionResults.filter(result => {
-        if (!result.result || typeof result.result !== 'object' || result.result === null) {
-          return true; // Keep non-object results
-        }
-        
-        const resultData = result.result as any;
-        
-        // Check for new hierarchical schema (image.url)
-        const hasNewImageUrl = resultData?.image?.url;
-        
-        // Check for legacy schema (image_url)  
-        const hasLegacyImageUrl = resultData?.image_url;
-        
-        // Exclude if it has either type of image URL
-        return !(hasNewImageUrl || hasLegacyImageUrl);
-      })
-    : executionResults;
+  // Filter results based on excludeImages and excludeVideos props
+  const filteredResults = executionResults.filter(result => {
+    if (!result.result || typeof result.result !== 'object' || result.result === null) {
+      return true; // Keep non-object results
+    }
+
+    const resultData = result.result as Record<string, unknown>;
+
+    // Check for image URLs
+    const hasNewImageUrl = resultData?.image?.url;
+    const hasLegacyImageUrl = resultData?.image_url;
+    const hasImageUrl = hasNewImageUrl || hasLegacyImageUrl;
+
+    // Check for video URLs
+    const hasNewVideoUrl = resultData?.video?.url;
+    const hasLegacyVideoUrl = resultData?.video_url;
+    const hasVideoUrl = hasNewVideoUrl || hasLegacyVideoUrl;
+
+    // Apply filters
+    if (excludeImages && hasImageUrl) {
+      return false;
+    }
+
+    if (excludeVideos && hasVideoUrl) {
+      return false;
+    }
+
+    return true;
+  });
 
   if (filteredResults.length === 0) {
     return null;
@@ -54,6 +66,7 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
             <span className={styles.commandName}>{result.command}</span>
           </div>
           <MessageItemImageResult result={result} resultIndex={resultIndex} />
+          <MessageItemVideoResult result={result} resultIndex={resultIndex} />
         </div>
       ))}
     </div>

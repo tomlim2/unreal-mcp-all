@@ -41,7 +41,7 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
   const [tokenInfo, setTokenInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const calculateCosts = (tokens: number, imageTokens: number, modelUsed?: string, backendImageCost?: number) => {
+  const calculateCosts = (tokens: number, imageTokens: number, modelUsed?: string, backendImageCost?: number, backendVideoCost?: number) => {
     // Model-specific pricing (as of 2024)
     const MODEL_PRICING = {
       'gemini': {
@@ -79,14 +79,18 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
 
     const nlpCost = (inputTokens * pricing.input) + (outputTokens * pricing.output);
     // Use backend-provided cost if available, otherwise fall back to frontend calculation
-    const imageCost = backendImageCost !== undefined && backendImageCost > 0 
-      ? backendImageCost 
+    const imageCost = backendImageCost !== undefined && backendImageCost > 0
+      ? backendImageCost
       : (imageTokens > 0 ? (imageTokens * GEMINI_IMAGE_GENERATION) : 0);
-    
+
+    // Video generation cost (Veo-3 pricing)
+    const videoCost = backendVideoCost || 0;
+
     return {
       nlp: nlpCost,
       image: imageCost,
-      total: nlpCost + imageCost,
+      video: videoCost,
+      total: nlpCost + imageCost + videoCost,
       modelName: pricing.name
     };
   };
@@ -101,8 +105,13 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       const estimatedTokens = hasNonAscii ? Math.ceil(charCount / 2.5) : Math.ceil(charCount / 4);
       
       // Check if this involved image commands (Nano Banana)
-      const imageCommands = (message.commands || []).filter(cmd => 
+      const imageCommands = (message.commands || []).filter(cmd =>
         cmd.type === 'transform_image_style' || cmd.type === 'take_styled_screenshot'
+      );
+
+      // Check if this involved video commands (Veo-3)
+      const videoCommands = (message.commands || []).filter(cmd =>
+        cmd.type === 'generate_video_from_image'
       );
       
       let imageTokenEstimate = 0;
@@ -137,6 +146,38 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
         }
       }
 
+      // Process video commands (Veo-3)
+      let videoMetadata = null;
+      let backendVideoCost = 0;
+
+      if (videoCommands.length > 0) {
+        // Look for actual video metadata in execution results
+        const videoResults = (message.execution_results || []).find(result =>
+          result.result && typeof result.result === 'object' &&
+          ((result.result as any).video?.metadata || (result.result as any).cost?.value)
+        );
+
+        if (videoResults && (videoResults.result as any)) {
+          const resultData = videoResults.result as any;
+
+          // Handle hierarchical schema
+          if (resultData.video?.metadata) {
+            videoMetadata = resultData.video.metadata;
+          }
+
+          // Use cost data
+          if (resultData.cost?.value) {
+            backendVideoCost = resultData.cost.value;
+          } else {
+            // Fallback: Veo-3 standard cost (8 seconds * $0.75/second)
+            backendVideoCost = 6.0;
+          }
+        } else {
+          // Fallback cost for video generation
+          backendVideoCost = videoCommands.length * 6.0;
+        }
+      }
+
       // Calculate costs with model-specific pricing
       // Use hierarchical schema cost data
       let backendImageCost = 0;
@@ -155,7 +196,7 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
         }
       }
       
-      const costs = calculateCosts(estimatedTokens, imageTokenEstimate, message.model_used, backendImageCost);
+      const costs = calculateCosts(estimatedTokens, imageTokenEstimate, message.model_used, backendImageCost, backendVideoCost);
 
       // Check Nano Banana status
       let nanoBananaStatus = null;
@@ -182,6 +223,12 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
           estimatedTokens: imageTokenEstimate,
           commands: imageCommands.map(cmd => cmd.type),
           metadata: imageMetadata
+        },
+        videoProcessing: {
+          commandCount: videoCommands.length,
+          commands: videoCommands.map(cmd => cmd.type),
+          metadata: videoMetadata,
+          cost: backendVideoCost
         },
         totalEstimate: estimatedTokens + imageTokenEstimate,
         costs: costs,
@@ -248,7 +295,24 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
                 }
                 analysisText += `   - Cost: $${tokenInfo.costs.image.toFixed(6)}\n\n`;
               }
-              
+
+              if (tokenInfo.videoProcessing.commandCount > 0) {
+                analysisText += `3. **Video (Veo-3 Generation)**\n`;
+                analysisText += `   - Service: Google Veo-3\n`;
+                if (tokenInfo.videoProcessing.metadata) {
+                  const meta = tokenInfo.videoProcessing.metadata;
+                  const duration = meta.duration?.display || '8s';
+                  const resolution = meta.generation?.resolution || '720p';
+                  const aspectRatio = meta.generation?.aspect_ratio || '16:9';
+
+                  analysisText += `   - Video Details: ${resolution} (${aspectRatio}) • ${duration}\n`;
+                  if (meta.generation?.prompt) {
+                    analysisText += `   - Prompt: ${meta.generation.prompt}\n`;
+                  }
+                }
+                analysisText += `   - Cost: $${tokenInfo.costs.video.toFixed(6)}\n\n`;
+              }
+
               // High usage warning
               if (tokenInfo.totalEstimate > 800) {
                 analysisText += `⚠️ High usage (${tokenInfo.totalEstimate} tokens) - may consume daily quota quickly\n\n`;
@@ -289,6 +353,24 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
               <span className={styles.debugLabel}>2. Image (Visual Processing):</span>
               <div>
                 <div>{tokenInfo.imageProcessing.estimatedTokens.toLocaleString()} tokens • Nano Banana • ${tokenInfo.costs?.image.toFixed(6) || '0.000000'}</div>
+              </div>
+            </div>
+          )}
+
+          {tokenInfo.videoProcessing.commandCount > 0 && (
+            <div className={styles.debugMetric}>
+              <span className={styles.debugLabel}>3. Video (Veo-3 Generation):</span>
+              <div>
+                <div>Google Veo-3 • ${tokenInfo.costs?.video.toFixed(6) || '0.000000'}</div>
+                {tokenInfo.videoProcessing.metadata && (
+                  <div>
+                    <small>
+                      {tokenInfo.videoProcessing.metadata.generation?.resolution || '720p'} •
+                      {tokenInfo.videoProcessing.metadata.duration?.display || '8s'} •
+                      {tokenInfo.videoProcessing.metadata.generation?.aspect_ratio || '16:9'}
+                    </small>
+                  </div>
+                )}
               </div>
             </div>
           )}
