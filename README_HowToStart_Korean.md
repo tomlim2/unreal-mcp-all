@@ -24,6 +24,21 @@ node --version
 init-install-packages.bat
 ```
 
+**설치 후 API 키 설정 (중요!):**
+1. `Python\.env` 파일 열기
+2. API 키들 설정:
+```bash
+# Python\.env 파일 예시
+GOOGLE_API_KEY=AIzaSyAxxxxxxxxxxxxxxxxxxxxxxx
+ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxx
+UNREAL_PROJECT_PATH=D:\vs\unreal-mcp\unreal-mcp\MCPGameProject
+```
+- **GOOGLE_API_KEY**: 메인 AI 기능용 (필수) - **결제 방식 설정된 키 필요**
+- **ANTHROPIC_API_KEY**: 추가 AI 기능용 (선택사항)
+
+> ⚠️ **중요**: GOOGLE_API_KEY는 Google Cloud에서 결제 방식이 설정된 키여야 합니다.
+> 키가 없으시면 **디모에게 DM** 주세요.
+
 ### 2단계: 언리얼 엔진 프로젝트 열기
 **MCPGameProject/MCPGameProject.uproject** 파일을 더블클릭해서 열기
 
@@ -87,6 +102,21 @@ npm run dev
 - "지도를 도쿄로 이동해줘" ✅
 
 ## 🔧 문제해결
+
+### API 키 설정 문제
+```bash
+# "API key not found" 오류가 날 때
+# Python\.env 파일에서 다음 확인:
+GOOGLE_API_KEY=AIzaSyA-여기에실제키입력
+ANTHROPIC_API_KEY=sk-ant-api03-여기에실제키입력
+
+# 파일이 없다면 Python\.env.example을 복사해서 .env로 이름 변경
+copy Python\.env.example Python\.env
+```
+
+**API 키 관련 안내:**
+- **GOOGLE_API_KEY**: 결제 방식 설정된 키 필요 (키가 없으면 **디모에게 DM**)
+- **ANTHROPIC_API_KEY**: 선택사항
 
 ### Python 서버 문제
 ```bash
