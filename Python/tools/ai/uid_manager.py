@@ -129,8 +129,18 @@ def get_uid_manager() -> UIDManager:
 
 def generate_image_uid() -> str:
     """Convenience function to generate next image UID.
-    
+
     Returns:
         Sequential UID string (e.g., img_043)
     """
     return get_uid_manager().get_next_uid()
+
+
+def generate_video_uid() -> str:
+    """Convenience function to generate next video UID.
+
+    Returns:
+        Sequential UID string (e.g., vid_043)
+    """
+    image_uid = get_uid_manager().get_next_uid()
+    return image_uid.replace('img_', 'vid_')

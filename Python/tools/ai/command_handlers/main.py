@@ -138,15 +138,17 @@ class CommandRegistry:
         from .actor.actor import ActorCommandHandler
         from .rendering.screenshot import ScreenshotCommandHandler
         from .nano_banana.image_edit import NanoBananaImageEditHandler
-        
+        from .video_generation.video_handler import VideoGenerationHandler
+
         handlers = [
             UDSCommandHandler(),
             UDWCommandHandler(),
-            CesiumCommandHandler(), 
+            CesiumCommandHandler(),
             LightCommandHandler(),
             ActorCommandHandler(),
             ScreenshotCommandHandler(),
-            NanoBananaImageEditHandler()
+            NanoBananaImageEditHandler(),
+            VideoGenerationHandler()
         ]
         
         for handler in handlers:
@@ -215,11 +217,7 @@ class CommandRegistry:
         # Execute command
         return handler.execute_command(connection, command_type, processed_params)
 
-
-# Global registry instance - initialized once with default handlers
-# Handlers registered: UDS, Cesium, Light, Actor (total ~14 commands)
 _command_registry = CommandRegistry()
-
 
 def get_command_registry() -> CommandRegistry:
     """Get the global command registry instance.

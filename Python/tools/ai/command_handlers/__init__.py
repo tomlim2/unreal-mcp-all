@@ -19,16 +19,18 @@ from .actor.light import LightCommandHandler
 from .actor.actor import ActorCommandHandler
 from .rendering.screenshot import ScreenshotCommandHandler
 from .nano_banana.image_edit import NanoBananaImageEditHandler
+from .video_generation.video_handler import VideoGenerationHandler
 
 __all__ = [
     'BaseCommandHandler',
-    'CommandRegistry', 
+    'CommandRegistry',
     'get_command_registry',
     'UDSCommandHandler',
     'UDWCommandHandler',
     'CesiumCommandHandler',
-    'LightCommandHandler', 
+    'LightCommandHandler',
     'ActorCommandHandler',
     'ScreenshotCommandHandler',
-    'NanoBananaImageEditHandler'
+    'NanoBananaImageEditHandler',
+    'VideoGenerationHandler'
 ]

@@ -320,9 +320,12 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         
         # Determine if this is a style request for preprocessing
         is_style_request = any(keyword in user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it', 'nano banana', 'nano-banana'])
+
+        # Determine if this is a video generation request
+        is_video_request = any(keyword in user_input.lower() for keyword in ['video', 'animate', 'motion', 'movement', 'fly through', 'camera movement', 'flying camera', 'moving'])
         
         # Build system prompt with session context
-        system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context, is_style_request)
+        system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context, is_style_request or is_video_request)
         logger.info(f"Processing natural language input with {provider.get_model_name()}: {user_input}")
         processed_input = user_input
         
@@ -538,15 +541,23 @@ Your role is to provide intuitive creative control by translating natural langua
 - transform_image_style: Apply style to existing image (no new screenshot)
 - take_styled_screenshot: Take new screenshot AND apply style transformation
 
+**AI Video Generation (Veo-3):**
+- generate_video_from_image: Create 8-second video from latest screenshot with animation prompt
+
 **Image Processing Keywords:** When users mention "nano banana", "style", "transform", "cyberpunk", "anime", "watercolor", or similar visual style terms, they want image processing operations.
+
+**Video Generation Keywords:** When users mention "video", "animate", "motion", "movement", "fly through", "camera movement", or similar animation terms, they want video generation operations.
 
 ## PARAMETER VALIDATION RULES
 **Essential Parameters:**
 - time_of_day: HHMM format (e.g., 600=6AM, 1800=6PM)
-- color_temperature: Kelvin number OR "warmer"/"cooler" 
+- color_temperature: Kelvin number OR "warmer"/"cooler"
 - light_name: String identifier for lighting operations
 - location: {{"x": number, "y": number, "z": number}}
 - style_prompt: Description for image transformations
+- prompt: Description for video animation (required for generate_video_from_image)
+- aspect_ratio: "16:9" or "9:16" (optional for video generation)
+- resolution: "720p" or "1080p" (optional for video generation)
 
 ## DECISION LOGIC
 
@@ -565,9 +576,15 @@ Your role is to provide intuitive creative control by translating natural langua
 
 **Nano Banana Examples:**
 - "Use nano banana to make it cyberpunk" → transform_image_style with cyberpunk style
-- "Apply nano banana anime style" → transform_image_style with anime aesthetic  
+- "Apply nano banana anime style" → transform_image_style with anime aesthetic
 - "Nano banana this image watercolor" → transform_image_style with watercolor effect
 - "Take screenshot with nano banana punk style" → take_styled_screenshot
+
+**Video Generation Examples:**
+- "Create a video where the scene becomes animated" → generate_video_from_image with animation prompt
+- "Make a flying camera movement video" → generate_video_from_image with camera movement description
+- "Generate video with smooth motion through the scene" → generate_video_from_image with motion prompt
+- "Animate this scene as if it's moving" → generate_video_from_image with movement description
 
 Return valid JSON only."""
 
