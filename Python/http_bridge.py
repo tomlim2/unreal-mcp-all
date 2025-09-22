@@ -46,56 +46,99 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     
     def do_HEAD(self):
         """Handle HEAD requests (same as GET but without response body)"""
-        # For screenshot files, we can handle HEAD requests efficiently
+        # For screenshot and video files, we can handle HEAD requests efficiently
         parsed_url = urlparse(self.path)
         path = parsed_url.path
-        
-        if path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/'):
-            # Handle HEAD request for screenshot files
+
+        if path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/') or path.startswith('/api/video-file/') or path.startswith('/api/video/'):
+            # Handle HEAD request for screenshot and video files
             path_parts = path.split('/')
-            if len(path_parts) == 4 and path_parts[1] == 'api' and (path_parts[2] == 'screenshot-file' or path_parts[2] == 'screenshot'):
+            if len(path_parts) == 4 and path_parts[1] == 'api':
+                endpoint_type = path_parts[2]
                 filename = path_parts[3]
-                try:
-                    # Get project path from environment
-                    project_path = os.getenv('UNREAL_PROJECT_PATH')
-                    if not project_path:
+
+                # Handle screenshot files
+                if endpoint_type in ['screenshot-file', 'screenshot']:
+                    try:
+                        # Get project path from environment
+                        project_path = os.getenv('UNREAL_PROJECT_PATH')
+                        if not project_path:
+                            self.send_response(500)
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.end_headers()
+                            return
+
+                        # Build path to screenshot file - check both WindowsEditor and styled directories
+                        screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+                        styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+
+                        file_path = screenshot_dir / filename
+                        if not file_path.exists():
+                            # Try styled directory if not found in WindowsEditor
+                            file_path = styled_dir / filename
+
+                        # Check if file exists
+                        if file_path.exists() and filename.lower().endswith('.png'):
+                            file_size = file_path.stat().st_size
+
+                            # Send success headers without body
+                            self.send_response(200)
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.send_header('Content-Type', 'image/png')
+                            self.send_header('Content-Length', str(file_size))
+                            self.end_headers()
+                            return
+                        else:
+                            self.send_response(404)
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.end_headers()
+                            return
+                        
+                    except Exception as e:
+                        logger.error(f"Error handling HEAD request for {filename}: {e}")
                         self.send_response(500)
                         self.send_header('Access-Control-Allow-Origin', '*')
                         self.end_headers()
                         return
-                    
-                    # Build path to screenshot file - check both WindowsEditor and styled directories  
-                    screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
-                    styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
-                    
-                    file_path = screenshot_dir / filename
-                    if not file_path.exists():
-                        # Try styled directory if not found in WindowsEditor
-                        file_path = styled_dir / filename
-                    
-                    # Check if file exists
-                    if file_path.exists() and filename.lower().endswith('.png'):
-                        file_size = file_path.stat().st_size
-                        
-                        # Send success headers without body
-                        self.send_response(200)
+
+                # Handle video files
+                elif endpoint_type in ['video-file', 'video']:
+                    try:
+                        # Get project path from environment
+                        project_path = os.getenv('UNREAL_PROJECT_PATH')
+                        if not project_path:
+                            self.send_response(500)
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.end_headers()
+                            return
+
+                        # Build path to video file - check generated directory
+                        video_dir = Path(project_path) / "Saved" / "Videos" / "generated"
+                        file_path = video_dir / filename
+
+                        # Check if file exists
+                        if file_path.exists() and filename.lower().endswith('.mp4'):
+                            file_size = file_path.stat().st_size
+
+                            # Send success headers without body
+                            self.send_response(200)
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.send_header('Content-Type', 'video/mp4')
+                            self.send_header('Content-Length', str(file_size))
+                            self.end_headers()
+                            return
+                        else:
+                            self.send_response(404)
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.end_headers()
+                            return
+
+                    except Exception as e:
+                        logger.error(f"Error handling HEAD request for video {filename}: {e}")
+                        self.send_response(500)
                         self.send_header('Access-Control-Allow-Origin', '*')
-                        self.send_header('Content-Type', 'image/png')
-                        self.send_header('Content-Length', str(file_size))
                         self.end_headers()
                         return
-                    else:
-                        self.send_response(404)
-                        self.send_header('Access-Control-Allow-Origin', '*')
-                        self.end_headers()
-                        return
-                        
-                except Exception as e:
-                    logger.error(f"Error handling HEAD request for {filename}: {e}")
-                    self.send_response(500)
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    return
         
         # For other paths, return 501 Not Implemented
         self.send_response(501)
@@ -111,45 +154,81 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             path = parsed_url.path
             
             # Handle file requests first (before sending any headers)
-            if path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/'):
-                # Handle screenshot file serving: /api/screenshot-file/{filename} or /api/screenshot/{filename}
+            if path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/') or path.startswith('/api/video-file/') or path.startswith('/api/video/'):
+                # Handle screenshot and video file serving
                 path_parts = path.split('/')
-                if len(path_parts) == 4 and path_parts[1] == 'api' and (path_parts[2] == 'screenshot-file' or path_parts[2] == 'screenshot'):
+                if len(path_parts) == 4 and path_parts[1] == 'api':
+                    endpoint_type = path_parts[2]
                     filename = path_parts[3]
-                    try:
-                        # Get project path from environment
-                        project_path = os.getenv('UNREAL_PROJECT_PATH')
-                        if not project_path:
-                            self._send_error("UNREAL_PROJECT_PATH not configured")
+
+                    # Handle screenshot files
+                    if endpoint_type in ['screenshot-file', 'screenshot']:
+                        try:
+                            # Get project path from environment
+                            project_path = os.getenv('UNREAL_PROJECT_PATH')
+                            if not project_path:
+                                self._send_error("UNREAL_PROJECT_PATH not configured")
+                                return
+
+                            # Build path to screenshot file - check both WindowsEditor and styled directories
+                            screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+                            styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+
+                            file_path = screenshot_dir / filename
+                            if not file_path.exists():
+                                # Try styled directory if not found in WindowsEditor
+                                file_path = styled_dir / filename
+
+                            # Validate file exists and is a PNG
+                            if not file_path.exists():
+                                self._send_error(f"Screenshot file not found: {filename}")
+                                return
+
+                            if not filename.lower().endswith('.png'):
+                                self._send_error(f"Invalid file type: {filename}")
+                                return
+
+                            # Serve the file
+                            logger.info(f"Serving screenshot file: {filename}")
+                            self._serve_file(file_path)
                             return
-                        
-                        # Build path to screenshot file - check both WindowsEditor and styled directories
-                        screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
-                        styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
-                        
-                        file_path = screenshot_dir / filename
-                        if not file_path.exists():
-                            # Try styled directory if not found in WindowsEditor
-                            file_path = styled_dir / filename
-                        
-                        # Validate file exists and is a PNG
-                        if not file_path.exists():
-                            self._send_error(f"Screenshot file not found: {filename}")
+
+                        except Exception as e:
+                            logger.error(f"Error serving screenshot file {filename}: {e}")
+                            self._send_error(f"Error serving file: {e}")
                             return
-                        
-                        if not filename.lower().endswith('.png'):
-                            self._send_error(f"Invalid file type: {filename}")
+
+                    # Handle video files
+                    elif endpoint_type in ['video-file', 'video']:
+                        try:
+                            # Get project path from environment
+                            project_path = os.getenv('UNREAL_PROJECT_PATH')
+                            if not project_path:
+                                self._send_error("UNREAL_PROJECT_PATH not configured")
+                                return
+
+                            # Build path to video file - check generated directory
+                            video_dir = Path(project_path) / "Saved" / "Videos" / "generated"
+                            file_path = video_dir / filename
+
+                            # Validate file exists and is an MP4
+                            if not file_path.exists():
+                                self._send_error(f"Video file not found: {filename}")
+                                return
+
+                            if not filename.lower().endswith('.mp4'):
+                                self._send_error(f"Invalid file type: {filename}")
+                                return
+
+                            # Serve the file
+                            logger.info(f"Serving video file: {filename}")
+                            self._serve_file(file_path)
                             return
-                        
-                        # Serve the file
-                        logger.info(f"Serving screenshot file: {filename}")
-                        self._serve_file(file_path)
-                        return
-                        
-                    except Exception as e:
-                        logger.error(f"Error serving screenshot file {filename}: {e}")
-                        self._send_error(f"Error serving file: {e}")
-                        return
+
+                        except Exception as e:
+                            logger.error(f"Error serving video file {filename}: {e}")
+                            self._send_error(f"Error serving file: {e}")
+                            return
 
             # Handle JSON API requests (send JSON headers)
             self.send_response(200)

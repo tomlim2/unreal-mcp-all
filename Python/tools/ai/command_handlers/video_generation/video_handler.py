@@ -14,11 +14,12 @@ from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 from ...pricing_manager import get_pricing_manager
-from ...image_schema_utils import (
-    build_transform_response,
+from ...video_schema_utils import (
+    build_video_transform_response,
     build_error_response,
     generate_request_id,
-    extract_style_name
+    extract_parent_filename,
+    generate_video_filename
 )
 from ...uid_manager import generate_image_uid, generate_video_uid
 
@@ -44,6 +45,7 @@ try:
     GOOGLE_GENAI_AVAILABLE = True
 except ImportError:
     GOOGLE_GENAI_AVAILABLE = False
+    types = None
     logger.warning("google.genai not available - will use fallback")
 
 
@@ -224,18 +226,26 @@ class VideoGenerationHandler(BaseCommandHandler):
                 parent_uid = generate_image_uid()  # UID for source screenshot
                 video_uid = generate_video_uid()  # UID for video result
 
-                # Build video response
-                return self._build_video_response(
+                # Parse resolution to get dimensions
+                if resolution == "720p":
+                    video_width, video_height = (1280, 720) if aspect_ratio == "16:9" else (720, 1280)
+                else:  # 1080p
+                    video_width, video_height = (1920, 1080) if aspect_ratio == "16:9" else (1080, 1920)
+
+                # Build standardized video response
+                return build_video_transform_response(
                     video_uid=video_uid,
                     parent_uid=parent_uid,
                     filename=filename,
                     video_path=video_path,
                     original_width=screenshot_metadata.get('width', 0),
                     original_height=screenshot_metadata.get('height', 0),
+                    processed_width=video_width,
+                    processed_height=video_height,
+                    duration_seconds=video_metadata['duration_seconds'],
                     prompt=prompt,
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
-                    duration_seconds=video_metadata['duration_seconds'],
                     cost=video_metadata['cost'],
                     request_id=request_id,
                     start_time=start_time
@@ -275,7 +285,10 @@ class VideoGenerationHandler(BaseCommandHandler):
                 'mimeType': 'image/png'
             }
 
-            # Build config
+            # Build config - only if types is available
+            if not types:
+                raise Exception("Google GenAI types not available")
+
             config = types.GenerateVideosConfig(
                 aspect_ratio=aspect_ratio,
                 resolution=resolution
@@ -311,7 +324,7 @@ class VideoGenerationHandler(BaseCommandHandler):
             # Extract and save video
             if operation.response and operation.response.generated_videos:
                 generated_video = operation.response.generated_videos[0]
-                video_path = self._save_video_to_project(generated_video, prompt)
+                video_path = self._save_video_to_project(generated_video, image_path, prompt)
                 logger.info(f"Video generated successfully: {video_path}")
                 return video_path
             else:
@@ -322,7 +335,7 @@ class VideoGenerationHandler(BaseCommandHandler):
             logger.error(f"Veo-3 video generation failed: {e}")
             raise Exception(f"Video generation failed: {str(e)}")
 
-    def _save_video_to_project(self, generated_video, prompt: str) -> str:
+    def _save_video_to_project(self, generated_video, image_path: str, prompt: str) -> str:
         """Save the Veo-3 generated video to the project directory."""
         try:
             # Create video directory
@@ -333,11 +346,11 @@ class VideoGenerationHandler(BaseCommandHandler):
             video_dir = Path(project_path) / "Saved" / "Videos" / "generated"
             video_dir.mkdir(parents=True, exist_ok=True)
 
-            # Generate filename: [prompt_keywords]_VEO_[timestamp]
-            prompt_keywords = self._extract_prompt_keywords(prompt)
+            # Generate filename: [parent_filename]_VEO3_[timestamp]
+            parent_filename = extract_parent_filename(image_path)
             timestamp = int(time.time())
 
-            video_filename = f"{prompt_keywords}_VEO_{timestamp}.mp4"
+            video_filename = generate_video_filename(parent_filename, timestamp)
             video_path = video_dir / video_filename
 
             # Download and save video
@@ -396,47 +409,3 @@ class VideoGenerationHandler(BaseCommandHandler):
 
         return metadata
 
-    def _extract_prompt_keywords(self, prompt: str) -> str:
-        """Extract keywords from prompt for filename."""
-        import re
-        # Remove special characters and take first few words
-        clean_prompt = re.sub(r'[^a-zA-Z0-9\s]', '', prompt)
-        words = clean_prompt.split()[:4]  # Take first 4 words
-        return '_'.join(words).lower()
-
-
-    def _build_video_response(self, video_uid: str, parent_uid: str, filename: str,
-                             video_path: str, original_width: int, original_height: int,
-                             prompt: str, aspect_ratio: str, resolution: str,
-                             duration_seconds: int, cost: float, request_id: str,
-                             start_time: float) -> Dict[str, Any]:
-        """Build standardized video response."""
-        processing_time = time.time() - start_time
-
-        # Parse resolution to get dimensions
-        if resolution == "720p":
-            video_width, video_height = (1280, 720) if aspect_ratio == "16:9" else (720, 1280)
-        else:  # 1080p
-            video_width, video_height = (1920, 1080) if aspect_ratio == "16:9" else (1080, 1920)
-
-        return {
-            "video_uid": video_uid,
-            "parent_uid": parent_uid,
-            "filename": filename,
-            "video_path": video_path,
-            "original_width": original_width,
-            "original_height": original_height,
-            "processed_width": video_width,
-            "processed_height": video_height,
-            "duration_seconds": duration_seconds,
-            "prompt": prompt,
-            "aspect_ratio": aspect_ratio,
-            "resolution": resolution,
-            "cost": cost,
-            "request_id": request_id,
-            "processing_time_seconds": round(processing_time, 2),
-            "origin": "latest_screenshot_to_video",
-            "has_audio": True,
-            "watermarked": True,
-            "model": "veo-3.0-generate-001"
-        }
