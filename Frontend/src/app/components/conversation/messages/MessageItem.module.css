@@ -5,7 +5,7 @@
 }
 
 .message.user {
-  background-color: #2a2a2a;
+  background-color: rgb(30, 104, 72);
   color: #ffffff;
   align-self: flex-end;
   margin-left: auto;
