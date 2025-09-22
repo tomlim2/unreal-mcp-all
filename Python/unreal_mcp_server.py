@@ -129,7 +129,6 @@ class UnrealConnection:
     def send_command(self, command: str, params: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
         """Send a command to Unreal Engine and get the response."""
         # Always reconnect for each command, since Unreal closes the connection after each command
-        # This is different from Unity which keeps connections alive
         if self.socket:
             try:
                 self.socket.close()
@@ -143,31 +142,17 @@ class UnrealConnection:
             return None
         
         try:
-            # Match Unity's command format exactly
+            # Prepare command object for Unreal Engine
             command_obj = {
-                "type": command,  # Use "type" instead of "command"
-                "params": params or {}  # Use Unity's params or {} pattern
+                "type": command,
+                "params": params or {}
             }
-            
-            # Send without newline, exactly like Unity
             command_json = json.dumps(command_obj)
             logger.info(f"Sending command: {command_json}")
             self.socket.sendall(command_json.encode('utf-8'))
-            
-            # Use longer timeout for screenshot commands
-            if command == "take_highresshot":
-                # Screenshot commands can take 15+ seconds for high-res captures
-                old_timeout = self.socket.gettimeout()
-                self.socket.settimeout(30)  # 30 second timeout for screenshots
-                logger.info("Set extended 30-second timeout for screenshot command")
-            
+
             # Read response using improved handler
             response_data = self.receive_full_response(self.socket)
-            
-            # Restore original timeout if it was changed
-            if command == "take_highresshot":
-                self.socket.settimeout(old_timeout)
-                logger.info("Restored original socket timeout")
             response = json.loads(response_data.decode('utf-8'))
             
             # Log complete response for debugging

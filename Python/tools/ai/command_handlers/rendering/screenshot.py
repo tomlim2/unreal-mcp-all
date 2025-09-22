@@ -16,7 +16,7 @@ from ...image_schema_utils import (
     build_error_response,
     generate_request_id
 )
-from ...uid_manager import generate_image_uid
+from ...uid_manager import generate_image_uid, add_uid_mapping
 
 try:
     from PIL import Image
@@ -89,8 +89,11 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         """Execute screenshot commands synchronously."""
         start_time = time.time()
         request_id = generate_request_id()
-        
-        logger.info(f"Screenshot Handler: Executing {command_type} with params: {params} [req_id: {request_id}]")
+
+        # Extract session_id if provided (for session-based UID mapping)
+        session_id = params.get('session_id')
+
+        logger.info(f"Screenshot Handler: Executing {command_type} with params: {params} [req_id: {request_id}] [session: {session_id}]")
         
         try:
             # Take screenshot via Unreal connection
@@ -114,10 +117,20 @@ class ScreenshotCommandHandler(BaseCommandHandler):
                 # Generate UID for screenshot using persistent manager
                 image_uid = generate_image_uid()
                 filename = screenshot_file.name
-                
+
                 # Extract image dimensions
                 width, height = self._get_image_dimensions(str(screenshot_file))
-                
+
+                # Add mapping to UID table
+                metadata = {
+                    'width': width,
+                    'height': height,
+                    'resolution_multiplier': params.get('resolution_multiplier', 1.0),
+                    'include_ui': params.get('include_ui', False),
+                    'file_path': str(screenshot_file)
+                }
+                add_uid_mapping(image_uid, 'image', filename, session_id=session_id, metadata=metadata)
+
                 # Build standardized response
                 return build_screenshot_response(
                     image_uid=image_uid,

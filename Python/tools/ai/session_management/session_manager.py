@@ -198,6 +198,14 @@ class SessionManager:
         
         try:
             if storage.delete_session(session_id):
+                # Also delete all UID mappings associated with this session
+                from ..uid_manager import delete_mappings_by_session_id
+                deleted_uids = delete_mappings_by_session_id(session_id)
+                if deleted_uids:
+                    logger.info(f"Deleted {len(deleted_uids)} UID mappings for session {session_id}: {deleted_uids}")
+                else:
+                    logger.info(f"No UID mappings found for session {session_id}")
+
                 logger.info(f"Deleted session: {session_id}")
                 return True
             else:

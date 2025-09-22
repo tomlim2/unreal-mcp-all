@@ -1,4 +1,75 @@
 {
-  "current_counter": 59,
-  "last_updated": "2025-09-22T14:47:16.828732"
+  "img_counter": 68,
+  "vid_counter": 4,
+  "uid_mappings": {
+    "img_060": {
+      "type": "image",
+      "filename": "screenshot_001.png",
+      "parent_uid": null,
+      "created_at": "2025-09-22T16:41:12.792581",
+      "metadata": {
+        "resolution": "1920x1080"
+      },
+      "session_id": null
+    },
+    "img_061": {
+      "type": "image",
+      "filename": "screenshot_002.png",
+      "parent_uid": null,
+      "created_at": "2025-09-22T16:41:12.793581",
+      "metadata": {
+        "resolution": "4K"
+      },
+      "session_id": null
+    },
+    "vid_001": {
+      "type": "video",
+      "filename": "video_001.mp4",
+      "parent_uid": "img_060",
+      "created_at": "2025-09-22T16:41:12.793581",
+      "metadata": {
+        "duration": "30s"
+      },
+      "session_id": null
+    },
+    "vid_002": {
+      "type": "video",
+      "filename": "video_002.mp4",
+      "parent_uid": "img_061",
+      "created_at": "2025-09-22T16:41:12.794581",
+      "metadata": {
+        "duration": "45s"
+      },
+      "session_id": null
+    },
+    "img_066": {
+      "type": "image",
+      "filename": "ScreenShot00071.png",
+      "parent_uid": null,
+      "created_at": "2025-09-22T17:04:31.811263",
+      "metadata": {
+        "width": 1853,
+        "height": 900,
+        "resolution_multiplier": 1.0,
+        "include_ui": false,
+        "file_path": "E:\\CINEVStudio\\CINEVStudio\\Saved\\Screenshots\\WindowsEditor\\ScreenShot00071.png"
+      },
+      "session_id": null
+    },
+    "img_067": {
+      "type": "image",
+      "filename": "ScreenShot00072.png",
+      "parent_uid": null,
+      "created_at": "2025-09-22T17:04:40.360929",
+      "metadata": {
+        "width": 1853,
+        "height": 900,
+        "resolution_multiplier": 1.0,
+        "include_ui": false,
+        "file_path": "E:\\CINEVStudio\\CINEVStudio\\Saved\\Screenshots\\WindowsEditor\\ScreenShot00072.png"
+      },
+      "session_id": null
+    }
+  },
+  "last_updated": "2025-09-22T17:15:02.203596"
 }

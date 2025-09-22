@@ -405,7 +405,14 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                 try:
                     logger.info(f"Executing command from NLP: {command}")
                     print(f"DEBUG: Executing command from NLP: {command}")
-                    
+
+                    # Add session_id to command params if session_id is provided
+                    if session_id:
+                        if "params" not in command:
+                            command["params"] = {}
+                        command["params"]["session_id"] = session_id
+                        logger.debug(f"Added session_id {session_id} to command {command.get('type')}")
+
                     # Fix parameter names and ensure image_path for image commands
                     if command.get("type") == "transform_image_style" and command.get("params"):
                         params = command["params"]
