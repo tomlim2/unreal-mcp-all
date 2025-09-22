@@ -33,11 +33,18 @@ logger = logging.getLogger("UnrealMCP")
 
 try:
     import google.generativeai as genai
-    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
     logger.warning("google.generativeai not available - Veo-3 features disabled")
+
+try:
+    from google import genai as google_genai
+    from google.genai import types
+    GOOGLE_GENAI_AVAILABLE = True
+except ImportError:
+    GOOGLE_GENAI_AVAILABLE = False
+    logger.warning("google.genai not available - will use fallback")
 
 
 class VideoGenerationHandler(BaseCommandHandler):
@@ -68,23 +75,29 @@ class VideoGenerationHandler(BaseCommandHandler):
 
         self._client_initialized = True
 
-        if not GEMINI_AVAILABLE:
-            logger.warning("google.generativeai package not available")
-            self._client = None
-            return False
-
         api_key = os.getenv('GOOGLE_API_KEY')
         if not api_key:
             logger.warning("GOOGLE_API_KEY not set - Veo-3 features will not work")
             self._client = None
             return False
 
+        # Try different import methods
         try:
-            # Initialize Gemini client for Veo-3
-            from google import genai
-            self._client = genai.Client(api_key=api_key)
-            logger.info("Veo-3 (Gemini) initialized successfully")
-            return True
+            if GOOGLE_GENAI_AVAILABLE:
+                # Use google.genai client for Veo-3
+                self._client = google_genai.Client(api_key=api_key)
+                logger.info("Veo-3 (google.genai) initialized successfully")
+                return True
+            elif GEMINI_AVAILABLE:
+                # Fallback to google.generativeai
+                genai.configure(api_key=api_key)
+                self._client = genai
+                logger.info("Veo-3 (google.generativeai) initialized successfully")
+                return True
+            else:
+                logger.warning("No Google AI packages available")
+                self._client = None
+                return False
         except Exception as e:
             logger.error(f"Failed to initialize Gemini client: {e}")
             self._client = None
@@ -123,8 +136,8 @@ class VideoGenerationHandler(BaseCommandHandler):
 
         # Check if Gemini is available (lazy initialization)
         if not self._ensure_gemini_initialized():
-            if not GEMINI_AVAILABLE:
-                errors.append("google.generativeai package not available")
+            if not GEMINI_AVAILABLE and not GOOGLE_GENAI_AVAILABLE:
+                errors.append("Google AI packages not available")
             else:
                 errors.append("Gemini API not properly configured (check GOOGLE_API_KEY)")
 
@@ -256,10 +269,10 @@ class VideoGenerationHandler(BaseCommandHandler):
             with open(image_path, 'rb') as img_file:
                 image_data = img_file.read()
 
-            # Create image part for Veo-3
+            # Create image part for Veo-3 API using correct format
             image_part = {
-                'mime_type': 'image/png',
-                'data': image_data
+                'imageBytes': image_data,
+                'mimeType': 'image/png'
             }
 
             # Build config
@@ -271,8 +284,10 @@ class VideoGenerationHandler(BaseCommandHandler):
             if negative_prompt:
                 config.negative_prompt = negative_prompt
 
-            # Start video generation
+            # Start video generation using correct API format
             logger.info("Starting Veo-3 video generation operation...")
+
+            # Use the correct API call structure for image-to-video
             operation = self._client.models.generate_videos(
                 model="veo-3.0-generate-001",
                 prompt=prompt,
