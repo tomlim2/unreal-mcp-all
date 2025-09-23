@@ -143,6 +143,36 @@
   background: #45a049;
 }
 
+/* Transform Button */
+.transformButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #404040;
+  color: #999999;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.transformButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.transformButtonActive {
+  background: #FF9800;
+  color: #ffffff;
+}
+
+.transformButtonActive:hover {
+  background: #FB8C00;
+}
+
 /* Send Button (like ChatGPT) */
 .sendButton {
   display: flex;

@@ -33,6 +33,7 @@ class UIDManager:
         self._storage_file = Path(storage_file)
         self._img_counter = 0
         self._vid_counter = 0
+        self._ref_counter = 0  # New counter for reference images
         self._uid_mappings = {}
         self._lock = threading.Lock()
         self._initialized = False
@@ -72,7 +73,25 @@ class UIDManager:
             uid = f"vid_{self._vid_counter:03d}"
             logger.info(f"Generated video UID: {uid}")
             return uid
-    
+
+    def get_next_reference_uid(self) -> str:
+        """Generate next sequential reference image UID (e.g., refer_001).
+
+        Returns:
+            Sequential reference UID string in format refer_XXX
+        """
+        with self._lock:
+            if not self._initialized:
+                self._load_state()
+                self._initialized = True
+
+            self._ref_counter += 1
+            self._save_state()
+
+            uid = f"refer_{self._ref_counter:03d}"
+            logger.info(f"Generated reference UID: {uid}")
+            return uid
+
     def get_current_counters(self) -> Dict[str, int]:
         """Get current counter values without incrementing.
 
@@ -85,7 +104,8 @@ class UIDManager:
                 self._initialized = True
             return {
                 'img_counter': self._img_counter,
-                'vid_counter': self._vid_counter
+                'vid_counter': self._vid_counter,
+                'ref_counter': self._ref_counter
             }
 
     def add_mapping(self, uid: str, content_type: str, filename: str,
@@ -235,7 +255,8 @@ class UIDManager:
                         # New format with separate counters
                         self._img_counter = data.get('img_counter', 0)
                         self._vid_counter = data.get('vid_counter', 0)
-                        logger.info(f"Loaded counters - img: {self._img_counter}, vid: {self._vid_counter}")
+                        self._ref_counter = data.get('ref_counter', 0)  # Load reference counter
+                        logger.info(f"Loaded counters - img: {self._img_counter}, vid: {self._vid_counter}, ref: {self._ref_counter}")
 
                     # Load mappings
                     self._uid_mappings = data.get('uid_mappings', {})
@@ -276,6 +297,7 @@ class UIDManager:
             state_data = {
                 'img_counter': self._img_counter,
                 'vid_counter': self._vid_counter,
+                'ref_counter': self._ref_counter,  # Save reference counter
                 'uid_mappings': self._uid_mappings,
                 'last_updated': datetime.now().isoformat()
             }
@@ -336,6 +358,15 @@ def generate_video_uid() -> str:
         Sequential UID string (e.g., vid_001)
     """
     return get_uid_manager().get_next_video_uid()
+
+
+def generate_reference_uid() -> str:
+    """Convenience function to generate next reference UID.
+
+    Returns:
+        Sequential UID string (e.g., refer_001)
+    """
+    return get_uid_manager().get_next_reference_uid()
 
 
 def add_uid_mapping(uid: str, content_type: str, filename: str,

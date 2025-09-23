@@ -341,7 +341,76 @@ Style:"""
         logger.warning(f"Style extraction failed: {e}")
         return user_input  # Fallback to original
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None) -> Dict[str, Any]:
+
+def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optional[List[Dict[str, Any]]], reference_images: Optional[List[Dict[str, Any]]]) -> None:
+    """
+    Inject image data into commands that support image processing.
+
+    Args:
+        commands: List of AI-generated commands to process
+        images: List of target images with 'mime_type', 'data', optional 'purpose'
+        reference_images: List of reference images with 'mime_type', 'data', optional 'purpose'
+    """
+    print(f"DEBUG NLP: _process_images_for_commands called with {len(commands) if commands else 0} commands, {len(images) if images else 0} images, {len(reference_images) if reference_images else 0} reference_images", flush=True)
+
+    if not images and not reference_images:
+        print("DEBUG NLP: No images or reference_images, returning early", flush=True)
+        return
+
+    # Commands that support image processing
+    image_commands = {
+        'transform_image_style',
+        'take_styled_screenshot',
+        'compose_images',
+        'blend_images',
+        'transfer_style'
+    }
+
+    for command in commands:
+        command_type = command.get('type')
+        print(f"DEBUG NLP: Processing command {command_type}, is in image_commands: {command_type in image_commands}", flush=True)
+
+        if command_type in image_commands:
+            if 'params' not in command:
+                command['params'] = {}
+            print(f"DEBUG NLP: Command {command_type} supports images, adding image data", flush=True)
+
+            # Add target image (first image becomes target)
+            if images:
+                target_image = images[0]
+                command['params']['target_image'] = {
+                    'data': target_image['data'],
+                    'mime_type': target_image['mime_type']
+                }
+                # Remove base64 for logging
+                logger.info(f"Added target image ({target_image['mime_type']}, {len(target_image['data'])//1024}KB) to command {command_type}")
+
+            # Add reference images (up to 3 for Gemini API limit)
+            if reference_images:
+                print(f"DEBUG NLP: Processing {len(reference_images)} reference images for command {command_type}", flush=True)
+                processed_refs = []
+                for ref_img in reference_images[:3]:  # Gemini supports max 3 images
+                    processed_ref = {
+                        'data': ref_img['data'],
+                        'mime_type': ref_img['mime_type']
+                    }
+                    if 'purpose' in ref_img:
+                        processed_ref['purpose'] = ref_img['purpose']
+                    processed_refs.append(processed_ref)
+
+                command['params']['reference_images'] = processed_refs
+                print(f"DEBUG NLP: Added {len(processed_refs)} reference images to command {command_type} params", flush=True)
+                logger.info(f"Added {len(processed_refs)} reference images to command {command_type}")
+            else:
+                print(f"DEBUG NLP: No reference_images provided for command {command_type}", flush=True)
+
+            # For backward compatibility, also set image_url to None (no UID needed)
+            if 'image_url' in command.get('params', {}):
+                command['params']['image_url'] = None
+
+
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    print(f"DEBUG NLP START: Called with reference_images={len(reference_images) if reference_images else 0}", flush=True)
     try:
         # Get session manager and session context if session_id provided
         session_manager = None
@@ -459,6 +528,16 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                 else:
                     # No JSON structure found, fall back to content extraction
                     parsed_response = _extract_from_partial_response(ai_response)
+
+        # Process images for commands if images are provided
+        print(f"DEBUG NLP: About to check image processing - images={len(images) if images else 0}, reference_images={len(reference_images) if reference_images else 0}, commands={len(parsed_response.get('commands', []))}", flush=True)
+
+        if (images or reference_images) and parsed_response.get("commands"):
+            print(f"DEBUG NLP: Calling _process_images_for_commands", flush=True)
+            _process_images_for_commands(parsed_response["commands"], images, reference_images)
+        else:
+            print(f"DEBUG NLP: Skipping image processing - condition not met", flush=True)
+
         # Execute commands using direct connection with schema validation
         execution_results = []
         if parsed_response.get("commands") and isinstance(parsed_response["commands"], list):
@@ -531,10 +610,10 @@ def register_nlp_tools(mcp: FastMCP):
     pass
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id, llm_model)
+        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {

@@ -83,20 +83,42 @@ export interface CustomModalConfig extends BaseModalConfig {
   footer?: ReactNode;
 }
 
+// Reference Images modal types
+export interface ReferenceImageUpload {
+  file: File;
+  purpose: 'style' | 'color' | 'composition';
+  preview?: string;
+  refer_uid?: string; // Added for UID-based system
+  uploading?: boolean; // Track upload state
+}
+
+export interface ReferenceImagesData {
+  prompt: string;
+  targetImageUid: string;
+  referenceImages: ReferenceImageUpload[];
+  referenceImageUids?: string[]; // New UID-based field
+}
+
+export interface ReferenceImagesModalConfig extends BaseModalConfig {
+  sessionId: string;
+  onSubmit: (data: ReferenceImagesData) => void | Promise<void>;
+}
+
 // Modal state types
-export type ModalType = 
+export type ModalType =
   | 'alert'
   | 'confirm'
   | 'form'
   | 'image'
   | 'loading'
   | 'settings'
-  | 'custom';
+  | 'custom'
+  | 'reference-images';
 
 export interface ModalState {
   id: string;
   type: ModalType;
-  config: AlertModalConfig | ConfirmModalConfig | FormModalConfig | ImageModalConfig | LoadingModalConfig | SettingsModalConfig | CustomModalConfig;
+  config: AlertModalConfig | ConfirmModalConfig | FormModalConfig | ImageModalConfig | LoadingModalConfig | SettingsModalConfig | CustomModalConfig | ReferenceImagesModalConfig;
   resolve?: (value: any) => void;
   reject?: (reason: any) => void;
 }
@@ -111,6 +133,7 @@ export interface ModalContextType {
   showLoading: (config: LoadingModalConfig) => { close: () => void; updateProgress: (progress: number) => void };
   showSettings: (config: SettingsModalConfig) => Promise<any>;
   showModal: (config: CustomModalConfig) => void;
+  showReferenceImages: (config: ReferenceImagesModalConfig) => Promise<ReferenceImagesData | null>;
   closeModal: (id: string) => void;
   closeAll: () => void;
 }

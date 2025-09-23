@@ -19,16 +19,8 @@ function getFullImageUrl(imageUrl: string): string {
     return imageUrl;
   }
 
-  // If it's a screenshot file URL, use Next.js proxy to avoid CORS issues
-  if (imageUrl.startsWith("/api/screenshot-file/")) {
-    const filename = imageUrl.replace("/api/screenshot-file/", "");
-    const proxyUrl = `/api/screenshot/${filename}`;
-    console.log("Using Next.js proxy URL for filename:", proxyUrl);
-    return proxyUrl;
-  }
-
-  // Legacy support for old screenshot URLs
-  if (imageUrl.startsWith("/api/screenshot/")) {
+  // Support for screenshot URLs (both /api/screenshot/ and /api/screenshot-file/)
+  if (imageUrl.startsWith("/api/screenshot/") || imageUrl.startsWith("/api/screenshot-file/")) {
     const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || "8080";
     const fullUrl = `http://localhost:${httpBridgePort}${imageUrl}`;
     console.log("Generated direct URL:", fullUrl);

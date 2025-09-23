@@ -152,26 +152,31 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     def validate_command(self, command_type: str, params: Dict[str, Any]) -> ValidatedCommand:
         """Validate Nano Banana commands with parameter checks."""
         errors = []
-        
+
         # Check if Gemini is available (lazy initialization)
         if not self._ensure_gemini_initialized():
             if not GEMINI_AVAILABLE:
                 errors.append("google.generativeai package not available")
             else:
                 errors.append("Gemini API not properly configured (check GOOGLE_API_KEY)")
-        
+
         if command_type == "transform_image_style":
             # Required parameters
             if not params.get("style_prompt"):
                 errors.append("style_prompt is required")
-            if not params.get("image_url"):
-                errors.append("image_url is required - please specify an image UID (e.g., 'img_079')")
-            else:
+
+            # Check for direct image data OR image_url (backward compatibility)
+            has_target_image = params.get("target_image") is not None
+            has_image_url = params.get("image_url") is not None
+
+            if not has_target_image and not has_image_url:
+                errors.append("Either 'target_image' (direct image data) or 'image_url' (UID) is required")
+            elif has_image_url and params["image_url"]:
+                # Validate UID format if using legacy approach
                 image_url = params["image_url"]
-                # Validate UID format: must be img_XXX where XXX is digits
                 if not (image_url.startswith('img_') and image_url[4:].isdigit()):
                     errors.append("image_url must be a valid UID format (e.g., 'img_079'). Filenames not supported.")
-            
+
             # Validate optional parameters
             if "intensity" in params:
                 intensity = params["intensity"]
@@ -243,17 +248,159 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         style_prompt = params["style_prompt"]
         intensity = params.get("intensity", 0.8)
 
-        # image_url is now REQUIRED - no fallback
+        # Check for direct image data first (new method)
+        target_image = params.get("target_image")
+        reference_images = params.get("reference_images", [])
+
+        if target_image and reference_images:
+            # Use new multi-image approach
+            logger.info(f"Transform Image with references: {style_prompt} [req_id: {request_id}]")
+            try:
+                styled_image_path = self._apply_nano_banana_with_references(
+                    target_image, reference_images, style_prompt, intensity
+                )
+
+                if styled_image_path:
+                    filename = Path(styled_image_path).name
+
+                    # Extract metadata for the styled image
+                    model = params.get("model", "gemini-2")
+                    styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
+
+                    # Generate UID for styled result
+                    new_image_uid = generate_image_uid()
+                    session_id = params.get('session_id')
+
+                    # Add mapping for the styled image
+                    add_uid_mapping(
+                        new_image_uid,
+                        'image',
+                        filename,
+                        session_id=session_id,
+                        metadata={
+                            'width': styled_metadata['width'],
+                            'height': styled_metadata['height'],
+                            'file_path': styled_image_path,
+                            'style_type': 'transform_with_references',
+                            'model': model,
+                            'reference_count': len(reference_images)
+                        }
+                    )
+
+                    # Build response
+                    return build_transform_response(
+                        image_uid=new_image_uid,
+                        parent_uid=None,  # No parent for direct image processing
+                        filename=filename,
+                        image_path=styled_image_path,
+                        original_width=0,  # Unknown for direct image input
+                        original_height=0,
+                        processed_width=styled_metadata['width'],
+                        processed_height=styled_metadata['height'],
+                        style_name=extract_style_name(style_prompt),
+                        style_prompt=style_prompt,
+                        intensity=intensity,
+                        tokens=styled_metadata['tokens'],
+                        cost=float(styled_metadata['estimated_cost'].replace('$', '')),
+                        request_id=request_id,
+                        start_time=start_time,
+                        origin="multi_image_transform"
+                    )
+
+            except Exception as e:
+                logger.error(f"Multi-image transform failed: {e}")
+                return build_error_response(
+                    f"Multi-image transformation failed: {str(e)}",
+                    "multi_image_error",
+                    request_id,
+                    start_time
+                )
+
+        elif target_image:
+            # Direct image processing without references (fallback to single image)
+            logger.info(f"Transform Image (direct): {style_prompt} [req_id: {request_id}]")
+            # Convert target_image data to temporary file for existing logic
+            # This is a temporary bridge - could be optimized later
+            try:
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+                    if isinstance(target_image['data'], bytes):
+                        temp_file.write(target_image['data'])
+                    else:
+                        # Assume base64 string, decode it
+                        import base64
+                        temp_file.write(base64.b64decode(target_image['data']))
+                    temp_image_path = temp_file.name
+
+                # Apply style transformation using existing method
+                styled_image_path = self._apply_nano_banana_style(
+                    temp_image_path, style_prompt, intensity
+                )
+
+                # Clean up temp file
+                os.unlink(temp_image_path)
+
+                if styled_image_path:
+                    # Similar response building as above
+                    filename = Path(styled_image_path).name
+                    model = params.get("model", "gemini-2")
+                    styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
+                    new_image_uid = generate_image_uid()
+                    session_id = params.get('session_id')
+
+                    add_uid_mapping(
+                        new_image_uid,
+                        'image',
+                        filename,
+                        session_id=session_id,
+                        metadata={
+                            'width': styled_metadata['width'],
+                            'height': styled_metadata['height'],
+                            'file_path': styled_image_path,
+                            'style_type': 'transform_direct_image',
+                            'model': model
+                        }
+                    )
+
+                    return build_transform_response(
+                        image_uid=new_image_uid,
+                        parent_uid=None,
+                        filename=filename,
+                        image_path=styled_image_path,
+                        original_width=0,
+                        original_height=0,
+                        processed_width=styled_metadata['width'],
+                        processed_height=styled_metadata['height'],
+                        style_name=extract_style_name(style_prompt),
+                        style_prompt=style_prompt,
+                        intensity=intensity,
+                        tokens=styled_metadata['tokens'],
+                        cost=float(styled_metadata['estimated_cost'].replace('$', '')),
+                        request_id=request_id,
+                        start_time=start_time,
+                        origin="direct_image_transform"
+                    )
+
+            except Exception as e:
+                logger.error(f"Direct image transform failed: {e}")
+                return build_error_response(
+                    f"Direct image transformation failed: {str(e)}",
+                    "direct_image_error",
+                    request_id,
+                    start_time
+                )
+
+        # Fallback to legacy UID-based approach
         image_url = params.get("image_url")
         if not image_url:
             return build_error_response(
-                "image_url parameter is required for image editing. Please specify an image UID (e.g., 'img_079')",
-                "image_url_required",
+                "Either 'target_image' (direct image data) or 'image_url' (UID) is required",
+                "no_image_source",
                 request_id,
                 start_time
             )
 
-        logger.info(f"Transform Image: {image_url} -> {style_prompt} [req_id: {request_id}]")
+        logger.info(f"Transform Image (legacy): {image_url} -> {style_prompt} [req_id: {request_id}]")
 
         try:
             # Resolve the image UID to file path (only supports UIDs)
@@ -265,7 +412,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                     request_id,
                     start_time
                 )
-            
+
             # Apply style transformation
             styled_image_path = self._apply_nano_banana_style(
                 resolved_image_path, style_prompt, intensity
@@ -477,18 +624,18 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         """Apply Gemini image generation style transformation to image."""
         if not self._ensure_gemini_initialized():
             raise Exception("Gemini image generation not available")
-        
+
         try:
             logger.info(f"Applying Gemini image transformation: {style_prompt} (intensity: {intensity})")
-            
+
             # Read the original image
             with open(image_path, 'rb') as img_file:
                 image_data = img_file.read()
                 image_b64 = base64.b64encode(image_data).decode('utf-8')
-            
+
             # Build the transformation prompt
             transformation_prompt = self._build_gemini_image_prompt(style_prompt, intensity)
-            
+
             # Prepare image part for Gemini
             image_part = {
                 'inline_data': {
@@ -496,15 +643,15 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                     'data': image_b64
                 }
             }
-            
+
             # Generate styled image using Gemini
             logger.info("Sending image transformation request to Gemini...")
             response = self._model.generate_content([image_part, transformation_prompt])
-            
+
             if not response or not response.candidates:
                 logger.warning("No response from Gemini - creating placeholder")
                 return self._create_placeholder_styled_image(image_path, style_prompt, intensity)
-            
+
             # Try to save the generated image
             try:
                 styled_image_path = self._save_gemini_generated_image(
@@ -515,10 +662,94 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 logger.warning(f"Gemini image generation failed: {save_error}")
                 logger.info("Creating placeholder styled image instead")
                 return self._create_placeholder_styled_image(image_path, style_prompt, intensity)
-            
+
         except Exception as e:
             logger.error(f"Gemini image transformation failed: {e}")
             raise Exception(f"Style transformation failed: {str(e)}")
+
+    def _apply_nano_banana_with_references(self, target_image_data: Dict[str, Any], reference_images: List[Dict[str, Any]], style_prompt: str, intensity: float) -> Optional[str]:
+        """Apply Gemini multi-image generation with reference images."""
+        if not self._ensure_gemini_initialized():
+            raise Exception("Gemini image generation not available")
+
+        try:
+            logger.info(f"Applying Gemini multi-image transformation: {style_prompt} (intensity: {intensity})")
+            logger.info(f"Using {len(reference_images)} reference images")
+
+            image_parts = []
+
+            # Add target image
+            if target_image_data:
+                if isinstance(target_image_data['data'], bytes):
+                    # Convert bytes to base64
+                    image_b64 = base64.b64encode(target_image_data['data']).decode('utf-8')
+                else:
+                    # Already base64 string
+                    image_b64 = target_image_data['data']
+
+                image_parts.append({
+                    'inline_data': {
+                        'mime_type': target_image_data['mime_type'],
+                        'data': image_b64
+                    }
+                })
+
+            # Add reference images (up to 3 total for Gemini API limit)
+            for ref_img in reference_images[:3]:
+                if isinstance(ref_img['data'], bytes):
+                    # Convert bytes to base64
+                    ref_b64 = base64.b64encode(ref_img['data']).decode('utf-8')
+                else:
+                    # Already base64 string
+                    ref_b64 = ref_img['data']
+
+                image_parts.append({
+                    'inline_data': {
+                        'mime_type': ref_img['mime_type'],
+                        'data': ref_b64
+                    }
+                })
+
+            # Build multi-image prompt
+            transformation_prompt = self._build_multi_image_prompt(style_prompt, reference_images, intensity)
+
+            # Generate styled image using Gemini multi-image API
+            logger.info(f"Sending multi-image transformation request to Gemini with {len(image_parts)} images...")
+            response = self._model.generate_content([*image_parts, transformation_prompt])
+
+            if not response or not response.candidates:
+                logger.warning("No response from Gemini multi-image generation")
+                return None
+
+            # Save the generated image
+            styled_image_path = self._save_gemini_generated_image(
+                response, None, style_prompt
+            )
+            return styled_image_path
+
+        except Exception as e:
+            logger.error(f"Gemini multi-image transformation failed: {e}")
+            raise Exception(f"Multi-image transformation failed: {str(e)}")
+
+    def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], intensity: float) -> str:
+        """Build the multi-image generation prompt for Gemini."""
+        intensity_description = "subtle" if intensity < 0.4 else "moderate" if intensity < 0.7 else "strong"
+
+        # Build purpose-aware prompt
+        purposes = [ref.get('purpose', 'style') for ref in reference_images]
+        purpose_text = ""
+        if 'style' in purposes:
+            purpose_text += "Use the artistic style from the reference images. "
+        if 'color' in purposes:
+            purpose_text += "Apply the color palette from the reference images. "
+        if 'composition' in purposes:
+            purpose_text += "Incorporate compositional elements from the reference images. "
+
+        return f"""Transform the first image using {style_prompt} style with a {intensity_description} intensity.
+{purpose_text}
+Maintain the original subject and composition while applying the desired style transformation.
+The result should be a harmonious blend that preserves the main subject while incorporating the style elements.
+Generate the transformed image."""
     
     def _build_gemini_image_prompt(self, style_prompt: str, intensity: float) -> str:
         """Build the image generation prompt for Gemini."""

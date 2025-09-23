@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
+import { useModalContext } from "../modal/ModalProvider";
 import styles from "./ChatInput.module.css";
 
 interface ChatInputProps {
@@ -35,6 +36,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const examplesRef = useRef<HTMLDivElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
+	const { showReferenceImages } = useModalContext();
 
 	// Expose focusInput method to parent
 	useImperativeHandle(ref, () => ({
@@ -201,7 +203,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
 	const handleScreenshotClick = async () => {
 		if (isProcessing) return;
-		
+
 		setSubmitting(true);
 		setShowExamples(false);
 
@@ -217,6 +219,63 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 			if (textareaRef.current) {
 				textareaRef.current.focus();
 			}
+		}
+	};
+
+	const handleTransformClick = async () => {
+		if (isProcessing || !sessionId) return;
+
+		try {
+			const result = await showReferenceImages({
+				sessionId,
+				onSubmit: async (data) => {
+					setSubmitting(true);
+					setShowExamples(false);
+
+					try {
+						// Submit to the image generation API with reference UID system
+						const requestBody: any = {
+							prompt: data.prompt,
+							model: selectedLlm,
+							session_id: sessionId,
+						};
+
+						// Use new UID-based system if available, fallback to legacy base64
+						if (data.referenceImageUids && data.referenceImageUids.length > 0) {
+							requestBody.reference_image_uids = data.referenceImageUids;
+						} else {
+							// Legacy fallback
+							requestBody.reference_images = data.referenceImages.map(ref => ({
+								image_data: ref.preview?.split(',')[1] || '', // Remove data:image/...;base64, prefix
+								purpose: ref.purpose,
+								mime_type: ref.file.type
+							}));
+						}
+
+						const response = await fetch('/api/mcp', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+							},
+							body: JSON.stringify(requestBody),
+						});
+
+						const responseData = await response.json();
+						console.log("Transform Response:", responseData);
+						onRefreshContext();
+					} catch (err) {
+						console.error('Transform failed:', err);
+					} finally {
+						setSubmitting(false);
+					}
+				}
+			});
+
+			if (result) {
+				console.log("Reference images submitted:", result);
+			}
+		} catch (err) {
+			console.error('Reference images modal failed:', err);
 		}
 	};
 
@@ -270,6 +329,31 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 								<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
 									<path
 										d="M9 2L7.17 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4H16.83L15 2H9ZM12 17C9.24 17 7 14.76 7 12S9.24 7 12 7S17 9.24 17 12S14.76 17 12 17ZM12 9C10.34 9 9 10.34 9 12S10.34 15 12 15S15 13.66 15 12S13.66 9 12 9Z"
+										fill="currentColor"
+									/>
+								</svg>
+							)}
+						</button>
+
+						{/* Transform button */}
+						<button
+							onClick={handleTransformClick}
+							disabled={isProcessing || !sessionId}
+							className={`${styles.transformButton} ${!isProcessing && sessionId ? styles.transformButtonActive : ''}`}
+							type="button"
+							title="Image to Image with Reference Images"
+						>
+							{isProcessing ? (
+								<div className={styles.spinner} />
+							) : (
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+									<path
+										d="M4 4h16v12H4V4zm2 2v8h12V6H6zm-2 12h16v2H4v-2z"
+										fill="currentColor"
+									/>
+									<circle cx="8" cy="9" r="1.5" fill="currentColor" />
+									<path
+										d="M14 11l-2.5-2L9 11.5 7.5 10 6 12h12l-4-4z"
 										fill="currentColor"
 									/>
 								</svg>

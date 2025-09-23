@@ -1,16 +1,18 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { 
-  ModalContextType, 
-  ModalState, 
-  AlertModalConfig, 
-  ConfirmModalConfig, 
+import {
+  ModalContextType,
+  ModalState,
+  AlertModalConfig,
+  ConfirmModalConfig,
   FormModalConfig,
   ImageModalConfig,
   LoadingModalConfig,
   SettingsModalConfig,
   CustomModalConfig,
+  ReferenceImagesModalConfig,
+  ReferenceImagesData,
   AlertType
 } from './types';
 import Modal from './Modal';
@@ -221,6 +223,33 @@ export default function ModalProvider({ children }: ModalProviderProps) {
     setModals(prev => [...prev, modalState]);
   }, [closeModal]);
 
+  // Show reference images modal
+  const showReferenceImages = useCallback((config: ReferenceImagesModalConfig): Promise<ReferenceImagesData | null> => {
+    return new Promise((resolve) => {
+      const id = generateId();
+      const modalState: ModalState = {
+        id,
+        type: 'reference-images',
+        config: {
+          ...config,
+          onSubmit: async (data: ReferenceImagesData) => {
+            if (config.onSubmit) {
+              await config.onSubmit(data);
+            }
+            resolve(data);
+            closeModal(id);
+          },
+          onClose: (data?: ReferenceImagesData) => {
+            resolve(data || null);
+            closeModal(id);
+          }
+        },
+        resolve
+      };
+      setModals(prev => [...prev, modalState]);
+    });
+  }, [closeModal]);
+
   // Handle escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -245,6 +274,7 @@ export default function ModalProvider({ children }: ModalProviderProps) {
     showLoading,
     showSettings,
     showModal,
+    showReferenceImages,
     closeModal,
     closeAll
   };

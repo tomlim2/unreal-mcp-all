@@ -10,11 +10,13 @@ import os
 import asyncio
 import mimetypes
 import datetime
+import base64
+import re
 from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 import threading
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Load environment variables from .env file
 try:
@@ -30,6 +32,145 @@ from tools.ai.session_management.utils.session_helpers import extract_session_id
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MCPHttpBridge")
+
+# Image processing constants
+MAX_IMAGE_SIZE_MB = 10
+MAX_TOTAL_REQUEST_SIZE_MB = 30
+ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg', 'image/jpg'}
+
+
+def _decode_base64_image(data_str: str) -> Dict[str, Any]:
+    """
+    Decode base64 image data with support for Data URI format.
+
+    Args:
+        data_str: Either "data:image/png;base64,iVBORw0..." or raw base64 string
+
+    Returns:
+        Dict with 'mime_type' and 'data' (bytes)
+
+    Raises:
+        ValueError: If the data is invalid
+    """
+    try:
+        # Try Data URI format first: data:image/png;base64,iVBORw0...
+        match = re.match(r"^data:(image/[\w]+);base64,(.*)", data_str)
+        if match:
+            mime_type, b64_data = match.groups()
+
+            # Validate MIME type
+            if mime_type not in ALLOWED_MIME_TYPES:
+                raise ValueError(f"Unsupported MIME type: {mime_type}. Allowed: {ALLOWED_MIME_TYPES}")
+
+            decoded_data = base64.b64decode(b64_data)
+            return {
+                "mime_type": mime_type,
+                "data": decoded_data
+            }
+
+        # Fallback: try raw base64 (assume PNG)
+        decoded_data = base64.b64decode(data_str)
+        return {
+            "mime_type": "image/png",
+            "data": decoded_data
+        }
+
+    except Exception as e:
+        raise ValueError(f"Invalid base64 image data: {e}")
+
+
+def _validate_image_size(image_data: bytes, max_size_mb: int = MAX_IMAGE_SIZE_MB) -> None:
+    """
+    Validate image size.
+
+    Args:
+        image_data: Image bytes
+        max_size_mb: Maximum allowed size in MB
+
+    Raises:
+        ValueError: If image is too large
+    """
+    size_mb = len(image_data) / (1024 * 1024)
+    if size_mb > max_size_mb:
+        raise ValueError(f"Image too large: {size_mb:.2f}MB (max: {max_size_mb}MB)")
+
+
+def _validate_and_process_images(images: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Validate and process a list of images.
+
+    Args:
+        images: List of image dictionaries with 'data' field
+
+    Returns:
+        List of processed images with 'mime_type', 'data', and optional 'purpose'
+
+    Raises:
+        ValueError: If validation fails
+    """
+    if not images:
+        return []
+
+    processed_images = []
+    total_size = 0
+
+    for i, img in enumerate(images):
+        if not isinstance(img, dict):
+            raise ValueError(f"Image {i}: Must be a dictionary")
+
+        # Support both 'data' and 'image_data' fields (frontend compatibility)
+        image_data = img.get('data') or img.get('image_data')
+        if not image_data:
+            raise ValueError(f"Image {i}: Missing 'data' or 'image_data' field")
+
+        try:
+            # Decode base64 image
+            decoded_img = _decode_base64_image(image_data)
+
+            # Validate size
+            _validate_image_size(decoded_img['data'])
+
+            # Track total size
+            total_size += len(decoded_img['data'])
+
+            # Add optional purpose field
+            if 'purpose' in img:
+                decoded_img['purpose'] = img['purpose']
+
+            processed_images.append(decoded_img)
+
+        except ValueError as e:
+            raise ValueError(f"Image {i}: {e}")
+
+    # Check total request size
+    total_size_mb = total_size / (1024 * 1024)
+    if total_size_mb > MAX_TOTAL_REQUEST_SIZE_MB:
+        raise ValueError(f"Total images too large: {total_size_mb:.2f}MB (max: {MAX_TOTAL_REQUEST_SIZE_MB}MB)")
+
+    return processed_images
+
+
+def _log_image_processing(images: List[Dict], reference_images: List[Dict]) -> None:
+    """
+    Log image processing metadata (safely, without actual image data).
+
+    Args:
+        images: Processed images list
+        reference_images: Processed reference images list
+    """
+    if images:
+        image_info = [
+            f"{img.get('mime_type', 'unknown')}({len(img.get('data', b''))//1024}KB)"
+            for img in images
+        ]
+        logger.info(f"Processing {len(images)} target images: {image_info}")
+
+    if reference_images:
+        ref_info = [
+            f"{ref.get('purpose', 'unknown')}-{ref.get('mime_type', 'unknown')}({len(ref.get('data', b''))//1024}KB)"
+            for ref in reference_images
+        ]
+        logger.info(f"Processing {len(reference_images)} reference images: {ref_info}")
 
 
 class MCPBridgeHandler(BaseHTTPRequestHandler):
@@ -147,6 +288,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     
     def do_GET(self):
         """Handle GET requests"""
+        print(f"==== DEBUG: do_GET called for path: {self.path} ====", flush=True)
         logger.info(f"GET request received: {self.path}")
         try:
             # Parse URL path first
@@ -230,13 +372,57 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             self._send_error(f"Error serving file: {e}")
                             return
 
-            # Handle JSON API requests (send JSON headers)
-            self.send_response(200)
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
+            # Handle JSON API requests
+            if path == '/test-no-session':
+                # Test endpoint WITHOUT session management (control)
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
 
-            if path == '/health':
+                response = {
+                    'status': 'success',
+                    'message': 'Control endpoint without session management',
+                    'test_type': 'no_session'
+                }
+                response_json = json.dumps(response)
+                self.wfile.write(response_json.encode('utf-8'))
+                return
+
+            elif path == '/test-with-session':
+                # Test endpoint WITH session management (test case)
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+
+                # This should trigger the duplicate response issue
+                try:
+                    session_manager = get_session_manager()
+                    response = {
+                        'status': 'success',
+                        'message': 'Test endpoint WITH session management',
+                        'test_type': 'with_session',
+                        'session_manager_loaded': True
+                    }
+                except Exception as e:
+                    response = {
+                        'status': 'error',
+                        'message': f'Session manager error: {e}',
+                        'test_type': 'with_session',
+                        'session_manager_loaded': False
+                    }
+
+                response_json = json.dumps(response)
+                self.wfile.write(response_json.encode('utf-8'))
+                return
+
+            elif path == '/health':
+                # Handle health check request - send headers here
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
                 # Handle health check request
                 response = {
                     'status': 'healthy',
@@ -250,10 +436,15 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
 
             elif path == '/sessions':
                 # Handle session list request - bypass NLP, direct to session manager
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+
                 try:
                     session_manager = get_session_manager()
                     sessions = session_manager.storage.list_sessions()
-                    
+
                     # Convert sessions to the expected format
                     session_list = []
                     for session_context in sessions:
@@ -264,10 +455,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             'last_accessed': session_context.last_accessed.isoformat(),
                             'interaction_count': len(session_context.conversation_history)
                         })
-                    
+
                     # Sort by last_accessed descending
                     session_list.sort(key=lambda s: s['last_accessed'], reverse=True)
-                    
+
                     response = {
                         'sessions': session_list
                     }
@@ -280,12 +471,80 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     self._send_error(f"Failed to get session list: {e}")
                     return
 
+            elif path.startswith('/api/session/') and path.endswith('/latest-image'):
+                # Handle latest image UID request - /api/session/{session_id}/latest-image
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+
+                try:
+                    path_parts = path.split('/')
+                    if len(path_parts) >= 4:
+                        session_id = path_parts[3]
+
+                        session_manager = get_session_manager()
+                        session_context = session_manager.get_session(session_id)
+
+                        if not session_context:
+                            response = {
+                                'success': False,
+                                'error': 'Session not found',
+                                'latest_image': {
+                                    'uid': None,
+                                    'filename': None,
+                                    'thumbnail_url': None,
+                                    'available': False
+                                }
+                            }
+                        else:
+                            latest_uid = session_context.get_latest_image_uid()
+                            latest_filename = session_context.get_latest_image_path()
+
+                            response = {
+                                'success': True,
+                                'latest_image': {
+                                    'uid': latest_uid,
+                                    'filename': latest_filename,
+                                    'thumbnail_url': f'/api/screenshot-file/{latest_filename}' if latest_filename else None,
+                                    'available': latest_uid is not None
+                                }
+                            }
+
+                        response_json = json.dumps(response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+                    else:
+                        response = {'error': 'Invalid session ID in path'}
+                        response_json = json.dumps(response)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+
+                except Exception as e:
+                    logger.error(f"Error getting latest image for session: {e}")
+                    response = {
+                        'success': False,
+                        'error': str(e),
+                        'latest_image': {
+                            'uid': None,
+                            'filename': None,
+                            'thumbnail_url': None,
+                            'available': False
+                        }
+                    }
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+
             # Handle other GET requests (404)
             self.send_response(404)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self._send_error(f"Endpoint not found: {path}")
+
+            response = {'error': f"Endpoint not found: {path}"}
+            response_json = json.dumps(response)
+            self.wfile.write(response_json.encode('utf-8'))
 
         except Exception as e:
             logger.error(f"Error handling GET request: {e}")
@@ -293,6 +552,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     
     def do_POST(self):
         """Handle POST requests"""
+        print(f"==== HTTP BRIDGE POST REQUEST TO {self.path} ====", flush=True)
         logger.info(f"POST request received: {self.path}")
         try:
             parsed_url = urlparse(self.path)
@@ -313,8 +573,66 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 return
             
             request_data = json.loads(post_data.decode('utf-8'))
-            
-            if path == '/':
+            print(f"DEBUG: Received request data keys: {list(request_data.keys())}", flush=True)
+            if 'reference_images' in request_data:
+                print(f"DEBUG: Reference images found in request: {len(request_data['reference_images'])}", flush=True)
+
+            # Handle specific API endpoints first
+            if path == '/api/reference-images':
+                # Handle reference image upload request
+                print(f"DEBUG: Handling /api/reference-images request", flush=True)
+                try:
+                    action = request_data.get('action')
+                    print(f"DEBUG: Action = {action}", flush=True)
+                    if action == 'upload_reference_image':
+                        session_id = request_data.get('session_id')
+                        image_data = request_data.get('image_data')
+                        purpose = request_data.get('purpose', 'style')
+                        mime_type = request_data.get('mime_type', 'image/jpeg')
+
+                        if not session_id:
+                            self._send_error("Missing 'session_id' for reference image upload")
+                            return
+
+                        if not image_data:
+                            self._send_error("Missing 'image_data' for reference image upload")
+                            return
+
+                        # Store reference image and get UID
+                        from tools.ai.reference_storage import store_reference_image
+                        refer_uid = store_reference_image(session_id, image_data, purpose, mime_type)
+
+                        result = {
+                            'success': True,
+                            'refer_uid': refer_uid,
+                            'message': f'Reference image uploaded successfully with UID: {refer_uid}'
+                        }
+
+                        response_json = json.dumps(result)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+
+                    else:
+                        self._send_error(f"Unknown action for reference images: {action}")
+                        return
+
+                except Exception as e:
+                    import traceback
+                    logger.error(f"Error handling reference image upload: {e}")
+                    logger.error(f"Exception traceback: {traceback.format_exc()}")
+                    print(f"DEBUG: Exception in reference image upload: {e}", flush=True)
+                    print(f"DEBUG: Full traceback: {traceback.format_exc()}", flush=True)
+
+                    # Send proper JSON error response
+                    error_response = {
+                        'success': False,
+                        'error': f'Failed to upload reference image: {str(e)}'
+                    }
+                    response_json = json.dumps(error_response)
+                    self.wfile.write(response_json.encode('utf-8'))
+                    return
+
+            elif path == '/':
                 # Check if this is a session context request or NLP processing
                 action = request_data.get('action')
                 
@@ -379,6 +697,66 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         self._send_error(f"Failed to delete session: {e}")
                         return
                 
+                elif action == 'upload_reference_image':
+                    # Handle reference image upload
+                    session_id = request_data.get('session_id')
+                    image_data = request_data.get('image_data')
+                    purpose = request_data.get('purpose', 'style')
+                    mime_type = request_data.get('mime_type', 'image/jpeg')
+
+                    if not session_id or not image_data:
+                        self._send_error("Missing 'session_id' or 'image_data' for upload_reference_image")
+                        return
+
+                    try:
+                        from tools.ai.reference_storage import store_reference_image
+                        refer_uid = store_reference_image(session_id, image_data, purpose, mime_type)
+
+                        result = {
+                            'success': True,
+                            'refer_uid': refer_uid,
+                            'purpose': purpose,
+                            'mime_type': mime_type,
+                            'session_id': session_id,
+                            'status': 'uploaded'
+                        }
+
+                        response_json = json.dumps(result)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+
+                    except Exception as e:
+                        logger.error(f"Error uploading reference image: {e}")
+                        self._send_error(f"Failed to upload reference image: {e}")
+                        return
+
+                elif action == 'get_session_references':
+                    # Handle getting session reference images
+                    session_id = request_data.get('session_id')
+                    if not session_id:
+                        self._send_error("Missing 'session_id' for get_session_references")
+                        return
+
+                    try:
+                        from tools.ai.reference_storage import get_session_references
+                        references = get_session_references(session_id)
+
+                        result = {
+                            'success': True,
+                            'session_id': session_id,
+                            'references': references,
+                            'count': len(references)
+                        }
+
+                        response_json = json.dumps(result)
+                        self.wfile.write(response_json.encode('utf-8'))
+                        return
+
+                    except Exception as e:
+                        logger.error(f"Error getting session references: {e}")
+                        self._send_error(f"Failed to get session references: {e}")
+                        return
+
                 elif action == 'create_session':
                     # Handle session creation request - bypass NLP
                     session_name = request_data.get('session_name')
@@ -425,22 +803,144 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 
                 # Handle main NLP processing endpoint (only if no action or unrecognized action)
                 user_input = request_data.get('prompt')
+                print(f"DEBUG HTTP BRIDGE: Processing request with user_input: {user_input is not None}", flush=True)
                 if user_input:
+                    print(f"DEBUG HTTP BRIDGE: Entering NLP processing path", flush=True)
                     # This is an NLP request
                     context = request_data.get('context', 'User is working with Unreal Engine project')
                     session_id = request_data.get('session_id')
                     llm_model = request_data.get('llm_model')
-                    
-                    # Process with session-aware NLP
+
+                    # Process image data if present
+                    images = []
+                    reference_images = []  # Always initialize to prevent undefined variable errors
+
+                    try:
+                        # Process target images
+                        raw_images = request_data.get('images', [])
+                        if raw_images:
+                            images = _validate_and_process_images(raw_images)
+
+                        # Process reference images - support both old and new methods
+                        raw_reference_images = request_data.get('reference_images', [])
+                        reference_image_uids = request_data.get('reference_image_uids', [])
+
+                        print(f"DEBUG: Processing reference images - raw: {len(raw_reference_images)}, uids: {len(reference_image_uids)}", flush=True)
+
+                        # Handle UID-based reference images (new method)
+                        if reference_image_uids:
+                            print(f"DEBUG: Using UID-based reference images ({len(reference_image_uids)} UIDs)", flush=True)
+                            from tools.ai.reference_storage import get_reference_image
+
+                            for i, ref_info in enumerate(reference_image_uids):
+                                refer_uid = ref_info.get('refer_uid')
+                                if not refer_uid:
+                                    raise ValueError(f"Reference image {i}: Missing 'refer_uid'")
+
+                                print(f"DEBUG: Loading refer_uid: {refer_uid}", flush=True)
+
+                                # Load reference image data
+                                ref_data = get_reference_image(refer_uid)
+                                if not ref_data:
+                                    raise ValueError(f"Reference image not found: {refer_uid}")
+
+                                # Convert to NLP format
+                                reference_images.append({
+                                    'data': ref_data['data'],
+                                    'mime_type': ref_data['mime_type'],
+                                    'purpose': ref_info.get('purpose', ref_data['purpose'])
+                                })
+
+                            print(f"DEBUG: Successfully loaded {len(reference_images)} UID-based reference images", flush=True)
+
+                        # Handle legacy base64 reference images (fallback)
+                        elif raw_reference_images:
+                            print(f"DEBUG: Using legacy base64 reference images ({len(raw_reference_images)} images)", flush=True)
+                            for i, raw_ref in enumerate(raw_reference_images):
+                                print(f"DEBUG: Raw ref {i}: keys={list(raw_ref.keys())}", flush=True)
+
+                            print(f"DEBUG: Validating {len(raw_reference_images)} reference images (strict mode)", flush=True)
+                            reference_images = _validate_and_process_images(raw_reference_images)
+
+                            if not reference_images or len(reference_images) != len(raw_reference_images):
+                                raise ValueError(f"Reference images validation failed: expected {len(raw_reference_images)}, got {len(reference_images) if reference_images else 0}")
+
+                            print(f"DEBUG: Successfully validated {len(reference_images)} reference images", flush=True)
+                            for i, ref in enumerate(reference_images):
+                                print(f"DEBUG: Processed ref {i}: keys={list(ref.keys())}, data_length={len(ref.get('data', ''))}", flush=True)
+
+                        # Log image processing (safely)
+                        if images or reference_images:
+                            _log_image_processing(images, reference_images)
+
+                    except ValueError as e:
+                        error_msg = f"Image validation failed (strict mode): {e}"
+                        logger.error(error_msg)
+                        print(f"DEBUG: {error_msg}", flush=True)
+                        self._send_image_error('validation_error', str(e), 400)
+                        return
+                    except Exception as e:
+                        error_msg = f"Unexpected error during image processing: {e}"
+                        logger.error(error_msg)
+                        print(f"DEBUG: {error_msg}", flush=True)
+                        self._send_image_error('processing_error', str(e), 500)
+                        return
+
+                    # Process with session-aware NLP (now with image support)
                     from tools.ai.nlp import process_natural_language
                     try:
                         # Get timestamp before any potential variable shadowing
                         import datetime as _dt_module
                         current_timestamp = _dt_module.datetime.now().isoformat()
                         
+                        print(f"DEBUG: Preparing NLP call with images={len(images) if images else 0}, reference_images={len(reference_images) if reference_images else 0}", flush=True)
+
+                        # Ensure reference images are properly formatted for NLP with strict validation
+                        nlp_reference_images = None
+                        if reference_images:
+                            nlp_reference_images = []
+                            for i, ref in enumerate(reference_images):
+                                # Strict validation: all required fields must exist
+                                if not ref.get('data'):
+                                    raise ValueError(f"Reference image {i}: Missing 'data' field")
+                                if not ref.get('mime_type'):
+                                    raise ValueError(f"Reference image {i}: Missing 'mime_type' field")
+
+                                nlp_ref = {
+                                    'data': ref['data'],
+                                    'mime_type': ref['mime_type']
+                                }
+                                if 'purpose' in ref:
+                                    nlp_ref['purpose'] = ref['purpose']
+
+                                nlp_reference_images.append(nlp_ref)
+                                print(f"DEBUG: NLP ref {i}: purpose={ref.get('purpose', 'none')}, mime_type={ref['mime_type']}, data_length={len(ref['data'])}", flush=True)
+
+                            print(f"DEBUG: Successfully converted {len(nlp_reference_images)} reference images for NLP", flush=True)
+
+                        print(f"DEBUG: About to call NLP with reference_images={len(nlp_reference_images) if nlp_reference_images else 0}", flush=True)
+
+                        # Write debug info to file to ensure we can see it
+                        with open('http_bridge_debug.log', 'a') as f:
+                            f.write(f"[{current_timestamp}] Calling NLP with {len(nlp_reference_images) if nlp_reference_images else 0} reference images\n")
+                            if nlp_reference_images:
+                                for i, ref in enumerate(nlp_reference_images):
+                                    f.write(f"  Ref {i}: {len(ref.get('data', ''))} chars, type={ref.get('mime_type')}, purpose={ref.get('purpose')}\n")
+
                         result = process_natural_language(
-                            user_input, context, session_id, llm_model
+                            user_input, context, session_id, llm_model,
+                            images=images if images else None,
+                            reference_images=nlp_reference_images
                         )
+
+                        # Verify reference images made it through to commands
+                        if nlp_reference_images and result.get('commands'):
+                            for i, command in enumerate(result['commands']):
+                                cmd_params = command.get('params', {})
+                                if 'reference_images' in cmd_params:
+                                    print(f"DEBUG: Command {i} has {len(cmd_params['reference_images'])} reference images ✅", flush=True)
+                                else:
+                                    print(f"DEBUG: Command {i} missing reference_images ❌", flush=True)
                         
                         # Wrap the NLP result in the expected frontend structure
                         wrapped_response = {
@@ -505,7 +1005,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self._send_error(f"Endpoint not found: {path}")
+
+            response = {'error': f"Endpoint not found: {path}"}
+            response_json = json.dumps(response)
+            self.wfile.write(response_json.encode('utf-8'))
 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in POST request: {e}")
@@ -582,7 +1085,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self._send_error(f"Endpoint not found: {path}")
+
+            response = {'error': f"Endpoint not found: {path}"}
+            response_json = json.dumps(response)
+            self.wfile.write(response_json.encode('utf-8'))
 
         except Exception as e:
             logger.error(f"Error handling PUT request: {e}")
@@ -632,6 +1138,31 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.wfile.write(response_json.encode('utf-8'))
         except Exception as e:
             logger.error(f"Error sending error response: {e}")
+
+    def _send_image_error(self, error_type: str, message: str, status_code: int = 400):
+        """
+        Send standardized image processing error response.
+
+        Args:
+            error_type: Error category ('size_limit', 'invalid_mime', 'decode_error', etc.)
+            message: Human-readable error message
+            status_code: HTTP status code (default 400)
+        """
+        try:
+            self.send_response(status_code)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+
+            response = {
+                'error': message,
+                'error_type': error_type,
+                'status_code': status_code
+            }
+            response_json = json.dumps(response)
+            self.wfile.write(response_json.encode('utf-8'))
+        except Exception as e:
+            logger.error(f"Error sending image error response: {e}")
 
 
 class MCPHttpBridge:
