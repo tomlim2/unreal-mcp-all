@@ -809,11 +809,12 @@ Generate the transformed image."""
     def _build_gemini_image_prompt(self, style_prompt: str, intensity: float) -> str:
         """Build the image generation prompt for Gemini."""
         intensity_description = "subtle" if intensity < 0.4 else "moderate" if intensity < 0.7 else "strong"
-        
-        return f"""Transform this image to have {style_prompt} style. 
-Apply a {intensity_description} transformation that maintains the original composition and key elements 
-while changing the visual style, colors, textures, and aesthetic to match {style_prompt}. 
-Keep the image recognizable but with clear stylistic changes. Generate the transformed image."""
+
+        return f"""Modify ONLY the requested changes: {style_prompt}.
+Apply a {intensity_description} transformation that affects ONLY the elements mentioned in the request.
+Keep the background, environment, and all other elements completely unchanged.
+Only modify what is explicitly requested - preserve everything else exactly as it appears in the original image.
+Generate the image with minimal changes."""
     
     def _create_placeholder_styled_image(self, original_path: str, style_prompt: str, intensity: float) -> str:
         """Create a placeholder styled image by copying the original."""
