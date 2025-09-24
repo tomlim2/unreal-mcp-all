@@ -160,6 +160,14 @@ Python/tests/
 *test*.py
 test_*.py
 
+# UID and reference image runtime data
+Python/uid_state.json
+Python/refer_uid_mappings.json
+Python/reference_images/
+Python/debug_output.txt
+Python/http_bridge_debug.log
+Python/http_bridge_output.log
+
 # next.js
 /.next/
 /out/
