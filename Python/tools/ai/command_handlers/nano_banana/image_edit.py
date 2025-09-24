@@ -792,13 +792,27 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
         # Build purpose-aware prompt
         purposes = [ref.get('purpose', 'style') for ref in reference_images]
+
+        # Special handling for composition purpose (pose changes)
+        if 'composition' in purposes:
+            return f"""Change the pose and body position of the character in the first image to match the reference image exactly.
+
+CRITICAL INSTRUCTIONS:
+1. Copy the EXACT pose, stance, and body position from the reference image
+2. Match arm positions, leg positions, and overall posture precisely
+3. Keep the character's face, appearance, clothing, and style UNCHANGED
+4. Keep the background and environment IDENTICAL
+5. Apply {intensity_description} transformation intensity
+6. Only modify the pose/position - preserve everything else
+
+Generate the image with the new pose matching the reference."""
+
+        # Style/Color purposes - preserve composition
         purpose_text = ""
         if 'style' in purposes:
             purpose_text += "Use the artistic style from the reference images. "
         if 'color' in purposes:
             purpose_text += "Apply the color palette from the reference images. "
-        if 'composition' in purposes:
-            purpose_text += "Incorporate compositional elements from the reference images. "
 
         return f"""Transform the first image using {style_prompt} style with a {intensity_description} intensity.
 {purpose_text}
