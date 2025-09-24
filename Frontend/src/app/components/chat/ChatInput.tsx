@@ -10,6 +10,13 @@ interface ChatInputProps {
 	sessionId: string | null;
 	llmFromDb: 'gemini' | 'gemini-2' | 'claude';
 	onSubmit: (prompt: string, model?: string) => Promise<unknown>;
+	onTransformSubmit?: (data: {
+		prompt: string;
+		model: string;
+		sessionId: string;
+		referenceImageUids?: string[];
+		referenceImages?: Array<{preview: string; purpose: string; file: File}>;
+	}) => Promise<unknown>;
 	onRefreshContext: () => void;
 	allowModelSwitching?: boolean; // New prop to control model switcher
 }
@@ -24,6 +31,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	sessionId,
 	llmFromDb,
 	onSubmit,
+	onTransformSubmit,
 	onRefreshContext,
 	allowModelSwitching = true, // Default to true for backward compatibility
 }, ref) => {
@@ -223,7 +231,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	};
 
 	const handleTransformClick = async () => {
-		if (isProcessing || !sessionId) return;
+		console.log('Transform button clicked', { isProcessing, sessionId, hasOnTransformSubmit: !!onTransformSubmit });
+		if (isProcessing || !sessionId || !onTransformSubmit) return;
 
 		try {
 			const result = await showReferenceImages({
@@ -233,35 +242,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 					setShowExamples(false);
 
 					try {
-						// Submit to the image generation API with reference UID system
-						const requestBody: any = {
+						// Pass data to parent component for API handling
+						await onTransformSubmit({
 							prompt: data.prompt,
 							model: selectedLlm,
-							session_id: sessionId,
-						};
-
-						// Use new UID-based system if available, fallback to legacy base64
-						if (data.referenceImageUids && data.referenceImageUids.length > 0) {
-							requestBody.reference_image_uids = data.referenceImageUids;
-						} else {
-							// Legacy fallback
-							requestBody.reference_images = data.referenceImages.map(ref => ({
-								image_data: ref.preview?.split(',')[1] || '', // Remove data:image/...;base64, prefix
-								purpose: ref.purpose,
-								mime_type: ref.file.type
-							}));
-						}
-
-						const response = await fetch('/api/mcp', {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							body: JSON.stringify(requestBody),
+							sessionId,
+							referenceImageUids: data.referenceImageUids,
+							referenceImages: data.referenceImages
 						});
-
-						const responseData = await response.json();
-						console.log("Transform Response:", responseData);
 						onRefreshContext();
 					} catch (err) {
 						console.error('Transform failed:', err);
@@ -281,6 +269,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
 	const isProcessing = loading || submitting;
 	const canSubmit = prompt.trim() && !isProcessing;
+	const canTransform = !isProcessing && sessionId && onTransformSubmit;
+
+	// Debug log for transform button state
+	useEffect(() => {
+		console.log('Transform button state:', {
+			canTransform,
+			isProcessing,
+			sessionId,
+			hasOnTransformSubmit: !!onTransformSubmit
+		});
+	}, [canTransform, isProcessing, sessionId, onTransformSubmit]);
 	
 	// Re-focus after loading finishes
 	useEffect(() => {
@@ -338,8 +337,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 						{/* Transform button */}
 						<button
 							onClick={handleTransformClick}
-							disabled={isProcessing || !sessionId}
-							className={`${styles.transformButton} ${!isProcessing && sessionId ? styles.transformButtonActive : ''}`}
+							disabled={!canTransform}
+							className={`${styles.transformButton} ${canTransform ? styles.transformButtonActive : ''}`}
 							type="button"
 							title="Image to Image with Reference Images"
 						>

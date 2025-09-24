@@ -1,4 +1,4 @@
-import { ApiService, Session, AIResponse, SessionContext } from './types';
+import { ApiService, Session, AIResponse, SessionContext, TransformRequest } from './types';
 
 interface SessionsResponse {
   sessions: Session[];
@@ -185,6 +185,58 @@ export function createApiService(): ApiService {
         }
       } catch (err) {
         console.error(err instanceof Error ? err.message : "Failed to rename session");
+        throw err;
+      }
+    },
+
+    transform: async (data: TransformRequest): Promise<AIResponse> => {
+      try {
+        // Fetch latest image UID from session
+        const latestImageResponse = await fetch(`http://127.0.0.1:8080/api/session/${data.sessionId}/latest-image`);
+        const latestImageData = await latestImageResponse.json();
+
+        // Prepare request body
+        const requestBody: Record<string, any> = {
+          prompt: data.prompt,
+          context: 'User is working with Unreal Engine project with dynamic sky system',
+          llm_model: data.model,
+          session_id: data.sessionId,
+        };
+
+        // Add main target image UID if available
+        if (latestImageData.success && latestImageData.latest_image.uid) {
+          requestBody.target_image_uid = latestImageData.latest_image.uid;
+        }
+
+        // Use UID-based system for reference images if available, fallback to legacy base64
+        if (data.referenceImageUids && data.referenceImageUids.length > 0) {
+          requestBody.reference_image_uids = data.referenceImageUids;
+        } else if (data.referenceImages) {
+          // Legacy fallback
+          requestBody.reference_images = data.referenceImages.map(ref => ({
+            image_data: ref.preview?.split(',')[1] || '', // Remove data:image/...;base64, prefix
+            purpose: ref.purpose,
+            mime_type: ref.file.type
+          }));
+        }
+
+        const response = await fetch('/api/mcp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to transform image');
+        }
+
+        const result: AIResponse = await response.json();
+        return result;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Transform failed';
+        console.error(errorMessage);
         throw err;
       }
     }

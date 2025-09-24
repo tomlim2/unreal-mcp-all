@@ -814,9 +814,15 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Process image data if present
                     images = []
                     reference_images = []  # Always initialize to prevent undefined variable errors
+                    target_image_uid = None  # New: main target image UID
 
                     try:
-                        # Process target images
+                        # Process target image UID (new method)
+                        target_image_uid = request_data.get('target_image_uid')
+                        if target_image_uid:
+                            print(f"DEBUG: Using target image UID: {target_image_uid}", flush=True)
+
+                        # Process target images (legacy base64 method)
                         raw_images = request_data.get('images', [])
                         if raw_images:
                             images = _validate_and_process_images(raw_images)
@@ -832,23 +838,22 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             print(f"DEBUG: Using UID-based reference images ({len(reference_image_uids)} UIDs)", flush=True)
                             from tools.ai.reference_storage import get_reference_image
 
-                            for i, ref_info in enumerate(reference_image_uids):
-                                refer_uid = ref_info.get('refer_uid')
-                                if not refer_uid:
-                                    raise ValueError(f"Reference image {i}: Missing 'refer_uid'")
+                            for i, refer_uid in enumerate(reference_image_uids):
+                                if not refer_uid or not isinstance(refer_uid, str):
+                                    raise ValueError(f"Reference image {i}: Invalid UID: {refer_uid}")
 
                                 print(f"DEBUG: Loading refer_uid: {refer_uid}", flush=True)
 
-                                # Load reference image data
+                                # Verify reference exists (but don't load full data)
                                 ref_data = get_reference_image(refer_uid)
                                 if not ref_data:
                                     raise ValueError(f"Reference image not found: {refer_uid}")
 
-                                # Convert to NLP format
+                                # Convert to NLP format with UID (not full data)
                                 reference_images.append({
-                                    'data': ref_data['data'],
+                                    'refer_uid': refer_uid,
                                     'mime_type': ref_data['mime_type'],
-                                    'purpose': ref_info.get('purpose', ref_data['purpose'])
+                                    'purpose': ref_data.get('purpose', 'style')
                                 })
 
                             print(f"DEBUG: Successfully loaded {len(reference_images)} UID-based reference images", flush=True)
@@ -900,21 +905,39 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         if reference_images:
                             nlp_reference_images = []
                             for i, ref in enumerate(reference_images):
-                                # Strict validation: all required fields must exist
-                                if not ref.get('data'):
-                                    raise ValueError(f"Reference image {i}: Missing 'data' field")
-                                if not ref.get('mime_type'):
-                                    raise ValueError(f"Reference image {i}: Missing 'mime_type' field")
+                                # Check if UID-based or data-based reference image
+                                if 'refer_uid' in ref:
+                                    # UID-based reference image
+                                    if not ref.get('refer_uid'):
+                                        raise ValueError(f"Reference image {i}: Missing 'refer_uid' field")
+                                    if not ref.get('mime_type'):
+                                        raise ValueError(f"Reference image {i}: Missing 'mime_type' field")
 
-                                nlp_ref = {
-                                    'data': ref['data'],
-                                    'mime_type': ref['mime_type']
-                                }
-                                if 'purpose' in ref:
-                                    nlp_ref['purpose'] = ref['purpose']
+                                    nlp_ref = {
+                                        'refer_uid': ref['refer_uid'],
+                                        'mime_type': ref['mime_type']
+                                    }
+                                    if 'purpose' in ref:
+                                        nlp_ref['purpose'] = ref['purpose']
 
-                                nlp_reference_images.append(nlp_ref)
-                                print(f"DEBUG: NLP ref {i}: purpose={ref.get('purpose', 'none')}, mime_type={ref['mime_type']}, data_length={len(ref['data'])}", flush=True)
+                                    nlp_reference_images.append(nlp_ref)
+                                    print(f"DEBUG: NLP ref {i}: UID={ref['refer_uid']}, purpose={ref.get('purpose', 'none')}, mime_type={ref['mime_type']}", flush=True)
+                                else:
+                                    # Data-based reference image (legacy)
+                                    if not ref.get('data'):
+                                        raise ValueError(f"Reference image {i}: Missing 'data' field")
+                                    if not ref.get('mime_type'):
+                                        raise ValueError(f"Reference image {i}: Missing 'mime_type' field")
+
+                                    nlp_ref = {
+                                        'data': ref['data'],
+                                        'mime_type': ref['mime_type']
+                                    }
+                                    if 'purpose' in ref:
+                                        nlp_ref['purpose'] = ref['purpose']
+
+                                    nlp_reference_images.append(nlp_ref)
+                                    print(f"DEBUG: NLP ref {i}: purpose={ref.get('purpose', 'none')}, mime_type={ref['mime_type']}, data_length={len(ref['data'])}", flush=True)
 
                             print(f"DEBUG: Successfully converted {len(nlp_reference_images)} reference images for NLP", flush=True)
 
@@ -930,7 +953,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         result = process_natural_language(
                             user_input, context, session_id, llm_model,
                             images=images if images else None,
-                            reference_images=nlp_reference_images
+                            reference_images=nlp_reference_images,
+                            target_image_uid=target_image_uid
                         )
 
                         # Verify reference images made it through to commands

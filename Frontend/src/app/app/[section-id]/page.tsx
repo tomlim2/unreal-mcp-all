@@ -19,6 +19,7 @@ export default function SectionPage({
     chatLoading,
     chatError,
     handleChatSubmit,
+    handleTransformSubmit,
     refreshContext
   } = useConversationContext();
 
@@ -36,13 +37,14 @@ export default function SectionPage({
         error={contextError}
         isNewSessionPage={false}
       />
-      <ChatInput 
+      <ChatInput
         ref={chatInputRef}
         loading={chatLoading}
         error={chatError}
         sessionId={resolvedParams['section-id']}
         llmFromDb={messageInfo?.llm_model || 'gemini-2'}
         onSubmit={handleChatSubmit}
+        onTransformSubmit={handleTransformSubmit}
         onRefreshContext={refreshContext}
         allowModelSwitching={false}
       />

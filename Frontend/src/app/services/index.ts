@@ -1,7 +1,8 @@
 export { createApiService } from './ApiServiceContext';
-export type { 
-  ApiService, 
-  Session, 
-  AIResponse, 
-  SessionContext
+export type {
+  ApiService,
+  Session,
+  AIResponse,
+  SessionContext,
+  TransformRequest
 } from './types';

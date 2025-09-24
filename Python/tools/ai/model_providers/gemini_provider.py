@@ -26,15 +26,22 @@ class GeminiProvider(BaseModelProvider):
         self._client = None
         self._model = None
         
-    def _initialize_client(self):
+    def _initialize_client(self, system_instruction: str = None):
         """Initialize the Gemini client if not already done."""
         if self._client is None and GEMINI_AVAILABLE:
             api_key = os.getenv('GOOGLE_API_KEY')
             if api_key and api_key != 'your-google-api-key-here':
                 genai.configure(api_key=api_key)
-                self._model = genai.GenerativeModel(self.model_name)
+                # Initialize model with system instruction if provided
+                # Note: system_instruction is stored on model, so we recreate model each time
+                self._model = genai.GenerativeModel(
+                    self.model_name,
+                    system_instruction=system_instruction if system_instruction else None
+                )
                 self._client = True
                 logger.info(f"Gemini client initialized with model: {self.model_name}")
+                if system_instruction:
+                    logger.info(f"System instruction set (length: {len(system_instruction)} chars)")
             else:
                 logger.error("GOOGLE_API_KEY not configured")
                 
@@ -47,31 +54,34 @@ class GeminiProvider(BaseModelProvider):
         return api_key is not None and api_key != 'your-google-api-key-here'
     
     def generate_response(
-        self, 
-        messages: List[Dict[str, str]], 
+        self,
+        messages: List[Dict[str, str]],
         system_prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.1
     ) -> str:
         """Generate response using Gemini."""
-        self._initialize_client()
-        
+        # IMPORTANT: Reinitialize model with system instruction each time
+        # This ensures system prompt is properly set for Gemini API
+        self._client = None  # Reset to force reinitialization
+        self._initialize_client(system_instruction=system_prompt)
+
         if not self._model:
             raise Exception("Gemini model not initialized")
-            
+
         if not self.validate_messages(messages):
             raise Exception("Invalid message format")
-        
+
         try:
-            # Convert messages to Gemini format
-            gemini_messages = self._convert_messages_to_gemini_format(messages, system_prompt)
-            
+            # Convert messages to Gemini format (without system prompt, it's in system_instruction now)
+            gemini_messages = self._convert_messages_to_gemini_format(messages)
+
             # Configure generation parameters
             generation_config = genai.types.GenerationConfig(
                 max_output_tokens=max_tokens,
                 temperature=temperature,
             )
-            
+
             # Generate response
             response = self._model.generate_content(
                 gemini_messages,
@@ -120,15 +130,16 @@ class GeminiProvider(BaseModelProvider):
             logger.error(f"Gemini generation error: {e}")
             raise Exception(f"Gemini error: {str(e)}")
     
-    def _convert_messages_to_gemini_format(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
+    def _convert_messages_to_gemini_format(self, messages: List[Dict[str, str]]) -> str:
         """Convert conversation messages to Gemini prompt format."""
-        # Gemini works best with a single prompt that includes context and current request
-        
-        prompt_parts = [system_prompt]
-        
+        # System prompt is now passed via system_instruction parameter
+        # This method only formats the user messages and conversation history
+
+        prompt_parts = []
+
         # Add conversation history
         if len(messages) > 1:  # More than just the current message
-            prompt_parts.append("\n## CONVERSATION HISTORY:")
+            prompt_parts.append("## CONVERSATION HISTORY:")
             for msg in messages[:-1]:  # All but the last message
                 role_label = "Human" if msg['role'] == 'user' else "Assistant"
                 # Clean the content to avoid nested system prompts
@@ -137,7 +148,7 @@ class GeminiProvider(BaseModelProvider):
                     # Extract just the user request part
                     content = content.split("User request:")[-1].strip()
                 prompt_parts.append(f"{role_label}: {content}")
-        
+
         # Add current request
         current_message = messages[-1]
         if current_message['role'] == 'user':
@@ -147,8 +158,12 @@ class GeminiProvider(BaseModelProvider):
                 user_request = content.split("User request:")[-1].strip()
             else:
                 user_request = content
-            prompt_parts.append(f"\n## CURRENT REQUEST:\n{user_request}")
-        
+            if prompt_parts:  # If we have conversation history
+                prompt_parts.append(f"\n## CURRENT REQUEST:\n{user_request}")
+            else:
+                # No history, just use the request directly
+                prompt_parts.append(user_request)
+
         return "\n".join(prompt_parts)
     
     def get_model_name(self) -> str:

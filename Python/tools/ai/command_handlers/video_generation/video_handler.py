@@ -148,6 +148,11 @@ class VideoGenerationHandler(BaseCommandHandler):
             if not params.get("prompt"):
                 errors.append("prompt is required")
 
+            # Support both target_image_uid (new) and image_url (legacy)
+            if params.get("target_image_uid"):
+                params["image_url"] = params["target_image_uid"]
+                logger.info(f"Using target_image_uid as image_url: {params['image_url']}")
+
             if not params.get("image_url"):
                 # 세션에서 최신 이미지 자동 할당 시도
                 session_id = params.get("session_id")

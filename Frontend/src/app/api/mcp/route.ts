@@ -6,7 +6,7 @@ const MCP_HTTP_BRIDGE_URL = `http://127.0.0.1:${MCP_HTTP_BRIDGE_PORT}`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, context, session_id, llm_model, images, reference_images } = await request.json();
+    const { prompt, context, session_id, llm_model, images, reference_images, reference_image_uids, target_image_uid } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -20,6 +20,11 @@ export async function POST(request: NextRequest) {
       session_id
     };
 
+    // Add target_image_uid if provided (new UID-based system for main target image)
+    if (target_image_uid) {
+      requestBody.target_image_uid = target_image_uid;
+    }
+
     // Add images and reference_images if provided
     if (images && Array.isArray(images)) {
       requestBody.images = images;
@@ -27,6 +32,11 @@ export async function POST(request: NextRequest) {
 
     if (reference_images && Array.isArray(reference_images)) {
       requestBody.reference_images = reference_images;
+    }
+
+    // Add reference_image_uids if provided (new UID-based system)
+    if (reference_image_uids && Array.isArray(reference_image_uids)) {
+      requestBody.reference_image_uids = reference_image_uids;
     }
 
     // Forward request to Python MCP server with natural language processing

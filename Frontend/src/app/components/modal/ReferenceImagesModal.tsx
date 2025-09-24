@@ -47,8 +47,9 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
   const [referenceImages, setReferenceImages] = useState<ReferenceImageUpload[]>([]);
 
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const imageUrlRef = useRef<string | null>(null);
 
-  // Fetch latest image info
+  // Fetch latest image info - only once on mount
   useEffect(() => {
     async function fetchLatestImage() {
       try {
@@ -58,6 +59,10 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
 
         if (data.success) {
           setLatestImage(data.latest_image);
+          // Cache the image URL to prevent reloading
+          if (data.latest_image.thumbnail_url) {
+            imageUrlRef.current = getFullImageUrl(data.latest_image.thumbnail_url);
+          }
         } else {
           console.error('Failed to fetch latest image:', data.error);
           setLatestImage({ uid: null, filename: null, thumbnail_url: null, available: false });
@@ -71,7 +76,8 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     }
 
     fetchLatestImage();
-  }, [sessionId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Handle file upload - client-side only processing
   const handleFileUpload = async (index: number, file: File | null) => {
@@ -278,7 +284,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
             <h3>Target Image</h3>
             <div className={styles.targetImage}>
               <img
-                src={getFullImageUrl(latestImage.thumbnail_url!)}
+                src={imageUrlRef.current || getFullImageUrl(latestImage.thumbnail_url!)}
                 alt={`Image ${latestImage.uid}`}
                 className={styles.thumbnail}
               />

@@ -69,6 +69,15 @@ export interface SessionContext {
 }
 
 
+// Transform request data
+export interface TransformRequest {
+  prompt: string;
+  model: string;
+  sessionId: string;
+  referenceImageUids?: string[];
+  referenceImages?: Array<{preview: string; purpose: string; file: File}>;
+}
+
 // API Service Interface
 export interface ApiService {
   // Session management
@@ -78,10 +87,13 @@ export interface ApiService {
   createSession: (sessionName: string) => Promise<{ session_id: string; session_name: string }>;
   deleteSession: (sessionId: string) => Promise<void>;
   renameSession: (sessionId: string, name: string) => Promise<void>;
-  
+
   // Chat functionality
   chat: (prompt: string, sessionId?: string, model?: string) => Promise<AIResponse>;
-  
+
+  // Image transformation with reference images
+  transform: (data: TransformRequest) => Promise<AIResponse>;
+
   // Context history
   getSessionContext: (sessionId: string) => Promise<SessionContext>;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from "react";
-import { createApiService, SessionContext } from "../services";
+import { createApiService, SessionContext, TransformRequest } from "../services";
 import { useSessionContext } from "../layout";
 import Sidebar from "./sidebar/Sidebar";
 import ConversationHistory from "./conversation/ConversationHistory";
@@ -108,6 +108,33 @@ export default function SessionManagerPanel() {
     handleSelectSession(sid);
   };
 
+  const handleTransformSubmit = async (data: Omit<TransformRequest, 'sessionId'> & { sessionId: string }) => {
+    if (!sessionId) return;
+
+    setChatLoading(true);
+    setChatError(null);
+
+    try {
+      const result = await apiService.transform(data as TransformRequest);
+      console.log('Transform result:', result);
+
+      // Refresh context to show new messages
+      contextCache.current.delete(sessionId);
+      await fetchSessionContext(sessionId, true);
+
+      // Focus back to input after response is received
+      setTimeout(() => {
+        chatInputRef.current?.focusInput();
+      }, 100);
+
+    } catch (error) {
+      console.error('Transform error:', error);
+      setChatError(error instanceof Error ? error.message : 'Transform failed');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   return (
     <div className={styles.container}>
       {error && (
@@ -128,13 +155,14 @@ export default function SessionManagerPanel() {
         error={contextError}
         sessionsLoaded={sessionsLoaded}
       />
-      <ChatInput 
+      <ChatInput
         ref={chatInputRef}
         loading={chatLoading}
         error={chatError}
         sessionId={sessionId}
         llmFromDb={messageInfo?.llm_model || 'gemini-2'}
         onSubmit={handleChatSubmit}
+        onTransformSubmit={handleTransformSubmit}
         onRefreshContext={refreshContext}
       />
     </div>

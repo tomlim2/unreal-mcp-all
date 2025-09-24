@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
-import { createApiService, SessionContext } from "../../services";
+import { createApiService, SessionContext, TransformRequest } from "../../services";
 import { useSessionContext } from "../layout";
 import styles from "../../components/SessionManagerPanel.module.css";
 
@@ -11,13 +11,14 @@ interface ConversationContextType {
   messageInfo: SessionContext | null;
   contextLoading: boolean;
   contextError: string | null;
-  
+
   // Chat state
   chatLoading: boolean;
   chatError: string | null;
-  
+
   // Operations
   handleChatSubmit: (prompt: string, llmModel?: string) => Promise<void>;
+  handleTransformSubmit: (data: Omit<TransformRequest, 'sessionId'> & { sessionId: string }) => Promise<void>;
   refreshContext: () => void;
 }
 
@@ -129,6 +130,28 @@ function ConversationProvider({
     }
   };
 
+  const handleTransformSubmit = async (data: Omit<TransformRequest, 'sessionId'> & { sessionId: string }) => {
+    if (!sectionId) return;
+
+    setChatLoading(true);
+    setChatError(null);
+
+    try {
+      const result = await apiService.transform(data as TransformRequest);
+      console.log('Transform result:', result);
+
+      // Refresh context to show new messages
+      contextCache.current.delete(sectionId);
+      await fetchSessionContext(sectionId, true);
+
+    } catch (error) {
+      console.error('Transform error:', error);
+      setChatError(error instanceof Error ? error.message : 'Transform failed');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   // Wrap session operations to handle context cache
   const handleSessionDelete = async (sid: string) => {
     contextCache.current.delete(sid);
@@ -142,6 +165,7 @@ function ConversationProvider({
     chatLoading,
     chatError,
     handleChatSubmit,
+    handleTransformSubmit,
     refreshContext
   };
 

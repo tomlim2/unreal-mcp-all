@@ -248,9 +248,63 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         style_prompt = params["style_prompt"]
         intensity = params.get("intensity", 0.8)
 
-        # Check for direct image data first (new method)
-        target_image = params.get("target_image")
+        # Check for UID-based image (newest method)
+        target_image_uid = params.get("target_image_uid")
+        target_image = None
+
+        if target_image_uid:
+            # Load image from UID
+            from ...uid_manager import get_uid_mapping
+            logger.info(f"Loading target image from UID: {target_image_uid}")
+            mapping = get_uid_mapping(target_image_uid)
+            if not mapping:
+                return build_error_response(
+                    f"Target image UID not found: {target_image_uid}",
+                    "uid_not_found",
+                    request_id,
+                    start_time
+                )
+
+            file_path = mapping.get('metadata', {}).get('file_path')
+            if not file_path or not os.path.exists(file_path):
+                return build_error_response(
+                    f"Target image file not found for UID: {target_image_uid}",
+                    "file_not_found",
+                    request_id,
+                    start_time
+                )
+
+            # Read image file as bytes
+            with open(file_path, 'rb') as f:
+                image_bytes = f.read()
+
+            target_image = {
+                'data': image_bytes,
+                'mime_type': 'image/png',
+                'file_path': file_path  # Include file path for saving styled image
+            }
+            logger.info(f"Loaded target image from UID {target_image_uid}: {file_path}")
+        else:
+            # Check for direct image data (legacy method)
+            target_image = params.get("target_image")
+
+        # Get reference images (can be UID-based or data-based)
         reference_images = params.get("reference_images", [])
+
+        # Load reference images from UIDs if needed
+        if reference_images and 'refer_uid' in reference_images[0]:
+            from ...reference_storage import get_reference_image
+            loaded_refs = []
+            for ref in reference_images:
+                refer_uid = ref.get('refer_uid')
+                if refer_uid:
+                    logger.info(f"Loading reference image from UID: {refer_uid}")
+                    ref_data = get_reference_image(refer_uid)
+                    if ref_data:
+                        loaded_refs.append(ref_data)
+                    else:
+                        logger.warning(f"Reference image UID not found: {refer_uid}")
+            reference_images = loaded_refs if loaded_refs else []
 
         if target_image and reference_images:
             # Use new multi-image approach
@@ -722,8 +776,9 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 return None
 
             # Save the generated image
+            original_path = target_image_data.get('file_path', 'unknown')
             styled_image_path = self._save_gemini_generated_image(
-                response, None, style_prompt
+                response, original_path, style_prompt
             )
             return styled_image_path
 

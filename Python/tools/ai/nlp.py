@@ -342,7 +342,7 @@ Style:"""
         return user_input  # Fallback to original
 
 
-def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optional[List[Dict[str, Any]]], reference_images: Optional[List[Dict[str, Any]]]) -> None:
+def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optional[List[Dict[str, Any]]], reference_images: Optional[List[Dict[str, Any]]], target_image_uid: str = None) -> None:
     """
     Inject image data into commands that support image processing.
 
@@ -350,11 +350,12 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
         commands: List of AI-generated commands to process
         images: List of target images with 'mime_type', 'data', optional 'purpose'
         reference_images: List of reference images with 'mime_type', 'data', optional 'purpose'
+        target_image_uid: Optional UID for main target image
     """
-    print(f"DEBUG NLP: _process_images_for_commands called with {len(commands) if commands else 0} commands, {len(images) if images else 0} images, {len(reference_images) if reference_images else 0} reference_images", flush=True)
+    print(f"DEBUG NLP: _process_images_for_commands called with {len(commands) if commands else 0} commands, {len(images) if images else 0} images, {len(reference_images) if reference_images else 0} reference_images, target_image_uid={target_image_uid}", flush=True)
 
-    if not images and not reference_images:
-        print("DEBUG NLP: No images or reference_images, returning early", flush=True)
+    if not images and not reference_images and not target_image_uid:
+        print("DEBUG NLP: No images, reference_images, or target_image_uid, returning early", flush=True)
         return
 
     # Commands that support image processing
@@ -375,8 +376,13 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
                 command['params'] = {}
             print(f"DEBUG NLP: Command {command_type} supports images, adding image data", flush=True)
 
-            # Add target image (first image becomes target)
-            if images:
+            # Add target image UID if provided (new method)
+            if target_image_uid:
+                command['params']['target_image_uid'] = target_image_uid
+                print(f"DEBUG NLP: Added target_image_uid {target_image_uid} to command {command_type}", flush=True)
+                logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
+            # Add target image data (legacy method)
+            elif images:
                 target_image = images[0]
                 command['params']['target_image'] = {
                     'data': target_image['data'],
@@ -390,12 +396,22 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
                 print(f"DEBUG NLP: Processing {len(reference_images)} reference images for command {command_type}", flush=True)
                 processed_refs = []
                 for ref_img in reference_images[:3]:  # Gemini supports max 3 images
-                    processed_ref = {
-                        'data': ref_img['data'],
-                        'mime_type': ref_img['mime_type']
-                    }
+                    processed_ref = {}
+
+                    # Support both UID-based and legacy data-based formats
+                    if 'refer_uid' in ref_img:
+                        # UID-based reference (new method)
+                        processed_ref['refer_uid'] = ref_img['refer_uid']
+                    elif 'data' in ref_img:
+                        # Legacy data-based reference
+                        processed_ref['data'] = ref_img['data']
+                        processed_ref['mime_type'] = ref_img.get('mime_type', 'image/png')
+
                     if 'purpose' in ref_img:
                         processed_ref['purpose'] = ref_img['purpose']
+                    if 'mime_type' in ref_img:
+                        processed_ref['mime_type'] = ref_img['mime_type']
+
                     processed_refs.append(processed_ref)
 
                 command['params']['reference_images'] = processed_refs
@@ -409,8 +425,8 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
                 command['params']['image_url'] = None
 
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-    print(f"DEBUG NLP START: Called with reference_images={len(reference_images) if reference_images else 0}", flush=True)
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None) -> Dict[str, Any]:
+    print(f"DEBUG NLP START: Called with reference_images={len(reference_images) if reference_images else 0}, target_image_uid={target_image_uid}", flush=True)
     try:
         # Get session manager and session context if session_id provided
         session_manager = None
@@ -530,11 +546,11 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     parsed_response = _extract_from_partial_response(ai_response)
 
         # Process images for commands if images are provided
-        print(f"DEBUG NLP: About to check image processing - images={len(images) if images else 0}, reference_images={len(reference_images) if reference_images else 0}, commands={len(parsed_response.get('commands', []))}", flush=True)
+        print(f"DEBUG NLP: About to check image processing - images={len(images) if images else 0}, reference_images={len(reference_images) if reference_images else 0}, target_image_uid={target_image_uid}, commands={len(parsed_response.get('commands', []))}", flush=True)
 
-        if (images or reference_images) and parsed_response.get("commands"):
+        if (images or reference_images or target_image_uid) and parsed_response.get("commands"):
             print(f"DEBUG NLP: Calling _process_images_for_commands", flush=True)
-            _process_images_for_commands(parsed_response["commands"], images, reference_images)
+            _process_images_for_commands(parsed_response["commands"], images, reference_images, target_image_uid)
         else:
             print(f"DEBUG NLP: Skipping image processing - condition not met", flush=True)
 
@@ -610,10 +626,10 @@ def register_nlp_tools(mcp: FastMCP):
     pass
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images)
+        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images, target_image_uid)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {
@@ -664,64 +680,158 @@ Your role is to provide intuitive creative control by translating natural langua
 **Rendering & Capture:**
 - Screenshots: take_screenshot (take new screenshot, returns image URL)
 
-**AI Image Editing (Nano Banana):**
-- transform_image_style: Apply style to existing image (auto-uses latest if image_url omitted)
-- take_styled_screenshot: Take new screenshot AND apply style transformation
+**AI Image Editing (Nano Banana - Gemini 2.5 Flash Image):**
+- transform_image_style: **ALWAYS USE THIS FOR ANY VISUAL REQUEST**
+  * CAN DO: pose changes, character actions, style transfer, content modifications, object manipulation
+  * Examples: "손 들어" → style_prompt: "character raising hands", "양손 들어" → style_prompt: "both hands up"
+  * Auto-uses latest screenshot (target_image_uid provided automatically)
+  * Supports reference images for style/composition guidance
+- take_styled_screenshot: Capture new screenshot + apply style
+
+**CRITICAL**: transform_image_style uses AI image generation to MODIFY ANY VISUAL ASPECT
+- Pose changes: YES ✅
+- Character actions: YES ✅
+- Add/remove objects: YES ✅
+- Scene modifications: YES ✅
 
 **AI Video Generation (Veo-3):**
-- generate_video_from_image: Create 8-second video from SPECIFIED IMAGE ONLY (requires image_url parameter)
+- generate_video_from_image: Generate 8-second video from image
+  * Auto-uses latest screenshot (target_image_uid provided automatically)
+  * Requires explicit video request keywords
 
-**Image Processing Keywords:** When users mention "nano banana", "style", "transform", "cyberpunk", "anime", "watercolor", or similar visual style terms, they want image processing operations.
+**COMMAND SELECTION RULES:**
 
-**Video Generation Keywords:** When users mention "video", "animate", "motion", "movement", "fly through", "camera movement", or similar animation terms, they want video generation operations.
+**STEP-BY-STEP COMMAND SELECTION:**
 
-## PARAMETER VALIDATION RULES
+**STEP 1: Check for Unreal Engine keywords FIRST**
+- IF input contains: "언리얼로", "언리얼에서", "언리얼", "씬에서", "in Unreal", "in scene", "scene"
+- THEN analyze the request and use appropriate 3D Scene commands:
+  * "색 온도 따뜻하게" → set_color_temperature
+  * "시간 바꿔" → set_time_of_day
+  * "비 내려" → set_current_weather_to_rain
+  * "조명 밝게" → create_mm_control_light or update_mm_control_light
+- STOP here, do NOT proceed to STEP 2 or 3
+
+**STEP 2: Check for Video keywords**
+- IF "언리얼" NOT found AND input contains: "영상", "비디오", "동영상", "video"
+- THEN use generate_video_from_image
+- STOP here, do NOT proceed to STEP 3
+
+**STEP 3: DEFAULT → transform_image_style**
+- IF STEP 1 and STEP 2 both failed
+- THEN use transform_image_style for ANY visual request:
+  * "색 온도 따뜻하게" (without "언리얼") → transform_image_style
+  * "시간 바꿔" (without "언리얼") → transform_image_style
+  * "비 내려" (without "언리얼") → transform_image_style
+  * "손 들어" → transform_image_style
+  * "사이버펑크로" → transform_image_style
+
+**CRITICAL DECISION LOGIC:**
+- "언리얼로 색 온도 따뜻하게" → set_color_temperature ✅
+- "색 온도 따뜻하게" (no "언리얼") → transform_image_style ✅
+- "언리얼에서 시간 바꿔" → set_time_of_day ✅
+- "시간 바꿔" (no "언리얼") → transform_image_style ✅
+
+## PARAMETER RULES
 **Essential Parameters:**
-- time_of_day: HHMM format (e.g., 600=6AM, 1800=6PM)
-- color_temperature: Kelvin number OR "warmer"/"cooler"
-- light_name: String identifier for lighting operations
-- location: {{"x": number, "y": number, "z": number}}
+- time_of_day: HHMM format (600=6AM, 1200=noon, 1800=6PM)
+- color_temperature: Kelvin (1500-15000) OR "warmer"/"cooler"
 - style_prompt: Description for image transformations
-- prompt: Description for video animation (required for generate_video_from_image)
-- image_url: UID of specific image to use (e.g., "img_074") - REQUIRED for video generation
-- aspect_ratio: "16:9" or "9:16" (optional for video generation)
-- resolution: "720p" or "1080p" (optional for video generation)
+- prompt: Description for video animation
+- aspect_ratio: "16:9" or "9:16" (video only)
+- resolution: "720p" or "1080p" (video only)
 
-## DECISION LOGIC
+**Image/Video Source:**
+- target_image_uid: Automatically provided (latest screenshot)
+- reference_image_uids: Automatically provided when available
+- DO NOT specify image_url or UIDs manually
 
-**Simple 2-Step Process:**
-1. **Explicit Keywords Override**: "in scene/Unreal" → 3D Mode | "to image/screenshot" → 2D Mode
-2. **Context Continuity**: Stay in current conversation mode (2D Image Mode vs 3D Scene Mode)
+## DECISION FLOWCHART
 
-**Available Commands:**
-- **3D Scene**: Lighting, environment, weather, screenshots
-- **2D Image**: Style transformations, styled screenshots
+```
+User Input: "색 온도 따뜻하게"
+    ↓
+STEP 1: Contains "언리얼"? → NO
+    ↓
+STEP 2: Contains "영상/video"? → NO
+    ↓
+STEP 3: DEFAULT → transform_image_style ✅
 
-## QUICK REFERENCE
-**Time**: sunrise=600, sunset=1800, noon=1200
-**Colors**: red={{"r":255,"g":0,"b":0}}, white={{"r":255,"g":255,"b":255}}
-**Locations**: SF(37.7749,-122.4194), Tokyo(35.6804,139.6917)
+User Input: "언리얼로 색 온도 따뜻하게"
+    ↓
+STEP 1: Contains "언리얼"? → YES → set_color_temperature ✅
+```
 
-**Nano Banana Examples (ALWAYS require image UID):**
-- "Use nano banana to make img_079 cyberpunk" → transform_image_style with cyberpunk style and image_url: "img_079"
-- "Apply nano banana anime style to img_075" → transform_image_style with anime aesthetic and image_url: "img_075"
-- "Nano banana watercolor img_074" → transform_image_style with watercolor effect and image_url: "img_074"
-- "Take screenshot with nano banana punk style" → take_styled_screenshot
+## EXAMPLES (CRITICAL FOR UNDERSTANDING)
 
-**Video Generation Examples:**
-- "Create video with flying motion" → generate_video_from_image (auto-uses latest image)
-- "Make a video from img_074" → generate_video_from_image with specified image_url
-- "Generate animation" → generate_video_from_image (auto-uses latest image)
-- "Use img_075 to create video" → generate_video_from_image with specific image_url
+**Same request, different command based on "언리얼" keyword:**
 
-**IMPORTANT**:
-- Video generation REQUIRES an image source - uses latest image if image_url not specified
-- If no images available in session, user must take screenshot first
-- Image editing (transform_image_style) uses latest image if image_url not specified
-- NEVER use "latest_screenshot" or filenames - omit image_url parameter to auto-use latest image
-- Only use UID format (img_XXX) when explicitly specifying different image
+WITHOUT "언리얼" (→ transform_image_style):
+- "색 온도 따뜻하게" → transform_image_style ✅
+- "시간 바꿔" → transform_image_style ✅
+- "비 내려" → transform_image_style ✅
+- "조명 밝게" → transform_image_style ✅
+- "양손 들어" → transform_image_style ✅
 
-Return valid JSON only."""
+WITH "언리얼" (→ 3D Scene Commands):
+- "언리얼로 색 온도 따뜻하게" → set_color_temperature ✅
+- "언리얼에서 시간 바꿔" → set_time_of_day ✅
+- "언리얼 씬에 비 내려" → set_current_weather_to_rain ✅
+- "언리얼로 조명 밝게" → create_mm_control_light ✅
+
+WITH "video" (→ Video Generation):
+- "영상 생성해줘" → generate_video_from_image ✅
+- "Create a video" → generate_video_from_image ✅
+
+**RESPONSE FORMAT (MANDATORY):**
+You MUST return valid JSON in this exact format:
+{{
+  "explanation": "Brief description of what you're doing",
+  "commands": [
+    {{
+      "type": "command_name",
+      "params": {{
+        "style_prompt": "description here"
+      }}
+    }}
+  ],
+  "expectedResult": "What will happen"
+}}
+
+**CRITICAL RULES - READ CAREFULLY:**
+1. NEVER say "cannot do", "not supported", "tools do not support" - transform_image_style CAN DO EVERYTHING
+2. NEVER return empty commands array - ALWAYS return at least one command
+3. For ANY visual request → use transform_image_style
+4. "손 들어", "raise hand", "change pose" → transform_image_style (NOT "cannot do")
+
+**EXAMPLE CORRECT RESPONSES:**
+User: "손을 들게 해줘"
+Response:
+{{
+  "explanation": "Modifying image to show character raising hands",
+  "commands": [{{
+    "type": "transform_image_style",
+    "params": {{"style_prompt": "character raising both hands up"}}
+  }}],
+  "expectedResult": "Character will be shown with hands raised"
+}}
+
+User: "양손 들어"
+Response:
+{{
+  "explanation": "Transforming image to show both hands raised",
+  "commands": [{{
+    "type": "transform_image_style",
+    "params": {{"style_prompt": "both hands up in the air"}}
+  }}],
+  "expectedResult": "Image transformed with both hands raised"
+}}
+
+**ABSOLUTELY FORBIDDEN RESPONSES:**
+❌ "The current set of tools does not support..."
+❌ "My capabilities are focused on..."
+❌ "I cannot directly manipulate..."
+✅ INSTEAD: Always use transform_image_style with appropriate style_prompt"""
 
     # For style requests, skip complex session context to save tokens
     if not is_style_request and session_context:
