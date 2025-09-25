@@ -81,8 +81,8 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         
         try:
             genai.configure(api_key=api_key)
-            # Use Gemini's official image generation model
-            self._model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+            # Use Gemini's standard multimodal model for image processing
+            self._model = genai.GenerativeModel('gemini-2.5-flash')
             logger.info("Nano Banana (Gemini) initialized successfully")
             return True
         except Exception as e:
@@ -730,6 +730,21 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             logger.info(f"Applying Gemini multi-image transformation: {style_prompt} (intensity: {intensity})")
             logger.info(f"Using {len(reference_images)} reference images")
 
+            # Validate reference images - reject tiny/test images
+            valid_references = []
+            for i, ref_img in enumerate(reference_images):
+                data_size = len(ref_img['data']) if isinstance(ref_img['data'], bytes) else len(ref_img['data'].encode())
+                if data_size < 500:  # Reject images smaller than 500 bytes (likely test/invalid images)
+                    logger.warning(f"Skipping reference image {i+1}: too small ({data_size} bytes) - likely a test image")
+                    continue
+                valid_references.append(ref_img)
+
+            if not valid_references:
+                logger.warning("No valid reference images found - falling back to single image processing")
+                # Fallback to single image processing without references
+                return self._apply_nano_banana_style_fallback(target_image_data, style_prompt, intensity)
+
+            logger.info(f"Using {len(valid_references)} valid reference images (filtered from {len(reference_images)})")
             image_parts = []
 
             # Add target image
@@ -749,7 +764,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 })
 
             # Add reference images (up to 3 total for Gemini API limit)
-            for ref_img in reference_images[:3]:
+            for ref_img in valid_references[:3]:
                 if isinstance(ref_img['data'], bytes):
                     # Convert bytes to base64
                     ref_b64 = base64.b64encode(ref_img['data']).decode('utf-8')
@@ -765,7 +780,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 })
 
             # Build multi-image prompt
-            transformation_prompt = self._build_multi_image_prompt(style_prompt, reference_images, intensity)
+            transformation_prompt = self._build_multi_image_prompt(style_prompt, valid_references, intensity)
 
             # Generate styled image using Gemini multi-image API
             logger.info(f"Sending multi-image transformation request to Gemini with {len(image_parts)} images...")
@@ -1031,4 +1046,33 @@ Only return the English translation, nothing else:
         
         # Fallback: use first part before underscore
         return filename.split('_')[0]
+
+    def _apply_nano_banana_style_fallback(self, target_image_data: Dict[str, Any], style_prompt: str, intensity: float) -> Optional[str]:
+        """Fallback method to process target image without reference images."""
+        try:
+            logger.info(f"Applying single-image transformation (fallback): {style_prompt}")
+
+            # Convert to temporary file for existing logic compatibility
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+                if isinstance(target_image_data['data'], bytes):
+                    temp_file.write(target_image_data['data'])
+                else:
+                    # Assume base64 string, decode it
+                    temp_file.write(base64.b64decode(target_image_data['data']))
+                temp_image_path = temp_file.name
+
+            # Apply style transformation using existing single-image method
+            styled_image_path = self._apply_nano_banana_style(
+                temp_image_path, style_prompt, intensity
+            )
+
+            # Clean up temp file
+            os.unlink(temp_image_path)
+
+            return styled_image_path
+
+        except Exception as e:
+            logger.error(f"Fallback transformation failed: {e}")
+            raise Exception(f"Fallback transformation failed: {str(e)}")
     

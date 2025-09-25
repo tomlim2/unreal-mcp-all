@@ -33,6 +33,20 @@ from tools.ai.session_management.utils.session_helpers import extract_session_id
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MCPHttpBridge")
 
+# Custom JSON encoder to handle bytes objects
+class SafeJSONEncoder(json.JSONEncoder):
+    """JSON encoder that safely handles bytes objects and other non-serializable types."""
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            # Convert bytes to base64 string for JSON serialization
+            return f"<bytes:{len(obj)} bytes>"
+        elif hasattr(obj, '__dict__'):
+            # Handle custom objects by converting to dict
+            return obj.__dict__
+        else:
+            # Let the base class handle other types
+            return super().default(obj)
+
 # Image processing constants
 MAX_IMAGE_SIZE_MB = 10
 MAX_TOTAL_REQUEST_SIZE_MB = 30
@@ -987,7 +1001,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         }
                         
                         # Send response back to frontend
-                        response_json = json.dumps(wrapped_response)
+                        response_json = json.dumps(wrapped_response, cls=SafeJSONEncoder)
                         self.wfile.write(response_json.encode('utf-8'))
                         return
                     except Exception as e:
@@ -1013,7 +1027,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                                 "session_context": f"Session: {session_id}" if session_id else "No session"
                             }
                         }
-                        response_json = json.dumps(error_response)
+                        response_json = json.dumps(error_response, cls=SafeJSONEncoder)
                         self.wfile.write(response_json.encode('utf-8'))
                         return
                 else:

@@ -1,6 +1,6 @@
 """
 File-based storage backend for MegaMelange session management.
-Uses E:\CINEVStudio\CINEVStudio\Saved\MegaMelange\ as the storage directory.
+Uses centralized data_storage/sessions/ directory for session management.
 """
 
 import json
@@ -23,21 +23,18 @@ class FileStorage(BaseStorage):
     File-based storage for session management using MegaMelange directory structure.
     
     Directory Structure:
-    E:\CINEVStudio\CINEVStudio\Saved\MegaMelange\
-    ├── sessions/
-    │   ├── active/                    # Active sessions
-    │   │   ├── 2025-01/              # Year-month folders
-    │   │   │   ├── day-09/           # Day folders
-    │   │   │   │   ├── session_abc123.json
-    │   │   │   │   └── session_def456.json
-    │   │   │   └── day-10/
-    │   │   └── 2025-02/
-    │   ├── archived/                  # Old sessions for cleanup
-    │   └── metadata/                  # Session indices and metadata
-    │       ├── session_index.json    # Quick lookup index
-    │       └── stats.json            # Usage statistics
-    └── logs/                         # Session-related logs
-        └── session_storage.log
+    Python/data_storage/sessions/
+    ├── active/                    # Active sessions
+    │   ├── 2025-01/              # Year-month folders
+    │   │   ├── day-09/           # Day folders
+    │   │   │   ├── session_abc123.json
+    │   │   │   └── session_def456.json
+    │   │   └── day-10/
+    │   └── 2025-02/
+    ├── archived/                  # Old sessions for cleanup
+    └── metadata/                  # Session indices and metadata
+        ├── session_index.json    # Quick lookup index
+        └── stats.json            # Usage statistics
     """
     
     def __init__(self, base_path: str = None, path_manager: PathManager = None):

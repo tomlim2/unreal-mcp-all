@@ -161,13 +161,16 @@ Python/tests/
 test_*.py
 
 # UID and reference image runtime data
-Python/uid_state.json
-Python/refer_uid_mappings.json
-Python/reference_images/
-Python/debug_output.txt
-Python/http_bridge_debug.log
-Python/http_bridge_output.log
+Python/data_storage
 
+# Reference images and metadata (as requested)
+**/reference_images/
+**/refer_uid_mappings.json
+**/session_metadata/
+*.ref.png
+*.ref.jpg
+*.ref.jpeg
+*_reference_*
 # next.js
 /.next/
 /out/

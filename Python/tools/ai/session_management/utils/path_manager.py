@@ -131,18 +131,10 @@ class PathManager:
             base_path = self.config.megamelange_base_path
             logger.info(f"Using configured MegaMelange path: {base_path}")
         else:
-            # Method 2: Derive from Unreal project path
-            unreal_path = self.get_unreal_project_path()
-            if unreal_path:
-                base_path = os.path.join(unreal_path, 'Saved', 'MegaMelange')
-                logger.info(f"Derived MegaMelange path from Unreal project: {base_path}")
-            else:
-                # Method 3: Fallback path
-                if self.config.fallback_enabled:
-                    base_path = os.path.join('.', 'Saved', 'MegaMelange')
-                    logger.warning(f"Using fallback MegaMelange path: {base_path}")
-                else:
-                    raise RuntimeError("Unable to determine MegaMelange path and fallback is disabled")
+            # Method 2: Use centralized data_storage path
+            python_dir = Path(__file__).parent.parent.parent.parent.parent  # Go up to Python/
+            base_path = str(python_dir / "data_storage" / "sessions")
+            logger.info(f"Using centralized data_storage sessions path: {base_path}")
         
         # Validate and optionally create the path
         if self.config.create_directories:
@@ -158,7 +150,7 @@ class PathManager:
     
     def get_sessions_directory(self) -> str:
         """Get the sessions directory path."""
-        return os.path.join(self.get_megamelange_base_path(), 'sessions')
+        return self.get_megamelange_base_path()  # Already points to data_storage/sessions
     
     def get_active_sessions_directory(self) -> str:
         """Get the active sessions directory path."""

@@ -29,7 +29,7 @@ class ReferenceUIDManager:
     - Atomic file operations for reliability
     """
 
-    def __init__(self, storage_file: str = "refer_uid_mappings.json"):
+    def __init__(self, storage_file: str = "data_storage/uid/refer_uid_mappings.json"):
         self._storage_file = Path(storage_file)
         self._ref_counter = 0
         self._refer_mappings = {}
@@ -242,9 +242,9 @@ def get_reference_uid_manager() -> ReferenceUIDManager:
 
     with _manager_lock:
         if _global_reference_uid_manager is None:
-            # Store reference UID state in Python directory for persistence
+            # Store reference UID state in data_storage directory for centralized management
             python_dir = Path(__file__).parent.parent.parent
-            storage_path = python_dir / "refer_uid_mappings.json"
+            storage_path = python_dir / "data_storage" / "uid" / "refer_uid_mappings.json"
             _global_reference_uid_manager = ReferenceUIDManager(str(storage_path))
             logger.info(f"Initialized global reference UID manager: {storage_path}")
 

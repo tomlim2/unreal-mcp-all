@@ -29,7 +29,7 @@ class UIDManager:
     - Atomic file operations for reliability
     """
 
-    def __init__(self, storage_file: str = "uid_state.json"):
+    def __init__(self, storage_file: str = "data_storage/uid/uid_state.json"):
         self._storage_file = Path(storage_file)
         self._img_counter = 0
         self._vid_counter = 0
@@ -333,9 +333,9 @@ def get_uid_manager() -> UIDManager:
     
     with _manager_lock:
         if _global_uid_manager is None:
-            # Store UID state in Python directory for persistence
+            # Store UID state in data_storage directory for centralized management
             python_dir = Path(__file__).parent.parent.parent
-            storage_path = python_dir / "uid_state.json"
+            storage_path = python_dir / "data_storage" / "uid" / "uid_state.json"
             _global_uid_manager = UIDManager(str(storage_path))
             logger.info(f"Initialized global UID manager: {storage_path}")
         

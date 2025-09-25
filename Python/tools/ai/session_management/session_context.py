@@ -176,17 +176,25 @@ class SessionContext:
             self.conversation_history = self.conversation_history[-50:]
     
     def add_interaction(self, user_input: str, ai_response: Dict[str, Any]):
-        """Add a complete user-AI interaction to the history."""
+        """Add a complete user-AI interaction to the history with duplicate prevention."""
+        import logging
+        logger = logging.getLogger("SessionContext")
+
+        # Check for duplicate interaction before adding
+        if self._is_duplicate_interaction(user_input, ai_response):
+            logger.warning("Duplicate interaction detected, skipping storage")
+            return
+
         # Add user message
         self.add_message('user', user_input)
-        
+
         # Add AI response
         ai_content = ai_response.get('explanation', 'Processed your request')
         commands = ai_response.get('commands', [])
         execution_results = ai_response.get('executionResults', [])
-        
+
         self.add_message('assistant', ai_content, commands, execution_results)
-        
+
         # Update scene state based on executed commands
         for i, command in enumerate(commands):
             if i < len(execution_results):
@@ -197,6 +205,55 @@ class SessionContext:
                         command.get('params', {}),
                         result.get('result', {})
                     )
+
+    def _is_duplicate_interaction(self, user_input: str, ai_response: Dict[str, Any]) -> bool:
+        """Check if this interaction is a duplicate of a recent one."""
+        if len(self.conversation_history) < 2:
+            return False
+
+        # Check the last few messages for duplicates
+        recent_messages = self.conversation_history[-4:]  # Check last 4 messages (2 interactions)
+
+        # Look for matching user input
+        for i, message in enumerate(recent_messages):
+            if (message.role == 'user' and
+                message.content.strip() == user_input.strip()):
+
+                # Check if the next message (assistant response) also matches
+                if i + 1 < len(recent_messages):
+                    assistant_message = recent_messages[i + 1]
+                    if assistant_message.role == 'assistant':
+                        # Compare execution results (main indicator of duplicate)
+                        current_results = ai_response.get('executionResults', [])
+                        existing_results = assistant_message.execution_results or []
+
+                        if self._compare_execution_results(current_results, existing_results):
+                            return True
+
+        return False
+
+    def _compare_execution_results(self, results1: list, results2: list) -> bool:
+        """Compare execution results to detect duplicates."""
+        if len(results1) != len(results2):
+            return False
+
+        for r1, r2 in zip(results1, results2):
+            # Compare key result data
+            r1_uids = r1.get('result', {}).get('uids', {}) if r1.get('result') else {}
+            r2_uids = r2.get('result', {}).get('uids', {}) if r2.get('result') else {}
+
+            # If UIDs match, likely duplicate
+            if r1_uids and r2_uids and r1_uids == r2_uids:
+                return True
+
+            # Compare message content for exact matches
+            r1_msg = r1.get('result', {}).get('message', '') if r1.get('result') else ''
+            r2_msg = r2.get('result', {}).get('message', '') if r2.get('result') else ''
+
+            if r1_msg and r2_msg and r1_msg == r2_msg:
+                return True
+
+        return False
     
     
     def get_conversation_summary(self, max_messages: int = 10) -> str:
@@ -330,9 +387,14 @@ class SessionContext:
         """Get the most recent image UID for transformation commands.
 
         IMPORTANT: Only returns image UIDs (img_XXX), never video UIDs (vid_XXX).
+        Uses timestamp-based sorting to ensure true chronological order.
         """
-        # Look through recent messages in reverse order (newest first)
-        for message in reversed(self.conversation_history):
+        from datetime import datetime
+
+        # Collect all image UIDs with their timestamps
+        image_candidates = []
+
+        for message in self.conversation_history:
             if message.execution_results:
                 for result in message.execution_results:
                     if result.get('success') and result.get('result'):
@@ -342,8 +404,41 @@ class SessionContext:
                             image_uid = result_data['uids']['image']
                             # Double-check: ensure it's an image UID format (img_XXX), not video (vid_XXX)
                             if image_uid and image_uid.startswith('img_'):
-                                return image_uid
-        return None
+                                # Get timestamp from processing info or use message timestamp
+                                timestamp_str = None
+                                if 'processing' in result_data:
+                                    timestamp_str = result_data['processing'].get('timestamp')
+
+                                # Fallback to message timestamp
+                                if not timestamp_str:
+                                    timestamp_str = message.timestamp
+
+                                if timestamp_str:
+                                    try:
+                                        # Parse timestamp (handle both formats)
+                                        if timestamp_str.endswith('Z'):
+                                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                        else:
+                                            timestamp = datetime.fromisoformat(timestamp_str)
+
+                                        image_candidates.append((image_uid, timestamp))
+                                    except ValueError:
+                                        # If timestamp parsing fails, use current time as fallback
+                                        image_candidates.append((image_uid, datetime.now()))
+
+        if not image_candidates:
+            return None
+
+        # Sort by timestamp (newest first) and return the latest
+        image_candidates.sort(key=lambda x: x[1], reverse=True)
+        latest_uid = image_candidates[0][0]
+
+        # Log for debugging
+        import logging
+        logger = logging.getLogger("SessionContext")
+        logger.debug(f"Latest image UID selected: {latest_uid} from {len(image_candidates)} candidates")
+
+        return latest_uid
     
     def get_latest_image_path(self) -> Optional[str]:
         """Get the most recent image path for transformation commands."""
