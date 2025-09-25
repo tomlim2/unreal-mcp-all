@@ -1,0 +1,8 @@
+[2025-09-25T16:23:53.173105] Calling NLP with 0 reference images
+[2025-09-25T16:24:02.957170] Calling NLP with 0 reference images
+[2025-09-25T16:25:02.234511] Calling NLP with 1 reference images
+  Ref 0: 0 chars, type=image/png, purpose=style
+[2025-09-25T19:36:10.587349] Calling NLP with 1 reference images
+  Ref 0: 0 chars, type=image/png, purpose=composition
+[2025-09-25T19:37:11.958541] Calling NLP with 1 reference images
+  Ref 0: 0 chars, type=image/png, purpose=composition

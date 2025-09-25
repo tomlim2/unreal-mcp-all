@@ -35,17 +35,6 @@ class ReferenceStorage:
         purpose: str,
         mime_type: str = "image/jpeg"
     ) -> str:
-        """Store a reference image and return its refer_uid.
-
-        Args:
-            session_id: Session identifier
-            image_data: Base64 encoded image data
-            purpose: Purpose of the reference image (style, color, composition)
-            mime_type: MIME type of the image
-
-        Returns:
-            Generated refer_uid (e.g., refer_001)
-        """
         try:
             # Generate unique refer_uid
             refer_uid = generate_reference_uid()
@@ -98,14 +87,6 @@ class ReferenceStorage:
             raise
 
     def get_reference_image(self, refer_uid: str) -> Optional[Dict[str, Any]]:
-        """Retrieve reference image data by refer_uid.
-
-        Args:
-            refer_uid: Reference UID to retrieve
-
-        Returns:
-            Dictionary containing image data and metadata, or None if not found
-        """
         try:
             # Get mapping from reference UID manager
             mapping = get_reference_mapping(refer_uid)

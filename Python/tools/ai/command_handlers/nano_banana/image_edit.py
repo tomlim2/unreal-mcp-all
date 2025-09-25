@@ -40,22 +40,6 @@ except ImportError:
 
 
 class NanoBananaImageEditHandler(BaseCommandHandler):
-    """Handler for Nano Banana image editing commands.
-    
-    Supported Commands:
-    - transform_image_style: Apply style to existing screenshot
-    - take_styled_screenshot: Take screenshot and apply style transformation
-    
-    Input Constraints:
-    - style_prompt: Required string describing the desired style
-    - image_uid: Required string for transform_image_style (replaces image_path)
-    - intensity: Optional float (0.1-1.0), defaults to 0.8
-    - resolution_multiplier: Optional float for screenshots (1.0-8.0), defaults to 1.0
-    
-    Output:
-    - Returns styled image UID and transformation details
-    """
-    
     def __init__(self):
         super().__init__()
         self._model = None
@@ -81,8 +65,8 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         
         try:
             genai.configure(api_key=api_key)
-            # Use Gemini's standard multimodal model for image processing
-            self._model = genai.GenerativeModel('gemini-2.5-flash')
+            # Use Gemini's image generation model for Nano Banana (launched Aug 2025)
+            self._model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
             logger.info("Nano Banana (Gemini) initialized successfully")
             return True
         except Exception as e:
@@ -91,10 +75,9 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             return False
     
     def get_supported_commands(self) -> List[str]:
-        return ["transform_image_style", "take_styled_screenshot"]
+        return ["transform_image_style"]
     
-    def _extract_image_metadata(self, image_path: str, resolution_multiplier: float = 1.0, model: str = "gemini-2") -> Dict[str, Any]:
-        """Extract image metadata with accurate Google tile-based token calculation."""
+    def _extract_image_metadata(self, image_path: str, resolution_multiplier: float = 1.0, model: str = "gemini-2.5-flash-image") -> Dict[str, Any]:
         metadata = {
             "width": 0,
             "height": 0,
@@ -153,7 +136,6 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         """Validate Nano Banana commands with parameter checks."""
         errors = []
 
-        # Check if Gemini is available (lazy initialization)
         if not self._ensure_gemini_initialized():
             if not GEMINI_AVAILABLE:
                 errors.append("google.generativeai package not available")
@@ -165,39 +147,14 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             if not params.get("style_prompt"):
                 errors.append("style_prompt is required")
 
-            # Check for direct image data OR image_url (backward compatibility)
-            has_target_image = params.get("target_image") is not None
-            has_image_url = params.get("image_url") is not None
-
-            if not has_target_image and not has_image_url:
-                errors.append("Either 'target_image' (direct image data) or 'image_url' (UID) is required")
-            elif has_image_url and params["image_url"]:
-                # Validate UID format if using legacy approach
-                image_url = params["image_url"]
-                if not (image_url.startswith('img_') and image_url[4:].isdigit()):
-                    errors.append("image_url must be a valid UID format (e.g., 'img_079'). Filenames not supported.")
+            # UID-only system: Check for target_image_uid
+            target_image_uid = params.get("target_image_uid")
+            if not target_image_uid:
+                errors.append("target_image_uid is required (UID format: img_XXX)")
+            elif not (target_image_uid.startswith('img_') and target_image_uid[4:].isdigit()):
+                errors.append("target_image_uid must be a valid UID format (e.g., 'img_177')")
 
             # Validate optional parameters
-            if "intensity" in params:
-                intensity = params["intensity"]
-                if not isinstance(intensity, (int, float)):
-                    errors.append("intensity must be a number")
-                elif intensity < 0.1 or intensity > 1.0:
-                    errors.append("intensity must be between 0.1 and 1.0")
-        
-        elif command_type == "take_styled_screenshot":
-            # Required parameters
-            if not params.get("style_prompt"):
-                errors.append("style_prompt is required")
-            
-            # Validate screenshot parameters
-            if "resolution_multiplier" in params:
-                multiplier = params["resolution_multiplier"]
-                if not isinstance(multiplier, (int, float)):
-                    errors.append("resolution_multiplier must be a number")
-                elif multiplier < 1.0 or multiplier > 8.0:
-                    errors.append("resolution_multiplier must be between 1.0 and 8.0")
-            
             if "intensity" in params:
                 intensity = params["intensity"]
                 if not isinstance(intensity, (int, float)):
@@ -213,323 +170,149 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         )
     
     def preprocess_params(self, command_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Apply default values and normalize parameters."""
         processed = params.copy()
-        
-        # Apply common defaults
         processed.setdefault("intensity", 0.8)
-        
-        if command_type == "take_styled_screenshot":
-            processed.setdefault("resolution_multiplier", 1.0)
-            processed.setdefault("include_ui", False)
-        
         return processed
     
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
-        """Execute Nano Banana commands."""
         logger.info(f"Nano Banana Handler: Executing {command_type} with params: {params}")
-        
-        # Translate style_prompt if it's in a non-English language
         if "style_prompt" in params:
             params["style_prompt"] = self._translate_style_prompt_if_needed(params["style_prompt"])
         
         if command_type == "transform_image_style":
             return self._transform_existing_image(params)
-        elif command_type == "take_styled_screenshot":
-            return self._take_and_transform_screenshot(connection, params)
         else:
             raise Exception(f"Unsupported command: {command_type}")
     
     def _transform_existing_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform an existing image with style."""
+        """Transform an existing image with style - UID-only system."""
         start_time = time.time()
         request_id = generate_request_id()
 
         style_prompt = params["style_prompt"]
         intensity = params.get("intensity", 0.8)
+        target_image_uid = params["target_image_uid"]  # Required by validation
 
-        # Check for UID-based image (newest method)
-        target_image_uid = params.get("target_image_uid")
-        target_image = None
+        # Load target image from UID
+        from ...uid_manager import get_uid_mapping
+        logger.info(f"Loading target image from UID: {target_image_uid}")
+        mapping = get_uid_mapping(target_image_uid)
+        if not mapping:
+            return build_error_response(
+                f"Target image UID not found: {target_image_uid}",
+                "uid_not_found",
+                request_id,
+                start_time
+            )
 
-        if target_image_uid:
-            # Load image from UID
-            from ...uid_manager import get_uid_mapping
-            logger.info(f"Loading target image from UID: {target_image_uid}")
-            mapping = get_uid_mapping(target_image_uid)
-            if not mapping:
-                return build_error_response(
-                    f"Target image UID not found: {target_image_uid}",
-                    "uid_not_found",
-                    request_id,
-                    start_time
-                )
+        file_path = mapping.get('metadata', {}).get('file_path')
+        if not file_path or not os.path.exists(file_path):
+            return build_error_response(
+                f"Target image file not found for UID: {target_image_uid}",
+                "file_not_found",
+                request_id,
+                start_time
+            )
 
-            file_path = mapping.get('metadata', {}).get('file_path')
-            if not file_path or not os.path.exists(file_path):
-                return build_error_response(
-                    f"Target image file not found for UID: {target_image_uid}",
-                    "file_not_found",
-                    request_id,
-                    start_time
-                )
+        # Read target image file as bytes
+        with open(file_path, 'rb') as f:
+            image_bytes = f.read()
 
-            # Read image file as bytes
-            with open(file_path, 'rb') as f:
-                image_bytes = f.read()
+        target_image = {
+            'data': image_bytes,
+            'mime_type': 'image/png',
+            'file_path': file_path
+        }
+        logger.info(f"Loaded target image from UID {target_image_uid}: {file_path}")
 
-            target_image = {
-                'data': image_bytes,
-                'mime_type': 'image/png',
-                'file_path': file_path  # Include file path for saving styled image
-            }
-            logger.info(f"Loaded target image from UID {target_image_uid}: {file_path}")
-        else:
-            # Check for direct image data (legacy method)
-            target_image = params.get("target_image")
-
-        # Get reference images (can be UID-based or data-based)
-        reference_images = params.get("reference_images", [])
-
-        # Load reference images from UIDs if needed
-        if reference_images and 'refer_uid' in reference_images[0]:
+        # Load reference images from UIDs if present
+        reference_images = []
+        reference_images_param = params.get("reference_images", [])
+        if reference_images_param:
             from ...reference_storage import get_reference_image
-            loaded_refs = []
-            for ref in reference_images:
+            for ref in reference_images_param:
                 refer_uid = ref.get('refer_uid')
                 if refer_uid:
                     logger.info(f"Loading reference image from UID: {refer_uid}")
                     ref_data = get_reference_image(refer_uid)
                     if ref_data:
-                        loaded_refs.append(ref_data)
+                        reference_images.append(ref_data)
                     else:
                         logger.warning(f"Reference image UID not found: {refer_uid}")
-            reference_images = loaded_refs if loaded_refs else []
 
-        if target_image and reference_images:
-            # Use new multi-image approach
-            logger.info(f"Transform Image with references: {style_prompt} [req_id: {request_id}]")
-            try:
+        try:
+            if reference_images:
+                # Multi-image approach with references
+                logger.info(f"Transform with {len(reference_images)} reference images: {style_prompt} [req_id: {request_id}]")
                 styled_image_path = self._apply_nano_banana_with_references(
                     target_image, reference_images, style_prompt, intensity
                 )
-
-                if styled_image_path:
-                    filename = Path(styled_image_path).name
-
-                    # Extract metadata for the styled image
-                    model = params.get("model", "gemini-2")
-                    styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
-
-                    # Generate UID for styled result
-                    new_image_uid = generate_image_uid()
-                    session_id = params.get('session_id')
-
-                    # Add mapping for the styled image
-                    add_uid_mapping(
-                        new_image_uid,
-                        'image',
-                        filename,
-                        session_id=session_id,
-                        metadata={
-                            'width': styled_metadata['width'],
-                            'height': styled_metadata['height'],
-                            'file_path': styled_image_path,
-                            'style_type': 'transform_with_references',
-                            'model': model,
-                            'reference_count': len(reference_images)
-                        }
-                    )
-
-                    # Build response
-                    return build_transform_response(
-                        image_uid=new_image_uid,
-                        parent_uid=None,  # No parent for direct image processing
-                        filename=filename,
-                        image_path=styled_image_path,
-                        original_width=0,  # Unknown for direct image input
-                        original_height=0,
-                        processed_width=styled_metadata['width'],
-                        processed_height=styled_metadata['height'],
-                        style_name=extract_style_name(style_prompt),
-                        style_prompt=style_prompt,
-                        intensity=intensity,
-                        tokens=styled_metadata['tokens'],
-                        cost=float(styled_metadata['estimated_cost'].replace('$', '')),
-                        request_id=request_id,
-                        start_time=start_time,
-                        origin="multi_image_transform"
-                    )
-
-            except Exception as e:
-                logger.error(f"Multi-image transform failed: {e}")
-                return build_error_response(
-                    f"Multi-image transformation failed: {str(e)}",
-                    "multi_image_error",
-                    request_id,
-                    start_time
-                )
-
-        elif target_image:
-            # Direct image processing without references (fallback to single image)
-            logger.info(f"Transform Image (direct): {style_prompt} [req_id: {request_id}]")
-            # Convert target_image data to temporary file for existing logic
-            # This is a temporary bridge - could be optimized later
-            try:
-                import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
-                    if isinstance(target_image['data'], bytes):
-                        temp_file.write(target_image['data'])
-                    else:
-                        # Assume base64 string, decode it
-                        import base64
-                        temp_file.write(base64.b64decode(target_image['data']))
-                    temp_image_path = temp_file.name
-
-                # Apply style transformation using existing method
-                styled_image_path = self._apply_nano_banana_style(
-                    temp_image_path, style_prompt, intensity
-                )
-
-                # Clean up temp file
-                os.unlink(temp_image_path)
-
-                if styled_image_path:
-                    # Similar response building as above
-                    filename = Path(styled_image_path).name
-                    model = params.get("model", "gemini-2")
-                    styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
-                    new_image_uid = generate_image_uid()
-                    session_id = params.get('session_id')
-
-                    add_uid_mapping(
-                        new_image_uid,
-                        'image',
-                        filename,
-                        session_id=session_id,
-                        metadata={
-                            'width': styled_metadata['width'],
-                            'height': styled_metadata['height'],
-                            'file_path': styled_image_path,
-                            'style_type': 'transform_direct_image',
-                            'model': model
-                        }
-                    )
-
-                    return build_transform_response(
-                        image_uid=new_image_uid,
-                        parent_uid=None,
-                        filename=filename,
-                        image_path=styled_image_path,
-                        original_width=0,
-                        original_height=0,
-                        processed_width=styled_metadata['width'],
-                        processed_height=styled_metadata['height'],
-                        style_name=extract_style_name(style_prompt),
-                        style_prompt=style_prompt,
-                        intensity=intensity,
-                        tokens=styled_metadata['tokens'],
-                        cost=float(styled_metadata['estimated_cost'].replace('$', '')),
-                        request_id=request_id,
-                        start_time=start_time,
-                        origin="direct_image_transform"
-                    )
-
-            except Exception as e:
-                logger.error(f"Direct image transform failed: {e}")
-                return build_error_response(
-                    f"Direct image transformation failed: {str(e)}",
-                    "direct_image_error",
-                    request_id,
-                    start_time
-                )
-
-        # Fallback to legacy UID-based approach
-        image_url = params.get("image_url")
-        if not image_url:
-            return build_error_response(
-                "Either 'target_image' (direct image data) or 'image_url' (UID) is required",
-                "no_image_source",
-                request_id,
-                start_time
-            )
-
-        logger.info(f"Transform Image (legacy): {image_url} -> {style_prompt} [req_id: {request_id}]")
-
-        try:
-            # Resolve the image UID to file path (only supports UIDs)
-            resolved_image_path = self._resolve_image_path(image_url)
-            if not resolved_image_path:
-                return build_error_response(
-                    f"Specified image not found: {image_url}. Please use a valid image UID (e.g., 'img_079')",
-                    "specified_image_not_found",
-                    request_id,
-                    start_time
-                )
-
-            # Apply style transformation
-            styled_image_path = self._apply_nano_banana_style(
-                resolved_image_path, style_prompt, intensity
-            )
-            
-            if styled_image_path:
-                filename = Path(styled_image_path).name
-                
-                # Extract metadata for both images
-                model = params.get("model", "gemini-2")
-                original_metadata = self._extract_image_metadata(resolved_image_path, model=model)
-                styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
-                
-                # Generate UIDs using persistent manager
-                parent_uid = image_url  # Use the input image_url as parent
-                new_image_uid = generate_image_uid()  # UID for styled result
-
-                # Extract session_id from params if available
-                session_id = params.get('session_id')
-
-                # Add mapping for the styled image
-                add_uid_mapping(
-                    new_image_uid,
-                    'image',
-                    filename,
-                    parent_uid=parent_uid,
-                    session_id=session_id,
-                    metadata={
-                        'width': styled_metadata['width'],
-                        'height': styled_metadata['height'],
-                        'file_path': styled_image_path,
-                        'style_type': 'transform_image_style',
-                        'model': model
-                    }
-                )
-                
-                # Build standardized response
-                return build_transform_response(
-                    image_uid=new_image_uid,
-                    parent_uid=parent_uid,
-                    filename=filename,
-                    image_path=styled_image_path,
-                    original_width=original_metadata['width'],
-                    original_height=original_metadata['height'],
-                    processed_width=styled_metadata['width'],
-                    processed_height=styled_metadata['height'],
-                    style_name=extract_style_name(style_prompt),
-                    style_prompt=style_prompt,
-                    intensity=intensity,
-                    tokens=styled_metadata['tokens'],
-                    cost=float(styled_metadata['estimated_cost'].replace('$', '')),
-                    request_id=request_id,
-                    start_time=start_time,
-                    origin="transform"
-                )
+                origin = "multi_image_transform"
             else:
+                # Single image transformation
+                logger.info(f"Transform single image: {style_prompt} [req_id: {request_id}]")
+                styled_image_path = self._apply_nano_banana_style(
+                    file_path, style_prompt, intensity
+                )
+                origin = "single_image_transform"
+
+            if not styled_image_path:
                 return build_error_response(
                     "Failed to apply style transformation",
                     "transformation_failed",
                     request_id,
                     start_time
                 )
-                
+
+            # Generate response
+            filename = Path(styled_image_path).name
+            model = params.get("model", "gemini-2.5-flash-image")
+
+            # Extract metadata for both images
+            original_metadata = self._extract_image_metadata(file_path, model=model)
+            styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
+
+            # Generate UID for styled result
+            new_image_uid = generate_image_uid()
+            session_id = params.get('session_id')
+
+            # Add mapping for the styled image
+            add_uid_mapping(
+                new_image_uid,
+                'image',
+                filename,
+                parent_uid=target_image_uid,
+                session_id=session_id,
+                metadata={
+                    'width': styled_metadata['width'],
+                    'height': styled_metadata['height'],
+                    'file_path': styled_image_path,
+                    'style_type': 'transform_image_style',
+                    'model': model,
+                    'reference_count': len(reference_images)
+                }
+            )
+
+            # Build standardized response
+            return build_transform_response(
+                image_uid=new_image_uid,
+                parent_uid=target_image_uid,
+                filename=filename,
+                image_path=styled_image_path,
+                original_width=original_metadata['width'],
+                original_height=original_metadata['height'],
+                processed_width=styled_metadata['width'],
+                processed_height=styled_metadata['height'],
+                style_name=extract_style_name(style_prompt),
+                style_prompt=style_prompt,
+                intensity=intensity,
+                tokens=styled_metadata['tokens'],
+                cost=float(styled_metadata['estimated_cost'].replace('$', '')),
+                request_id=request_id,
+                start_time=start_time,
+                origin=origin
+            )
+
         except Exception as e:
             logger.error(f"Transform failed: {e}")
             return build_error_response(
@@ -593,7 +376,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 
                 # Extract metadata for both images
                 resolution_multiplier = params["resolution_multiplier"]
-                model = params.get("model", "gemini-2")
+                model = params.get("model", "gemini-2.5-flash-image")
                 original_metadata = self._extract_image_metadata(str(screenshot_path), model=model)
                 styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier, model)
                 
@@ -619,25 +402,6 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                         'style_type': 'original_screenshot'
                     }
                 )
-
-                # 2. Styled result
-                add_uid_mapping(
-                    new_image_uid,
-                    'image',
-                    filename,
-                    parent_uid=parent_uid,
-                    session_id=session_id,
-                    metadata={
-                        'width': styled_metadata['width'],
-                        'height': styled_metadata['height'],
-                        'file_path': styled_image_path,
-                        'style_type': 'take_styled_screenshot',
-                        'model': model,
-                        'style_prompt': style_prompt,
-                        'intensity': intensity
-                    }
-                )
-                
                 # Build standardized response
                 return build_transform_response(
                     image_uid=new_image_uid,
@@ -1010,29 +774,6 @@ Only return the English translation, nothing else:
         # If it's already in English (ASCII characters only), return as-is
         return style_prompt
     
-    def _resolve_image_path(self, image_path_param: str) -> Optional[str]:
-        """Resolve image path - ONLY supports UIDs (img_XXX format)."""
-
-        # Check if it's a UID (format: img_XXX)
-        if image_path_param.startswith('img_') and image_path_param[4:].isdigit():
-            logger.info(f"Resolving UID: {image_path_param}")
-            mapping = get_uid_mapping(image_path_param)
-            if not mapping:
-                logger.error(f"UID not found in mapping table: {image_path_param}")
-                return None
-
-            # Get file path from mapping metadata
-            file_path = mapping.get('metadata', {}).get('file_path')
-            if file_path and os.path.exists(file_path):
-                logger.info(f"Resolved UID {image_path_param} to: {file_path}")
-                return file_path
-            else:
-                logger.error(f"File not found for UID {image_path_param}: {file_path}")
-                return None
-
-        # Reject all non-UID inputs - no fallbacks allowed
-        logger.error(f"Only UID format (img_XXX) is supported for image editing. Received: {image_path_param}")
-        return None
     
     def _extract_original_screenshot_name(self, file_path: str) -> str:
         """Extract original screenshot name from potentially styled filename."""

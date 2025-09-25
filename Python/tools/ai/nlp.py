@@ -208,15 +208,6 @@ def _extract_from_partial_response(partial_response: str) -> dict:
                 else:
                     command["params"]["resolution_multiplier"] = 2.0
                 command["params"]["include_ui"] = False
-                
-            elif command_type == "take_styled_screenshot":
-                # Extract style_prompt
-                style_match = re.search(r'"style_prompt":\s*"([^"]*)', partial_response)
-                if style_match:
-                    command["params"]["style_prompt"] = style_match.group(1)
-                command["params"]["intensity"] = 0.8
-                command["params"]["resolution_multiplier"] = 2.0
-                command["params"]["include_ui"] = False
 
             elif command_type == "generate_video_from_image":
                 # Extract prompt (required)
@@ -361,7 +352,6 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
     # Commands that support image processing
     image_commands = {
         'transform_image_style',
-        'take_styled_screenshot',
         'compose_images',
         'blend_images',
         'transfer_style'
@@ -654,8 +644,6 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
 
 **Commands:**
 - transform_image_style: Apply style to latest image
-- take_styled_screenshot: New screenshot + style
-
 **Format:** {{"explanation": "desc", "commands": [{{"type": "command", "params": {{"style_prompt": "style desc", "intensity": 0.8}}}}], "expectedResult": "result"}}
 
 Latest image available. Return valid JSON only."""
@@ -686,7 +674,6 @@ Your role is to provide intuitive creative control by translating natural langua
   * Examples: "손 들어" → style_prompt: "character raising hands", "양손 들어" → style_prompt: "both hands up"
   * Auto-uses latest screenshot (target_image_uid provided automatically)
   * Supports reference images for style/composition guidance
-- take_styled_screenshot: Capture new screenshot + apply style
 
 **CRITICAL**: transform_image_style uses AI image generation to MODIFY ANY VISUAL ASPECT
 - Pose changes: YES ✅
@@ -841,7 +828,7 @@ Response:
         
         if recent_commands:
             # Check if recent commands were primarily 2D image editing
-            image_commands = ['transform_image_style', 'take_styled_screenshot']
+            image_commands = ['transform_image_style']
             recent_image_commands = [cmd for cmd in recent_commands if cmd.get('type') in image_commands]
             
             if len(recent_image_commands) >= len(recent_commands) // 2:  # 50% or more were image commands
@@ -882,22 +869,11 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     registry = get_command_registry()
     
     # Check if this is a Nano Banana command that doesn't need Unreal Engine
-    nano_banana_commands = ['transform_image_style', 'take_styled_screenshot']
+    nano_banana_commands = ['transform_image_style']
     
     if command_type in nano_banana_commands:
-        # For Nano Banana commands, don't require Unreal Engine connection
         logger.info(f"Executing Nano Banana command {command_type} without Unreal Engine connection")
-        
-        # For take_styled_screenshot, we need Unreal connection for screenshot part
-        if command_type == 'take_styled_screenshot':
-            from unreal_mcp_server import get_unreal_connection
-            unreal = get_unreal_connection()
-            if not unreal:
-                raise Exception("Could not connect to Unreal Engine (required for screenshot)")
-            result = registry.execute_command(command, unreal)
-        else:
-            # transform_image_style doesn't need Unreal connection
-            result = registry.execute_command(command, None)
+        result = registry.execute_command(command, None)
         
     else:
         # All other commands need Unreal Engine connection

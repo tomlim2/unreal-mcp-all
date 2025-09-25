@@ -106,9 +106,8 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       
       // Check if this involved image commands (Nano Banana)
       const imageCommands = (message.commands || []).filter(cmd =>
-        cmd.type === 'transform_image_style' || cmd.type === 'take_styled_screenshot'
+        cmd.type === 'transform_image_style'
       );
-
       // Check if this involved video commands (Veo-3)
       const videoCommands = (message.commands || []).filter(cmd =>
         cmd.type === 'generate_video_from_image'
