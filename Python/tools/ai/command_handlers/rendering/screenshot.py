@@ -175,16 +175,29 @@ class ScreenshotCommandHandler(BaseCommandHandler):
                 logger.warning(f"Screenshot directory not found: {screenshot_dir}")
                 return None
             
-            # Find all PNG files
+            # Find all PNG files, prioritizing screenshot-related files
             png_files = list(screenshot_dir.glob("*.png"))
-            
+
             if not png_files:
                 logger.warning("No PNG files found in screenshot directory")
                 return None
-            
+
+            # Filter for screenshot files (both runtime and editor formats)
+            screenshot_patterns = [
+                "ScreenShot*.png",          # Runtime format: ScreenShot00001.png
+                "HighresScreenshot*.png"    # Editor format: HighresScreenshot00001.png
+            ]
+
+            screenshot_files = []
+            for pattern in screenshot_patterns:
+                screenshot_files.extend(screenshot_dir.glob(pattern))
+
+            # If we have screenshot files, use those; otherwise fall back to all PNG files
+            files_to_check = screenshot_files if screenshot_files else png_files
+
             # Return the newest file by modification time
-            newest_file = max(png_files, key=lambda f: f.stat().st_mtime)
-            logger.info(f"Found newest screenshot: {newest_file.name}")
+            newest_file = max(files_to_check, key=lambda f: f.stat().st_mtime)
+            logger.info(f"Found newest screenshot: {newest_file.name} (format: {'editor' if 'Highres' in newest_file.name else 'runtime' if 'ScreenShot' in newest_file.name else 'other'})")
             return newest_file
             
         except Exception as e:

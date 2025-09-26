@@ -91,52 +91,73 @@ TSharedPtr<FJsonObject> FUnrealMCPRenderingCommands::HandleTakeScreenshot(const 
 		GEngine->Exec(World, TEXT("showflag.screenmessages 0"));
 	}
 
-	// Use Shot command only - most reliable
-	// Note: Shot command doesn't support custom filenames, it uses auto-numbering (ScreenShot00001.png, etc.)
-	FString ScreenshotCommand = TEXT("Shot");
-	
-	// Log the requested filename for reference, but Shot will use its own naming
-	if (!Filename.IsEmpty())
+	// Choose command based on world type
+	FString ScreenshotCommand;
+	bool bIsEditorMode = (World->WorldType == EWorldType::Editor);
+
+	if (bIsEditorMode)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Custom filename requested: %s (Shot command will use auto-numbering instead)"), *Filename);
+		// Editor mode: Use highresshot command with auto-numbering
+		// highresshot requires a multiplier parameter
+		int32 Multiplier = FMath::Max(1, FMath::RoundToInt(ResolutionMultiplier));
+		ScreenshotCommand = FString::Printf(TEXT("highresshot %d"), Multiplier);
+		UE_LOG(LogTemp, Log, TEXT("Editor mode detected - using highresshot command with multiplier %d"), Multiplier);
 	}
-	
+	else
+	{
+		// Runtime mode: Use Shot command (existing behavior)
+		ScreenshotCommand = TEXT("Shot");
+		if (!Filename.IsEmpty())
+		{
+			UE_LOG(LogTemp, Log, TEXT("Runtime mode - custom filename requested: %s (Shot command will use auto-numbering instead)"), *Filename);
+		}
+		UE_LOG(LogTemp, Log, TEXT("Runtime mode detected - using Shot command"));
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("Executing screenshot command: %s"), *ScreenshotCommand);
 	UE_LOG(LogTemp, Warning, TEXT("World Type: %d (Game=1, PIE=2, Editor=3)"), (int32)World->WorldType);
-	
-	// Execute Shot command using multiple methods to ensure it works
-	// Note: Exec() return values are unreliable, but the command itself works
-	
-	// Method 1: Try GameViewportClient execution (runtime console context)
-	if (GameViewportClient && World->WorldType == EWorldType::Game)
+
+	// Execute command based on mode
+	if (bIsEditorMode)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Method 1: Using GameViewportClient->Exec (runtime console context)"));
-		GameViewportClient->Exec(World, *ScreenshotCommand, *GLog);
+		// Editor mode: Use GEngine->Exec directly
+		UE_LOG(LogTemp, Warning, TEXT("Editor Mode: Using GEngine->Exec"));
+		GEngine->Exec(World, *ScreenshotCommand);
 	}
-	
-	// Method 2: Try standard GEngine execution
-	UE_LOG(LogTemp, Warning, TEXT("Method 2: Using GEngine->Exec (standard context)"));
-	GEngine->Exec(World, *ScreenshotCommand);
-	
-	// Method 3: Try console command manager directly (this was working before)
-	if (GameViewportClient)
+	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Method 3: Trying direct console command execution"));
-		if (ULocalPlayer* LocalPlayer = GameViewportClient->GetGameInstance()->GetFirstGamePlayer())
+		// Runtime mode: Use existing multiple execution methods
+		// Method 1: Try GameViewportClient execution (runtime console context)
+		if (GameViewportClient && World->WorldType == EWorldType::Game)
 		{
-			if (APlayerController* PC = LocalPlayer->GetPlayerController(World))
+			UE_LOG(LogTemp, Warning, TEXT("Method 1: Using GameViewportClient->Exec (runtime console context)"));
+			GameViewportClient->Exec(World, *ScreenshotCommand, *GLog);
+		}
+
+		// Method 2: Try standard GEngine execution
+		UE_LOG(LogTemp, Warning, TEXT("Method 2: Using GEngine->Exec (standard context)"));
+		GEngine->Exec(World, *ScreenshotCommand);
+
+		// Method 3: Try console command manager directly
+		if (GameViewportClient)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Method 3: Trying direct console command execution"));
+			if (ULocalPlayer* LocalPlayer = GameViewportClient->GetGameInstance()->GetFirstGamePlayer())
 			{
-				FString Result = PC->ConsoleCommand(*ScreenshotCommand, true);
-				UE_LOG(LogTemp, Warning, TEXT("Method 3 ConsoleCommand result: '%s'"), *Result);
+				if (APlayerController* PC = LocalPlayer->GetPlayerController(World))
+				{
+					FString Result = PC->ConsoleCommand(*ScreenshotCommand, true);
+					UE_LOG(LogTemp, Warning, TEXT("Method 3 ConsoleCommand result: '%s'"), *Result);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("Method 3: No PlayerController found"));
+				}
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Method 3: No PlayerController found"));
+				UE_LOG(LogTemp, Warning, TEXT("Method 3: No LocalPlayer found"));
 			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Method 3: No LocalPlayer found"));
 		}
 	}
 
@@ -147,25 +168,41 @@ TSharedPtr<FJsonObject> FUnrealMCPRenderingCommands::HandleTakeScreenshot(const 
 		GEngine->Exec(World, TEXT("showflag.screenmessages 1"));
 	}
 
-	// Always assume success since Shot command demonstrably works
-	UE_LOG(LogTemp, Warning, TEXT("Shot command executed via multiple methods - assuming success"));
-	
+	// Log completion
+	UE_LOG(LogTemp, Warning, TEXT("Screenshot command executed: %s"), *ScreenshotCommand);
 	UE_LOG(LogTemp, Log, TEXT("Screenshot command executed successfully: %s"), *ScreenshotCommand);
 
 	// Create success response
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
 	ResultObj->SetStringField(TEXT("success"), TEXT("true"));
-	
-	// Shot command uses auto-numbering, so we indicate this in the response
-	if (!Filename.IsEmpty())
+
+	// Set response message and image URL based on mode
+	if (bIsEditorMode)
 	{
-		ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Screenshot saved with auto-numbering (requested: %s)"), *Filename));
-		ResultObj->SetStringField(TEXT("image_url"), TEXT("/api/screenshot-file/ScreenShot00001.png")); // Will be auto-numbered
+		if (!Filename.IsEmpty())
+		{
+			ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Editor screenshot saved: %s"), *Filename));
+			ResultObj->SetStringField(TEXT("image_url"), FString::Printf(TEXT("/api/screenshot-file/%s"), *Filename));
+		}
+		else
+		{
+			ResultObj->SetStringField(TEXT("message"), TEXT("Editor screenshot saved with default naming"));
+			ResultObj->SetStringField(TEXT("image_url"), TEXT("/api/screenshot-file/HighresScreenshot00001.png")); // Default highres naming
+		}
 	}
 	else
 	{
-		ResultObj->SetStringField(TEXT("message"), TEXT("Screenshot saved with auto-numbering"));
-		ResultObj->SetStringField(TEXT("image_url"), TEXT("/api/screenshot-file/ScreenShot00001.png")); // Will be auto-numbered
+		// Runtime mode - existing behavior
+		if (!Filename.IsEmpty())
+		{
+			ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("Runtime screenshot saved with auto-numbering (requested: %s)"), *Filename));
+			ResultObj->SetStringField(TEXT("image_url"), TEXT("/api/screenshot-file/ScreenShot00001.png")); // Will be auto-numbered
+		}
+		else
+		{
+			ResultObj->SetStringField(TEXT("message"), TEXT("Runtime screenshot saved with auto-numbering"));
+			ResultObj->SetStringField(TEXT("image_url"), TEXT("/api/screenshot-file/ScreenShot00001.png")); // Will be auto-numbered
+		}
 	}
 	
 	return ResultObj;
