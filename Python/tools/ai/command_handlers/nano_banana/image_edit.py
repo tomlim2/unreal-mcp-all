@@ -13,6 +13,11 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
+from ...session_management.utils.path_adapters import (
+    get_unreal_project_path_safe,
+    get_styled_images_path_safe,
+    get_screenshots_path_safe
+)
 from ...pricing_manager import get_pricing_manager
 from ...image_schema_utils import (
     build_transform_response,
@@ -612,12 +617,12 @@ Generate the image with minimal changes."""
     def _create_placeholder_styled_image(self, original_path: str, style_prompt: str, intensity: float) -> str:
         """Create a placeholder styled image by copying the original."""
         try:
-            # Create styled directory
-            project_path = os.getenv('UNREAL_PROJECT_PATH')
-            if not project_path:
-                raise Exception("UNREAL_PROJECT_PATH not set")
-            
-            styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+            # Create styled directory using centralized path management
+            styled_dir_path = get_styled_images_path_safe()
+            if not styled_dir_path:
+                raise Exception("Unable to determine styled images directory path")
+
+            styled_dir = Path(styled_dir_path)
             styled_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate clean filename: [OriginalName]_NB_[timestamp]
@@ -644,12 +649,12 @@ Generate the image with minimal changes."""
     def _save_gemini_generated_image(self, response, original_path: str, style_prompt: str) -> str:
         """Save the Gemini generated image to the styled screenshots directory."""
         try:
-            # Create styled directory
-            project_path = os.getenv('UNREAL_PROJECT_PATH')
-            if not project_path:
-                raise Exception("UNREAL_PROJECT_PATH not set")
-            
-            styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+            # Create styled directory using centralized path management
+            styled_dir_path = get_styled_images_path_safe()
+            if not styled_dir_path:
+                raise Exception("Unable to determine styled images directory path")
+
+            styled_dir = Path(styled_dir_path)
             styled_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate clean filename: [OriginalName]_NB_[timestamp]
@@ -711,13 +716,14 @@ Generate the image with minimal changes."""
     def _find_newest_screenshot(self) -> Optional[Path]:
         """Find the newest screenshot file in the WindowsEditor directory."""
         try:
-            project_path = os.getenv('UNREAL_PROJECT_PATH')
-            if not project_path:
-                logger.warning("UNREAL_PROJECT_PATH not set - cannot find screenshot files")
+            # Get screenshot directory using centralized path management
+            screenshot_dir_path = get_screenshots_path_safe()
+            if not screenshot_dir_path:
+                logger.warning("Unable to determine screenshot directory path - cannot find screenshot files")
                 return None
-            
+
             # Look in WindowsEditor subdirectory where Unreal saves high-res screenshots
-            screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+            screenshot_dir = Path(screenshot_dir_path)
             
             if not screenshot_dir.exists():
                 logger.warning(f"Screenshot directory not found: {screenshot_dir}")

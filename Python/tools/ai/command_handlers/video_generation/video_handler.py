@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
+from ...session_management.utils.path_adapters import (
+    get_unreal_project_path_safe,
+    get_screenshots_path_safe
+)
 from ...pricing_manager import get_pricing_manager
 from ...video_schema_utils import (
     build_video_transform_response,
@@ -423,10 +427,10 @@ class VideoGenerationHandler(BaseCommandHandler):
     def _save_video_to_project(self, generated_video, image_path: str, prompt: str) -> str:
         """Save the Veo-3 generated video to the project directory."""
         try:
-            # Create video directory
-            project_path = os.getenv('UNREAL_PROJECT_PATH')
+            # Create video directory using centralized path management
+            project_path = get_unreal_project_path_safe()
             if not project_path:
-                raise Exception("UNREAL_PROJECT_PATH not set")
+                raise Exception("Unable to determine Unreal project path")
 
             video_dir = Path(project_path) / "Saved" / "Videos" / "generated"
             video_dir.mkdir(parents=True, exist_ok=True)
@@ -452,13 +456,14 @@ class VideoGenerationHandler(BaseCommandHandler):
     def _find_newest_screenshot(self) -> Optional[Path]:
         """Find the newest screenshot file in the WindowsEditor directory."""
         try:
-            project_path = os.getenv('UNREAL_PROJECT_PATH')
-            if not project_path:
-                logger.warning("UNREAL_PROJECT_PATH not set - cannot find screenshot files")
+            # Get screenshot directory using centralized path management
+            screenshot_dir_path = get_screenshots_path_safe()
+            if not screenshot_dir_path:
+                logger.warning("Unable to determine screenshot directory path - cannot find screenshot files")
                 return None
 
             # Look in WindowsEditor subdirectory where Unreal saves high-res screenshots
-            screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
+            screenshot_dir = Path(screenshot_dir_path)
 
             if not screenshot_dir.exists():
                 logger.warning(f"Screenshot directory not found: {screenshot_dir}")

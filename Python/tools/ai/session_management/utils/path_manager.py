@@ -20,17 +20,26 @@ class PathConfig:
     fallback_enabled: bool = True
     create_directories: bool = True
 
+    # Resource Management Configuration
+    resource_base_path: Optional[str] = None
+    reference_images_path: Optional[str] = None
+    temp_cleanup_enabled: bool = True
+    copy_on_access: bool = True  # Copy strategy vs move strategy
+    enable_centralized_paths: bool = True  # Feature flag for rollback support
+
 
 class PathManager:
     """
-    Centralized path management for MegaMelange session system.
-    
+    Centralized path management for MegaMelange system.
+
     Handles:
     - Unreal Engine project path resolution
     - MegaMelange storage directory structure
+    - Resource path management (images, videos, references)
     - Path validation and creation
     - Cross-platform path handling
     - Environment variable management
+    - Copy/move strategy for resource migration
     """
     
     def __init__(self, config: Optional[PathConfig] = None):
@@ -203,7 +212,266 @@ class PathManager:
             Path(session_dir).mkdir(parents=True, exist_ok=True)
         
         return os.path.join(session_dir, f"session_{session_id}.json")
-    
+
+    # ===== RESOURCE PATH MANAGEMENT =====
+    # New methods for centralized resource path management
+
+    def get_data_storage_path(self) -> str:
+        """
+        Get the centralized data storage path.
+
+        Returns:
+            str: Data storage base path
+        """
+        if 'data_storage' in self._cached_paths:
+            return self._cached_paths['data_storage']
+
+        if self.config.resource_base_path:
+            base_path = self.config.resource_base_path
+            logger.debug(f"Using configured resource base path: {base_path}")
+        else:
+            # Default to Python/data_storage
+            python_dir = Path(__file__).parent.parent.parent.parent.parent  # Go up to Python/
+            base_path = str(python_dir / "data_storage")
+            logger.debug(f"Using default data storage path: {base_path}")
+
+        if self.config.create_directories:
+            Path(base_path).mkdir(parents=True, exist_ok=True)
+
+        self._cached_paths['data_storage'] = base_path
+        return base_path
+
+    def get_uid_storage_path(self) -> str:
+        """Get the UID storage directory path."""
+        uid_path = os.path.join(self.get_data_storage_path(), 'uid')
+
+        if self.config.create_directories:
+            Path(uid_path).mkdir(parents=True, exist_ok=True)
+
+        return uid_path
+
+    def get_reference_images_path(self) -> str:
+        """
+        Get the reference images storage path.
+
+        Returns:
+            str: Reference images base path
+        """
+        if 'reference_images' in self._cached_paths:
+            return self._cached_paths['reference_images']
+
+        if self.config.reference_images_path:
+            ref_path = self.config.reference_images_path
+            logger.debug(f"Using configured reference images path: {ref_path}")
+        else:
+            # Default to data_storage/reference_images
+            ref_path = os.path.join(self.get_data_storage_path(), 'reference_images')
+            logger.debug(f"Using default reference images path: {ref_path}")
+
+        if self.config.create_directories:
+            Path(ref_path).mkdir(parents=True, exist_ok=True)
+
+        self._cached_paths['reference_images'] = ref_path
+        return ref_path
+
+    def get_reference_session_path(self, session_id: str) -> str:
+        """
+        Get the reference images path for a specific session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            str: Session-specific reference images path
+        """
+        session_ref_path = os.path.join(self.get_reference_images_path(), session_id)
+
+        if self.config.create_directories:
+            Path(session_ref_path).mkdir(parents=True, exist_ok=True)
+
+        return session_ref_path
+
+    def get_unreal_saved_directory(self) -> Optional[str]:
+        """
+        Get the Unreal Engine Saved directory path.
+
+        Returns:
+            str: Unreal Saved directory path if project found, None otherwise
+        """
+        unreal_path = self.get_unreal_project_path()
+        if not unreal_path:
+            return None
+
+        saved_path = os.path.join(unreal_path, 'Saved')
+        return saved_path if Path(saved_path).exists() else None
+
+    def get_unreal_screenshots_path(self) -> Optional[str]:
+        """
+        Get the Unreal Engine Screenshots directory path.
+
+        Returns:
+            str: Screenshots directory path if available, None otherwise
+        """
+        saved_path = self.get_unreal_saved_directory()
+        if not saved_path:
+            return None
+
+        screenshots_path = os.path.join(saved_path, 'Screenshots', 'WindowsEditor')
+        return screenshots_path
+
+    def get_unreal_styled_images_path(self) -> Optional[str]:
+        """
+        Get the path for styled/processed images within Unreal project.
+
+        Returns:
+            str: Styled images directory path if available, None otherwise
+        """
+        saved_path = self.get_unreal_saved_directory()
+        if not saved_path:
+            return None
+
+        styled_path = os.path.join(saved_path, 'Screenshots', 'styled')
+
+        # Create styled directory if it doesn't exist
+        if self.config.create_directories:
+            Path(styled_path).mkdir(parents=True, exist_ok=True)
+
+        return styled_path
+
+    def get_temp_processing_path(self) -> str:
+        """
+        Get temporary processing directory for resource operations.
+
+        Returns:
+            str: Temporary processing path
+        """
+        if 'temp_processing' in self._cached_paths:
+            return self._cached_paths['temp_processing']
+
+        temp_path = os.path.join(self.get_data_storage_path(), 'temp', 'processing')
+
+        if self.config.create_directories:
+            Path(temp_path).mkdir(parents=True, exist_ok=True)
+
+        self._cached_paths['temp_processing'] = temp_path
+        return temp_path
+
+    def copy_resource_to_centralized(self, source_path: str, resource_type: str, target_name: str = None) -> Optional[str]:
+        """
+        Copy a resource to centralized storage using copy strategy.
+
+        Args:
+            source_path: Original resource path
+            resource_type: Type of resource ('uid', 'reference', 'screenshot', 'temp')
+            target_name: Optional target filename
+
+        Returns:
+            str: New centralized path if successful, None otherwise
+        """
+        if not self.config.copy_on_access or not self.config.enable_centralized_paths:
+            return source_path  # Return original path if centralization disabled
+
+        try:
+            source = Path(source_path)
+            if not source.exists():
+                logger.warning(f"Source resource not found: {source_path}")
+                return None
+
+            # Determine target directory based on resource type
+            if resource_type == 'uid':
+                target_dir = self.get_uid_storage_path()
+            elif resource_type == 'reference':
+                target_dir = self.get_reference_images_path()
+            elif resource_type == 'screenshot':
+                target_dir = self.get_unreal_screenshots_path() or self.get_temp_processing_path()
+            elif resource_type == 'temp':
+                target_dir = self.get_temp_processing_path()
+            else:
+                logger.error(f"Unknown resource type: {resource_type}")
+                return None
+
+            # Determine target filename
+            target_filename = target_name or source.name
+            target_path = Path(target_dir) / target_filename
+
+            # Copy file if it doesn't already exist
+            if not target_path.exists():
+                import shutil
+                shutil.copy2(source, target_path)
+                logger.info(f"Copied resource {resource_type}: {source_path} → {target_path}")
+
+            return str(target_path)
+
+        except Exception as e:
+            logger.error(f"Failed to copy resource {source_path}: {e}")
+            return None
+
+    def cleanup_temp_resources(self, max_age_hours: int = 24) -> bool:
+        """
+        Clean up temporary resources based on age.
+
+        Args:
+            max_age_hours: Maximum age in hours before cleanup
+
+        Returns:
+            bool: True if cleanup succeeded, False otherwise
+        """
+        if not self.config.temp_cleanup_enabled:
+            return True  # Skip cleanup if disabled
+
+        try:
+            temp_path = Path(self.get_temp_processing_path())
+            if not temp_path.exists():
+                return True  # Nothing to clean
+
+            import time
+            current_time = time.time()
+            max_age_seconds = max_age_hours * 3600
+
+            cleaned_count = 0
+            for file_path in temp_path.rglob('*'):
+                if file_path.is_file():
+                    file_age = current_time - file_path.stat().st_mtime
+                    if file_age > max_age_seconds:
+                        file_path.unlink()
+                        cleaned_count += 1
+
+            logger.info(f"Cleaned up {cleaned_count} temporary files older than {max_age_hours} hours")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to cleanup temp resources: {e}")
+            return False
+
+    def sync_resource_directories(self) -> bool:
+        """
+        Synchronize resource directories between legacy and centralized locations.
+
+        Returns:
+            bool: True if sync succeeded, False otherwise
+        """
+        if not self.config.enable_centralized_paths:
+            return True  # Skip sync if centralization disabled
+
+        try:
+            # Ensure all centralized directories exist
+            directories = [
+                self.get_data_storage_path(),
+                self.get_uid_storage_path(),
+                self.get_reference_images_path(),
+                self.get_temp_processing_path()
+            ]
+
+            for directory in directories:
+                Path(directory).mkdir(parents=True, exist_ok=True)
+
+            logger.info("Resource directory synchronization completed")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to sync resource directories: {e}")
+            return False
+
     def ensure_directory_structure(self) -> bool:
         """
         Ensure all required MegaMelange directories exist.
@@ -253,6 +521,15 @@ class PathManager:
                     'metadata': self.get_metadata_directory(),
                     'logs': self.get_logs_directory()
                 },
+                'resource_directories': {
+                    'data_storage': self.get_data_storage_path(),
+                    'uid_storage': self.get_uid_storage_path(),
+                    'reference_images': self.get_reference_images_path(),
+                    'temp_processing': self.get_temp_processing_path(),
+                    'unreal_saved': self.get_unreal_saved_directory(),
+                    'unreal_screenshots': self.get_unreal_screenshots_path(),
+                    'unreal_styled': self.get_unreal_styled_images_path()
+                },
                 'key_files': {
                     'session_index': self.get_session_index_file(),
                     'stats': self.get_stats_file()
@@ -266,13 +543,27 @@ class PathManager:
                         self.get_archived_sessions_directory(),
                         self.get_metadata_directory(),
                         self.get_logs_directory()
+                    ]),
+                    'resource_directories_exist': all(Path(d).exists() if d else True for d in [
+                        self.get_data_storage_path(),
+                        self.get_uid_storage_path(),
+                        self.get_reference_images_path(),
+                        self.get_temp_processing_path(),
+                        self.get_unreal_saved_directory(),
+                        self.get_unreal_screenshots_path(),
+                        self.get_unreal_styled_images_path()
                     ])
                 },
                 'config': {
                     'fallback_enabled': self.config.fallback_enabled,
                     'create_directories': self.config.create_directories,
                     'configured_unreal_path': self.config.unreal_project_path,
-                    'configured_megamelange_path': self.config.megamelange_base_path
+                    'configured_megamelange_path': self.config.megamelange_base_path,
+                    'resource_base_path': self.config.resource_base_path,
+                    'reference_images_path': self.config.reference_images_path,
+                    'copy_on_access': self.config.copy_on_access,
+                    'temp_cleanup_enabled': self.config.temp_cleanup_enabled,
+                    'enable_centralized_paths': self.config.enable_centralized_paths
                 }
             }
             
@@ -296,17 +587,28 @@ class PathManager:
             # Test path resolution
             unreal_path = self.get_unreal_project_path()
             megamelange_path = self.get_megamelange_base_path()
-            
+
             # Test directory creation
             if self.config.create_directories:
                 self.ensure_directory_structure()
-            
+                self.sync_resource_directories()
+
+            # Test resource path resolution
+            data_storage = self.get_data_storage_path()
+            uid_storage = self.get_uid_storage_path()
+            reference_images = self.get_reference_images_path()
+            temp_processing = self.get_temp_processing_path()
+
             # Test file operations
             test_file = Path(self.get_metadata_directory()) / "health_check.tmp"
             test_file.write_text("health check", encoding='utf-8')
             test_file.unlink()
-            
-            logger.debug("PathManager health check passed")
+
+            # Test temp cleanup functionality
+            if self.config.temp_cleanup_enabled:
+                self.cleanup_temp_resources(0.001)  # Clean very old files (test mode)
+
+            logger.debug("PathManager health check passed (including resource paths)")
             return True
             
         except Exception as e:

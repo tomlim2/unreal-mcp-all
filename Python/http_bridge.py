@@ -17,6 +17,11 @@ from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 import threading
 from typing import Dict, Any, Optional, List
+from tools.ai.session_management.utils.path_adapters import (
+    get_unreal_project_path_safe,
+    get_screenshots_path_safe,
+    get_styled_images_path_safe
+)
 
 # Load environment variables from .env file
 try:
@@ -215,17 +220,19 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 # Handle screenshot files
                 if endpoint_type in ['screenshot-file', 'screenshot']:
                     try:
-                        # Get project path from environment
-                        project_path = os.getenv('UNREAL_PROJECT_PATH')
-                        if not project_path:
+                        # Get screenshot directories using centralized path management
+                        screenshot_dir_path = get_screenshots_path_safe()
+                        styled_dir_path = get_styled_images_path_safe()
+
+                        if not screenshot_dir_path or not styled_dir_path:
                             self.send_response(500)
                             self.send_header('Access-Control-Allow-Origin', '*')
                             self.end_headers()
                             return
 
                         # Build path to screenshot file - check both WindowsEditor and styled directories
-                        screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
-                        styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+                        screenshot_dir = Path(screenshot_dir_path)
+                        styled_dir = Path(styled_dir_path)
 
                         file_path = screenshot_dir / filename
                         if not file_path.exists():
@@ -259,8 +266,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 # Handle video files
                 elif endpoint_type in ['video-file', 'video']:
                     try:
-                        # Get project path from environment
-                        project_path = os.getenv('UNREAL_PROJECT_PATH')
+                        # Get project path using centralized path management
+                        project_path = get_unreal_project_path_safe()
                         if not project_path:
                             self.send_response(500)
                             self.send_header('Access-Control-Allow-Origin', '*')
@@ -320,15 +327,17 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Handle screenshot files
                     if endpoint_type in ['screenshot-file', 'screenshot']:
                         try:
-                            # Get project path from environment
-                            project_path = os.getenv('UNREAL_PROJECT_PATH')
-                            if not project_path:
-                                self._send_error("UNREAL_PROJECT_PATH not configured")
+                            # Get screenshot directories using centralized path management
+                            screenshot_dir_path = get_screenshots_path_safe()
+                            styled_dir_path = get_styled_images_path_safe()
+
+                            if not screenshot_dir_path or not styled_dir_path:
+                                self._send_error("Unable to determine screenshot directory paths")
                                 return
 
                             # Build path to screenshot file - check both WindowsEditor and styled directories
-                            screenshot_dir = Path(project_path) / "Saved" / "Screenshots" / "WindowsEditor"
-                            styled_dir = Path(project_path) / "Saved" / "Screenshots" / "styled"
+                            screenshot_dir = Path(screenshot_dir_path)
+                            styled_dir = Path(styled_dir_path)
 
                             file_path = screenshot_dir / filename
                             if not file_path.exists():
@@ -357,10 +366,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Handle video files
                     elif endpoint_type in ['video-file', 'video']:
                         try:
-                            # Get project path from environment
-                            project_path = os.getenv('UNREAL_PROJECT_PATH')
+                            # Get project path using centralized path management
+                            project_path = get_unreal_project_path_safe()
                             if not project_path:
-                                self._send_error("UNREAL_PROJECT_PATH not configured")
+                                self._send_error("Unable to determine Unreal project path")
                                 return
 
                             # Build path to video file - check generated directory
