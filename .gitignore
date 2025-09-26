@@ -160,17 +160,6 @@ Python/tests/
 *test*.py
 test_*.py
 
-# UID and reference image runtime data
-Python/data_storage
-
-# Reference images and metadata (as requested)
-**/reference_images/
-**/refer_uid_mappings.json
-**/session_metadata/
-*.ref.png
-*.ref.jpg
-*.ref.jpeg
-*_reference_*
 # next.js
 /.next/
 /out/
@@ -196,3 +185,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# UID and reference image runtime data
+Python/data_storage
