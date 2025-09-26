@@ -14,7 +14,6 @@ from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 from ...session_management.utils.path_adapters import (
-    get_unreal_project_path_safe,
     get_styled_images_path_safe,
     get_screenshots_path_safe
 )
@@ -152,10 +151,10 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             if not params.get("style_prompt"):
                 errors.append("style_prompt is required")
 
-            # UID-only system: Check for target_image_uid
-            target_image_uid = params.get("target_image_uid")
+            # UID-only system: Check for target_image_uid (or fallback to image_uid)
+            target_image_uid = params.get("target_image_uid") or params.get("image_uid")
             if not target_image_uid:
-                errors.append("target_image_uid is required (UID format: img_XXX)")
+                errors.append("target_image_uid or image_uid is required (UID format: img_XXX)")
             elif not (target_image_uid.startswith('img_') and target_image_uid[4:].isdigit()):
                 errors.append("target_image_uid must be a valid UID format (e.g., 'img_177')")
 
@@ -177,13 +176,46 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     def preprocess_params(self, command_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
         processed = params.copy()
         processed.setdefault("intensity", 0.8)
+
+        # Auto-assign target_image_uid from image_uid if not provided
+        if command_type == "transform_image_style":
+            if not processed.get("target_image_uid") and processed.get("image_uid"):
+                processed["target_image_uid"] = processed["image_uid"]
+                logger.info(f"Auto-assigned target_image_uid: {processed['target_image_uid']}")
+
         return processed
     
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         logger.info(f"Nano Banana Handler: Executing {command_type} with params: {params}")
-        if "style_prompt" in params:
+
+        # DEBUG: Log detailed parameter analysis
+        logger.info(f"🔍 DEBUG - Parameter analysis:")
+        logger.info(f"  - main_prompt present: {'main_prompt' in params} = '{params.get('main_prompt', 'NOT_PRESENT')}'")
+        logger.info(f"  - reference_prompts present: {'reference_prompts' in params} = {params.get('reference_prompts', 'NOT_PRESENT')}")
+        logger.info(f"  - style_prompt present: {'style_prompt' in params} = '{params.get('style_prompt', 'NOT_PRESENT')}'")
+
+        if "reference_images" in params:
+            ref_images = params["reference_images"]
+            logger.info(f"  - reference_images count: {len(ref_images)}")
+            for i, ref in enumerate(ref_images):
+                logger.info(f"    [{i}] refer_uid: {ref.get('refer_uid', 'NO_UID')}, purpose: {ref.get('purpose', 'NO_PURPOSE')}")
+
+        # Handle new prompt organization system
+        if "main_prompt" in params or "reference_prompts" in params:
+            logger.info("🎯 Using NEW prompt organization system")
+            params["style_prompt"] = self._translate_and_organize_prompts(
+                main_prompt=params.get("main_prompt", ""),
+                reference_prompts=params.get("reference_prompts", [])
+            )
+        elif "style_prompt" in params:
+            logger.info("🔄 Using LEGACY single prompt handling")
+            # Legacy single prompt handling
             params["style_prompt"] = self._translate_style_prompt_if_needed(params["style_prompt"])
-        
+        else:
+            logger.warning("⚠️ No prompt data found in parameters!")
+
+        logger.info(f"📝 Final style_prompt: '{params.get('style_prompt', 'NO_STYLE_PROMPT')}'")
+
         if command_type == "transform_image_style":
             return self._transform_existing_image(params)
         else:
@@ -327,122 +359,6 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 start_time
             )
     
-    def _take_and_transform_screenshot(self, connection, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Take screenshot and apply style transformation."""
-        start_time = time.time()
-        request_id = generate_request_id()
-        
-        style_prompt = params["style_prompt"]
-        intensity = params["intensity"]
-        
-        logger.info(f"Take Styled Screenshot: {style_prompt} [req_id: {request_id}]")
-        
-        try:
-            # Prepare screenshot parameters
-            screenshot_params = {
-                "resolution_multiplier": params["resolution_multiplier"],
-                "include_ui": params["include_ui"]
-            }
-            
-            # Take screenshot via Unreal connection
-            logger.info("Taking screenshot before styling...")
-            response = connection.send_command("take_screenshot", screenshot_params)
-            
-            if response and response.get("status") == "error":
-                return build_error_response(
-                    response.get("error", "Unknown screenshot error"),
-                    "screenshot_error",
-                    request_id,
-                    start_time
-                )
-            
-            # Wait for screenshot to be saved
-            time.sleep(1.0)
-            
-            # Find newest screenshot
-            screenshot_path = self._find_newest_screenshot()
-            if not screenshot_path:
-                return build_error_response(
-                    "Screenshot was taken but file not found",
-                    "screenshot_file_not_found",
-                    request_id,
-                    start_time
-                )
-            
-            logger.info(f"Screenshot taken: {screenshot_path}")
-            
-            # Apply style transformation
-            styled_image_path = self._apply_nano_banana_style(
-                str(screenshot_path), style_prompt, intensity
-            )
-            
-            if styled_image_path:
-                filename = Path(styled_image_path).name
-                
-                # Extract metadata for both images
-                resolution_multiplier = params["resolution_multiplier"]
-                model = params.get("model", "gemini-2.5-flash-image")
-                original_metadata = self._extract_image_metadata(str(screenshot_path), model=model)
-                styled_metadata = self._extract_image_metadata(styled_image_path, resolution_multiplier, model)
-                
-                # Generate UIDs using persistent manager
-                parent_uid = generate_image_uid()  # UID for source screenshot
-                new_image_uid = generate_image_uid()  # UID for styled result
-
-                # Extract session_id from params if available
-                session_id = params.get('session_id')
-
-                # Add mappings for both images
-                # 1. Original screenshot
-                add_uid_mapping(
-                    parent_uid,
-                    'image',
-                    Path(screenshot_path).name,
-                    session_id=session_id,
-                    metadata={
-                        'width': original_metadata['width'],
-                        'height': original_metadata['height'],
-                        'file_path': str(screenshot_path),
-                        'resolution_multiplier': resolution_multiplier,
-                        'style_type': 'original_screenshot'
-                    }
-                )
-                # Build standardized response
-                return build_transform_response(
-                    image_uid=new_image_uid,
-                    parent_uid=parent_uid,
-                    filename=filename,
-                    image_path=styled_image_path,
-                    original_width=original_metadata['width'],
-                    original_height=original_metadata['height'],
-                    processed_width=styled_metadata['width'],
-                    processed_height=styled_metadata['height'],
-                    style_name=extract_style_name(style_prompt),
-                    style_prompt=style_prompt,
-                    intensity=intensity,
-                    tokens=styled_metadata['tokens'],
-                    cost=float(styled_metadata['estimated_cost'].replace('$', '')),
-                    request_id=request_id,
-                    start_time=start_time,
-                    origin="screenshot"
-                )
-            else:
-                return build_error_response(
-                    "Screenshot taken but style transformation failed",
-                    "transformation_failed",
-                    request_id,
-                    start_time
-                )
-                
-        except Exception as e:
-            logger.error(f"Styled screenshot failed: {e}")
-            return build_error_response(
-                f"Styled screenshot failed: {str(e)}",
-                "execution_error",
-                request_id,
-                start_time
-            )
-    
     def _apply_nano_banana_style(self, image_path: str, style_prompt: str, intensity: float) -> Optional[str]:
         """Apply Gemini image generation style transformation to image."""
         if not self._ensure_gemini_initialized():
@@ -498,6 +414,18 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         try:
             logger.info(f"Applying Gemini multi-image transformation: {style_prompt} (intensity: {intensity})")
             logger.info(f"Using {len(reference_images)} reference images")
+
+            # Pre-flight request size validation
+            size_info = self._estimate_request_size(target_image_data, reference_images, style_prompt)
+            logger.info(f"Request size estimation: {size_info['total_size_mb']}MB, {size_info['estimated_tokens']} tokens")
+
+            if not size_info['within_limits']:
+                logger.warning(f"Request may exceed API limits - proceeding with caution")
+                if size_info['total_size_mb'] >= 20.0:
+                    raise Exception(f"Request too large: {size_info['total_size_mb']}MB exceeds 20MB limit")
+                if size_info['estimated_tokens'] >= 1000000:
+                    logger.warning(f"Token count may exceed limit: {size_info['estimated_tokens']}")
+                    # Continue but log warning
 
             # Validate reference images - reject tiny/test images
             valid_references = []
@@ -571,14 +499,17 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             raise Exception(f"Multi-image transformation failed: {str(e)}")
 
     def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], intensity: float) -> str:
-        """Build the multi-image generation prompt for Gemini."""
+        """Build the multi-image generation prompt for Gemini using organized prompts."""
         intensity_description = "subtle" if intensity < 0.4 else "moderate" if intensity < 0.7 else "strong"
 
-        # Build purpose-aware prompt
-        purposes = [ref.get('purpose', 'style') for ref in reference_images]
+        # The style_prompt is already organized by _translate_and_organize_prompts function
+        # So we just need to create the final transformation instruction
 
-        # Special handling for composition purpose (pose changes)
+        # Legacy purpose-based handling for backward compatibility
+        # (in case old-style purpose data is still passed)
+        purposes = [ref.get('purpose', 'style') for ref in reference_images]
         if 'composition' in purposes:
+            # Special case: composition changes require different handling
             return f"""Change the pose and body position of the character in the first image to match the reference image exactly.
 
 CRITICAL INSTRUCTIONS:
@@ -589,19 +520,21 @@ CRITICAL INSTRUCTIONS:
 5. Apply {intensity_description} transformation intensity
 6. Only modify the pose/position - preserve everything else
 
+Additional instructions: {style_prompt}
 Generate the image with the new pose matching the reference."""
 
-        # Style/Color purposes - preserve composition
-        purpose_text = ""
-        if 'style' in purposes:
-            purpose_text += "Use the artistic style from the reference images. "
-        if 'color' in purposes:
-            purpose_text += "Apply the color palette from the reference images. "
+        # Use the already organized and translated style prompt
+        return f"""Transform the first image using the following instructions with a {intensity_description} intensity:
 
-        return f"""Transform the first image using {style_prompt} style with a {intensity_description} intensity.
-{purpose_text}
-Maintain the original subject and composition while applying the desired style transformation.
-The result should be a harmonious blend that preserves the main subject while incorporating the style elements.
+{style_prompt}
+
+INSTRUCTIONS:
+1. Apply the transformation described above
+2. Use the reference images to guide the transformation
+3. Maintain the original subject and composition while applying changes
+4. Create a harmonious result that preserves the main subject
+5. Incorporate elements from reference images as specified
+
 Generate the transformed image."""
     
     def _build_gemini_image_prompt(self, style_prompt: str, intensity: float) -> str:
@@ -693,20 +626,9 @@ Generate the image with minimal changes."""
                                 logger.info(f"Gemini generated image saved: {styled_path}")
                                 return str(styled_path)
             
-            # If no image data found, log detailed response structure for debugging
-            logger.error("No image data found in Gemini response")
-            logger.error(f"Response structure: candidates={len(response.candidates) if response.candidates else 0}")
-            
-            if response.candidates:
-                candidate = response.candidates[0]
-                logger.error(f"First candidate has content: {hasattr(candidate, 'content')}")
-                if hasattr(candidate, 'content') and candidate.content:
-                    logger.error(f"Content has parts: {hasattr(candidate.content, 'parts')}")
-                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
-                        logger.error(f"Number of parts: {len(candidate.content.parts)}")
-                        for i, part in enumerate(candidate.content.parts):
-                            logger.error(f"Part {i}: type={type(part)}, has_inline_data={hasattr(part, 'inline_data')}")
-            
+            # No image data found in Gemini response
+            candidates_count = len(response.candidates) if response.candidates else 0
+            logger.error(f"No image data found in Gemini response (candidates: {candidates_count})")
             raise Exception("No image data found in Gemini response")
             
         except Exception as e:
@@ -779,8 +701,167 @@ Only return the English translation, nothing else:
         
         # If it's already in English (ASCII characters only), return as-is
         return style_prompt
-    
-    
+
+    def _translate_and_organize_prompts(self, main_prompt: str, reference_prompts: List[str]) -> str:
+        """Translate and organize multiple prompts using LLM-based prompt combination."""
+        try:
+            # Collect all non-empty prompts
+            all_prompts = []
+
+            if main_prompt.strip():
+                all_prompts.append(f"Main transformation: {main_prompt.strip()}")
+
+            for i, ref_prompt in enumerate(reference_prompts):
+                if ref_prompt.strip():
+                    all_prompts.append(f"Reference {i+1}: {ref_prompt.strip()}")
+
+            # If no prompts provided, use default
+            if not all_prompts:
+                logger.warning("No main or reference prompts provided")
+                return "Transform the image with artistic style"
+
+            # If only one prompt, just translate it
+            if len(all_prompts) == 1:
+                single_prompt = all_prompts[0].split(": ", 1)[1] if ": " in all_prompts[0] else all_prompts[0]
+                return self._translate_style_prompt_if_needed(single_prompt)
+
+            # Use LLM to organize multiple prompts
+            return self._organize_prompts_with_llm(all_prompts)
+
+        except Exception as e:
+            logger.error(f"Prompt organization failed: {e}")
+            # Fallback to first available prompt or default
+            if main_prompt.strip():
+                return self._translate_style_prompt_if_needed(main_prompt)
+            elif reference_prompts and any(p.strip() for p in reference_prompts):
+                first_ref = next(p for p in reference_prompts if p.strip())
+                return self._translate_style_prompt_if_needed(first_ref)
+            else:
+                return "Transform the image with artistic style"
+
+    def _organize_prompts_with_llm(self, all_prompts: List[str]) -> str:
+        """Use LLM to organize multiple prompts into a coherent single prompt."""
+        if not self._ensure_gemini_initialized():
+            logger.warning("Gemini not available for prompt organization, concatenating prompts")
+            # Fallback: simple concatenation without LLM
+            return self._concatenate_prompts_simple(all_prompts)
+
+        try:
+            # Create organization prompt for Gemini
+            prompts_text = "\n".join(f"- {prompt}" for prompt in all_prompts)
+
+            organization_request = f"""Combine these image transformation instructions into a single, coherent prompt:
+
+{prompts_text}
+
+Requirements:
+1. Create ONE clear, concise transformation prompt
+2. Maintain the intent of all instructions
+3. Resolve any conflicts by prioritizing main transformation over references
+4. Keep the result under 800 characters
+5. Use clear, specific visual descriptions
+6. Return ONLY the combined prompt, no explanations
+
+Combined prompt:"""
+
+            logger.info(f"Organizing {len(all_prompts)} prompts using Gemini LLM")
+            response = self._model.generate_content(organization_request)
+
+            if response and response.text:
+                organized_prompt = response.text.strip()
+
+                # Apply length limits with truncation
+                if len(organized_prompt) > 800:
+                    logger.warning(f"Organized prompt too long ({len(organized_prompt)} chars), truncating")
+                    organized_prompt = organized_prompt[:800].rsplit(' ', 1)[0] + "..."
+
+                logger.info(f"LLM organized prompt: '{organized_prompt[:100]}...' ({len(organized_prompt)} chars)")
+                return organized_prompt
+            else:
+                logger.warning("LLM organization failed, using fallback")
+                return self._concatenate_prompts_simple(all_prompts)
+
+        except Exception as e:
+            logger.error(f"LLM prompt organization error: {e}")
+            return self._concatenate_prompts_simple(all_prompts)
+
+    def _concatenate_prompts_simple(self, all_prompts: List[str]) -> str:
+        """Simple fallback method to combine prompts without LLM."""
+        # Remove prefixes and combine with appropriate conjunctions
+        clean_prompts = []
+        for prompt in all_prompts:
+            clean = prompt.split(": ", 1)[1] if ": " in prompt else prompt
+            clean_prompts.append(clean.strip())
+
+        # Combine with "and" and apply basic length limits
+        combined = "; ".join(clean_prompts)
+
+        if len(combined) > 800:
+            logger.warning(f"Concatenated prompt too long ({len(combined)} chars), truncating")
+            combined = combined[:800].rsplit(';', 1)[0] + "..."
+
+        logger.info(f"Simple concatenation result: '{combined[:100]}...' ({len(combined)} chars)")
+        return combined
+
+    def _estimate_request_size(self, image_data: Dict[str, Any], reference_images: List[Dict[str, Any]], prompt: str) -> Dict[str, Any]:
+        """Estimate API request size and token count for validation."""
+        total_size_mb = 0.0
+        estimated_tokens = 0
+
+        try:
+            # Calculate image sizes
+            if image_data and 'data' in image_data:
+                if isinstance(image_data['data'], bytes):
+                    total_size_mb += len(image_data['data']) / (1024 * 1024)
+                else:
+                    # Base64 string - decode to get actual size
+                    import base64
+                    try:
+                        decoded = base64.b64decode(image_data['data'])
+                        total_size_mb += len(decoded) / (1024 * 1024)
+                    except:
+                        # Estimate: base64 is ~33% larger than binary
+                        total_size_mb += (len(image_data['data']) * 0.75) / (1024 * 1024)
+
+            # Calculate reference image sizes
+            for ref_img in reference_images:
+                if 'data' in ref_img:
+                    if isinstance(ref_img['data'], bytes):
+                        total_size_mb += len(ref_img['data']) / (1024 * 1024)
+                    else:
+                        # Base64 string estimation
+                        import base64
+                        try:
+                            decoded = base64.b64decode(ref_img['data'])
+                            total_size_mb += len(decoded) / (1024 * 1024)
+                        except:
+                            total_size_mb += (len(ref_img['data']) * 0.75) / (1024 * 1024)
+
+            # Estimate tokens (rough calculation: ~4 chars per token for text)
+            estimated_tokens += len(prompt) // 4
+
+            # Each image contributes to token count (Google's tile-based calculation is complex)
+            # For estimation: assume ~1000-2000 tokens per image
+            estimated_tokens += (1 + len(reference_images)) * 1500  # Conservative estimate
+
+            return {
+                'total_size_mb': round(total_size_mb, 2),
+                'estimated_tokens': estimated_tokens,
+                'prompt_length': len(prompt),
+                'image_count': 1 + len(reference_images),
+                'within_limits': total_size_mb < 18.0 and estimated_tokens < 900000  # Conservative limits
+            }
+
+        except Exception as e:
+            logger.warning(f"Request size estimation failed: {e}")
+            return {
+                'total_size_mb': 0.0,
+                'estimated_tokens': 0,
+                'prompt_length': len(prompt),
+                'image_count': 1 + len(reference_images),
+                'within_limits': True  # Assume OK if estimation fails
+            }
+
     def _extract_original_screenshot_name(self, file_path: str) -> str:
         """Extract original screenshot name from potentially styled filename."""
         filename = Path(file_path).stem

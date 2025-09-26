@@ -93,7 +93,9 @@ export interface ReferenceImageUpload {
 }
 
 export interface ReferenceImagesData {
-  prompt: string;
+  prompt: string; // Keep for backward compatibility
+  main_prompt?: string; // NEW: Optional main prompt
+  reference_prompts?: string[]; // NEW: Individual prompts per image
   targetImageUid: string;
   referenceImages: ReferenceImageUpload[];
   referenceImageUids?: string[]; // New UID-based field

@@ -597,6 +597,13 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             
             request_data = json.loads(post_data.decode('utf-8'))
             print(f"DEBUG: Received request data keys: {list(request_data.keys())}", flush=True)
+
+            # DEBUG: Check for new prompt fields
+            if 'main_prompt' in request_data:
+                print(f"DEBUG: main_prompt found: '{request_data['main_prompt']}'", flush=True)
+            if 'reference_prompts' in request_data:
+                print(f"DEBUG: reference_prompts found: {request_data['reference_prompts']}", flush=True)
+
             if 'reference_images' in request_data:
                 print(f"DEBUG: Reference images found in request: {len(request_data['reference_images'])}", flush=True)
 
@@ -973,11 +980,19 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                                 for i, ref in enumerate(nlp_reference_images):
                                     f.write(f"  Ref {i}: {len(ref.get('data', ''))} chars, type={ref.get('mime_type')}, purpose={ref.get('purpose')}\n")
 
+                        # Extract new prompt fields from request
+                        main_prompt = request_data.get('main_prompt')
+                        reference_prompts = request_data.get('reference_prompts', [])
+
+                        print(f"DEBUG: Passing to NLP - main_prompt: '{main_prompt}', reference_prompts: {reference_prompts}", flush=True)
+
                         result = process_natural_language(
                             user_input, context, session_id, llm_model,
                             images=images if images else None,
                             reference_images=nlp_reference_images,
-                            target_image_uid=target_image_uid
+                            target_image_uid=target_image_uid,
+                            main_prompt=main_prompt,
+                            reference_prompts=reference_prompts
                         )
 
                         # Verify reference images made it through to commands

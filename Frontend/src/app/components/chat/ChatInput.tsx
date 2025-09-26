@@ -12,6 +12,8 @@ interface ChatInputProps {
 	onSubmit: (prompt: string, model?: string) => Promise<unknown>;
 	onTransformSubmit?: (data: {
 		prompt: string;
+		main_prompt?: string;
+		reference_prompts?: string[];
 		model: string;
 		sessionId: string;
 		referenceImageUids?: string[];
@@ -243,8 +245,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
 					try {
 						// Pass data to parent component for API handling
+						console.log('ChatInput: Forwarding reference images data:', {
+							prompt: data.prompt,
+							main_prompt: data.main_prompt,
+							reference_prompts: data.reference_prompts,
+							referenceImageUids: data.referenceImageUids?.length || 0
+						});
 						await onTransformSubmit({
 							prompt: data.prompt,
+							main_prompt: data.main_prompt,
+							reference_prompts: data.reference_prompts,
 							model: selectedLlm,
 							sessionId,
 							referenceImageUids: data.referenceImageUids,

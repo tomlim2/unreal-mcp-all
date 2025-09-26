@@ -43,8 +43,9 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
   const [submitting, setSubmitting] = useState(false);
 
   // Form state
-  const [prompt, setPrompt] = useState('');
+  const [mainPrompt, setMainPrompt] = useState('');
   const [referenceImages, setReferenceImages] = useState<ReferenceImageUpload[]>([]);
+  const [referencePrompts, setReferencePrompts] = useState<string[]>(['', '', '']); // Individual prompts for each reference image
 
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const imageUrlRef = useRef<string | null>(null);
@@ -102,7 +103,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     const newReferenceImages = [...referenceImages];
     newReferenceImages[index] = {
       file,
-      purpose: newReferenceImages[index]?.purpose || 'style',
+      purpose: newReferenceImages[index]?.purpose || 'style', // Keep for backward compatibility
       preview,
       uploading: false,  // No uploading state needed
       refer_uid: undefined  // Will be generated on submit
@@ -149,13 +150,20 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     });
   };
 
-  // Handle purpose change - client-side only
+  // Handle purpose change - client-side only (keep for backward compatibility)
   const handlePurposeChange = (index: number, purpose: 'style' | 'color' | 'composition') => {
     const newReferenceImages = [...referenceImages];
     if (newReferenceImages[index]) {
       newReferenceImages[index].purpose = purpose;
       setReferenceImages([...newReferenceImages]);
     }
+  };
+
+  // Handle reference prompt change - new functionality
+  const handleReferencePromptChange = (index: number, promptText: string) => {
+    const newReferencePrompts = [...referencePrompts];
+    newReferencePrompts[index] = promptText;
+    setReferencePrompts(newReferencePrompts);
   };
 
   // Remove reference image
@@ -166,6 +174,11 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     }
     newReferenceImages.splice(index, 1);
     setReferenceImages(newReferenceImages);
+
+    // Also clear the corresponding prompt
+    const newReferencePrompts = [...referencePrompts];
+    newReferencePrompts[index] = '';
+    setReferencePrompts(newReferencePrompts);
   };
 
   // Handle submit - upload all images at once
@@ -175,8 +188,8 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
       return;
     }
 
-    if (!prompt.trim()) {
-      alert('Please enter a transformation prompt');
+    if (!mainPrompt.trim() && referencePrompts.every(p => !p.trim())) {
+      alert('Please enter at least one prompt (main prompt or reference prompts)');
       return;
     }
 
@@ -204,12 +217,28 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         }
       }
 
+      // Collect only prompts for uploaded images
+      const activeReferencePrompts = referenceImages.map((_, index) =>
+        referencePrompts[index] || ''
+      );
+
       const data: ReferenceImagesData = {
-        prompt: prompt.trim(),
+        prompt: mainPrompt.trim() || 'Transform using reference images', // Minimal backward compatibility
+        main_prompt: mainPrompt.trim() || undefined, // NEW: Optional main prompt
+        reference_prompts: activeReferencePrompts, // NEW: Individual prompts per image
         targetImageUid: latestImage.uid,
         referenceImages, // Keep for legacy compatibility
         referenceImageUids // New UID-based field
       };
+
+      console.log('ReferenceImagesModal: Submitting data with enhanced prompts:', {
+        prompt: data.prompt,
+        main_prompt: data.main_prompt,
+        reference_prompts: data.reference_prompts,
+        targetImageUid: data.targetImageUid,
+        referenceImageUids: data.referenceImageUids?.length || 0,
+        referenceImages: data.referenceImages?.length || 0
+      });
 
       await onSubmit(data);
       onClose(data);
@@ -295,27 +324,32 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
             </div>
           </div>
 
-          {/* Prompt Section */}
+          {/* Main Prompt Section */}
           <div className={styles.section}>
-            <label htmlFor="prompt" className={styles.label}>
-              Transformation Prompt *
+            <label htmlFor="mainPrompt" className={styles.label}>
+              Main Transformation Prompt (Optional)
             </label>
             <textarea
-              id="prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the style transformation you want to apply..."
+              id="mainPrompt"
+              value={mainPrompt}
+              onChange={(e) => setMainPrompt(e.target.value)}
+              placeholder="Overall transformation description (e.g., 'Create a cyberpunk art style')..."
               className={styles.textarea}
-              rows={3}
+              rows={2}
               disabled={submitting}
             />
+            <div className={styles.characterCount}>
+              {mainPrompt.length}/500 characters
+              {mainPrompt.length > 500 && <span className={styles.warning}> (exceeds recommended limit)</span>}
+            </div>
           </div>
+
 
           {/* Reference Images Section */}
           <div className={styles.section}>
             <h3>Reference Images (max 3)</h3>
             <p className={styles.description}>
-              Upload images to guide the transformation style, color, or composition.
+              Upload images and provide specific prompts for how each should influence the transformation.
             </p>
 
             <div className={styles.referenceGrid}>
@@ -359,16 +393,25 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
                   </div>
 
                   {referenceImages[index] && (
-                    <select
-                      value={referenceImages[index].purpose}
-                      onChange={(e) => handlePurposeChange(index, e.target.value as any)}
-                      className={styles.purposeSelect}
-                      disabled={submitting}
-                    >
-                      <option value="style">Style</option>
-                      <option value="color">Color</option>
-                      <option value="composition">Composition</option>
-                    </select>
+                    <div className={styles.referencePromptContainer}>
+                      <label className={styles.referencePromptLabel}>
+                        Prompt for Reference {index + 1}:
+                      </label>
+                      <textarea
+                        value={referencePrompts[index] || ''}
+                        onChange={(e) => handleReferencePromptChange(index, e.target.value)}
+                        placeholder={`How should this reference image influence the transformation? (e.g., "Apply the cyberpunk neon lighting style")`}
+                        className={styles.referencePromptTextarea}
+                        rows={2}
+                        disabled={submitting}
+                      />
+                      <div className={styles.characterCount}>
+                        {(referencePrompts[index] || '').length}/200 characters
+                        {(referencePrompts[index] || '').length > 200 && (
+                          <span className={styles.warning}> (exceeds recommended limit)</span>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
@@ -387,7 +430,11 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
           <button
             className={`${styles.button} ${styles.primaryButton}`}
             onClick={handleSubmit}
-            disabled={submitting || !prompt.trim() || referenceImages.length === 0}
+            disabled={
+              submitting ||
+              (!mainPrompt.trim() && referencePrompts.every(p => !p.trim())) ||
+              referenceImages.length === 0
+            }
           >
             {submitting ? 'Uploading & Processing...' : 'Transform Image'}
           </button>

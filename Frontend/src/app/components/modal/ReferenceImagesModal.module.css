@@ -439,3 +439,61 @@
     width: 100%;
   }
 }
+
+/* Enhanced Reference Images Styles */
+.characterCount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #999999;
+}
+
+.warning {
+  color: #ff6b6b;
+  font-weight: 500;
+}
+
+.referencePromptContainer {
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.referencePromptLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #cccccc;
+}
+
+.referencePromptTextarea {
+  width: 100%;
+  min-height: 60px;
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  color: #ffffff;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.referencePromptTextarea:focus {
+  outline: none;
+  border-color: #0066cc;
+}
+
+.referencePromptTextarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.referencePromptTextarea::placeholder {
+  color: #666666;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}

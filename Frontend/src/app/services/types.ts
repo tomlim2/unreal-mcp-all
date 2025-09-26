@@ -72,6 +72,8 @@ export interface SessionContext {
 // Transform request data
 export interface TransformRequest {
   prompt: string;
+  main_prompt?: string;
+  reference_prompts?: string[];
   model: string;
   sessionId: string;
   referenceImageUids?: string[];

@@ -410,7 +410,7 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
                 command['params']['image_url'] = None
 
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None) -> Dict[str, Any]:
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
     try:
         # Get session manager and session context if session_id provided
         session_manager = None
@@ -546,6 +546,22 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                         command["params"]["session_id"] = session_id
                         logger.debug(f"Added session_id {session_id} to command {command.get('type')}")
 
+                    # Add new prompt fields for enhanced reference images flow
+                    if main_prompt is not None or reference_prompts is not None:
+                        if "params" not in command:
+                            command["params"] = {}
+
+                        if main_prompt is not None:
+                            command["params"]["main_prompt"] = main_prompt
+                            logger.info(f"🎯 Added main_prompt to {command.get('type')}: '{main_prompt}'")
+
+                        if reference_prompts is not None and len(reference_prompts) > 0:
+                            # Filter out empty prompts
+                            non_empty_prompts = [p for p in reference_prompts if p and p.strip()]
+                            if non_empty_prompts:
+                                command["params"]["reference_prompts"] = non_empty_prompts
+                                logger.info(f"🎯 Added {len(non_empty_prompts)} reference_prompts to {command.get('type')}: {non_empty_prompts}")
+
                     # Auto-assign latest image for image-related commands if needed
                     _auto_assign_latest_image_if_needed(command, session_context)
                     
@@ -603,10 +619,10 @@ def register_nlp_tools(mcp):
     pass
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images, target_image_uid)
+        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images, target_image_uid, main_prompt, reference_prompts)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {
@@ -870,6 +886,3 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
         result = registry.execute_command(command, unreal)
     
     return result
-
-
-# Removed legacy function: execute_command_via_mcp() - no longer used anywhere

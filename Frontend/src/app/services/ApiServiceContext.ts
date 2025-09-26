@@ -203,6 +203,21 @@ export function createApiService(): ApiService {
           session_id: data.sessionId,
         };
 
+        // Add new enhanced prompt fields
+        if (data.main_prompt) {
+          requestBody.main_prompt = data.main_prompt;
+        }
+        if (data.reference_prompts && data.reference_prompts.length > 0) {
+          requestBody.reference_prompts = data.reference_prompts;
+        }
+
+        console.log('API Service: Sending transform request with enhanced prompts:', {
+          prompt: data.prompt,
+          main_prompt: data.main_prompt,
+          reference_prompts: data.reference_prompts,
+          referenceImageUids: data.referenceImageUids?.length || 0
+        });
+
         // Add main target image UID if available
         if (latestImageData.success && latestImageData.latest_image.uid) {
           requestBody.target_image_uid = latestImageData.latest_image.uid;
