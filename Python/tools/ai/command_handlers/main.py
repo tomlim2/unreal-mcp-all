@@ -139,6 +139,7 @@ class CommandRegistry:
         from .rendering.screenshot import ScreenshotCommandHandler
         from .nano_banana.image_edit import NanoBananaImageEditHandler
         from .video_generation.video_handler import VideoGenerationHandler
+        from .roblox.roblox_handler import RobloxCommandHandler
 
         handlers = [
             UDSCommandHandler(),
@@ -148,7 +149,8 @@ class CommandRegistry:
             ActorCommandHandler(),
             ScreenshotCommandHandler(),
             NanoBananaImageEditHandler(),
-            VideoGenerationHandler()
+            VideoGenerationHandler(),
+            RobloxCommandHandler()
         ]
         
         for handler in handlers:

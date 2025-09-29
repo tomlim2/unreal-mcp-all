@@ -252,10 +252,10 @@ class PathManager:
 
     def get_reference_images_path(self) -> str:
         """
-        Get the reference images storage path.
+        Get the reference images storage base path.
 
         Returns:
-            str: Reference images base path
+            str: Reference images base path (data_storage/reference_images)
         """
         if 'reference_images' in self._cached_paths:
             return self._cached_paths['reference_images']
@@ -274,58 +274,82 @@ class PathManager:
         self._cached_paths['reference_images'] = ref_path
         return ref_path
 
-    def get_reference_session_path(self, session_id: str) -> str:
+    def get_reference_uid_path(self, uid: str, session_id: Optional[str] = None) -> str:
         """
-        Get the reference images path for a specific session.
+        Get the path for a specific reference image UID.
+
+        New structure: data_storage/reference_images/[session_id]/uid/ or data_storage/reference_images/uid/
+        Each reference gets its own directory containing the image and metadata.
 
         Args:
-            session_id: Session ID
+            uid: Reference UID (e.g., refer_001)
+            session_id: Optional session ID for organization
 
         Returns:
-            str: Session-specific reference images path
+            str: Path to the specific reference directory
         """
-        session_ref_path = os.path.join(self.get_reference_images_path(), session_id)
+        base_path = self.get_reference_images_path()
+
+        if session_id:
+            # Structure: reference_images/session_id/uid/
+            ref_path = os.path.join(base_path, session_id, uid)
+        else:
+            # Structure: reference_images/uid/
+            ref_path = os.path.join(base_path, uid)
 
         if self.config.create_directories:
-            Path(session_ref_path).mkdir(parents=True, exist_ok=True)
+            Path(ref_path).mkdir(parents=True, exist_ok=True)
 
-        return session_ref_path
+        return ref_path
+
 
     def get_3d_objects_path(self) -> str:
         """
-        Get the 3D objects storage path.
+        Get the 3D objects storage base path.
 
         Returns:
-            str: 3D objects base storage path
+            str: 3D objects base storage path (data_storage/object_3d)
         """
-        if '3d_objects' in self._cached_paths:
-            return self._cached_paths['3d_objects']
+        if 'object_3d' in self._cached_paths:
+            return self._cached_paths['object_3d']
 
-        # Use centralized data_storage/3d_objects path
-        objects_path = os.path.join(self.get_data_storage_path(), '3d_objects')
+        # Use centralized data_storage/object_3d path for cleaner organization
+        objects_path = os.path.join(self.get_data_storage_path(), 'object_3d')
 
         if self.config.create_directories:
             Path(objects_path).mkdir(parents=True, exist_ok=True)
 
-        self._cached_paths['3d_objects'] = objects_path
+        self._cached_paths['object_3d'] = objects_path
         return objects_path
 
-    def get_3d_objects_session_path(self, session_id: str) -> str:
+    def get_3d_object_uid_path(self, uid: str, session_id: Optional[str] = None) -> str:
         """
-        Get the 3D objects path for a specific session.
+        Get the path for a specific 3D object UID.
+
+        New structure: data_storage/object_3d/[session_id]/uid/ or data_storage/object_3d/uid/
+        Each object gets its own directory containing .obj, .mtl, textures, and metadata.
 
         Args:
-            session_id: Session ID
+            uid: Object UID (e.g., obj_001)
+            session_id: Optional session ID for organization
 
         Returns:
-            str: Session-specific 3D objects path
+            str: Path to the specific object directory
         """
-        session_objects_path = os.path.join(self.get_3d_objects_path(), session_id)
+        base_path = self.get_3d_objects_path()
+
+        if session_id:
+            # Structure: object_3d/session_id/uid/
+            object_path = os.path.join(base_path, session_id, uid)
+        else:
+            # Structure: object_3d/uid/
+            object_path = os.path.join(base_path, uid)
 
         if self.config.create_directories:
-            Path(session_objects_path).mkdir(parents=True, exist_ok=True)
+            Path(object_path).mkdir(parents=True, exist_ok=True)
 
-        return session_objects_path
+        return object_path
+
 
     def get_unreal_saved_directory(self) -> Optional[str]:
         """
