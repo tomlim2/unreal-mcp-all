@@ -291,6 +291,42 @@ class PathManager:
 
         return session_ref_path
 
+    def get_3d_objects_path(self) -> str:
+        """
+        Get the 3D objects storage path.
+
+        Returns:
+            str: 3D objects base storage path
+        """
+        if '3d_objects' in self._cached_paths:
+            return self._cached_paths['3d_objects']
+
+        # Use centralized data_storage/3d_objects path
+        objects_path = os.path.join(self.get_data_storage_path(), '3d_objects')
+
+        if self.config.create_directories:
+            Path(objects_path).mkdir(parents=True, exist_ok=True)
+
+        self._cached_paths['3d_objects'] = objects_path
+        return objects_path
+
+    def get_3d_objects_session_path(self, session_id: str) -> str:
+        """
+        Get the 3D objects path for a specific session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            str: Session-specific 3D objects path
+        """
+        session_objects_path = os.path.join(self.get_3d_objects_path(), session_id)
+
+        if self.config.create_directories:
+            Path(session_objects_path).mkdir(parents=True, exist_ok=True)
+
+        return session_objects_path
+
     def get_unreal_saved_directory(self) -> Optional[str]:
         """
         Get the Unreal Engine Saved directory path.
@@ -382,6 +418,8 @@ class PathManager:
                 target_dir = self.get_uid_storage_path()
             elif resource_type == 'reference':
                 target_dir = self.get_reference_images_path()
+            elif resource_type == '3d_objects':
+                target_dir = self.get_3d_objects_path()
             elif resource_type == 'screenshot':
                 target_dir = self.get_unreal_screenshots_path() or self.get_temp_processing_path()
             elif resource_type == 'temp':
@@ -459,6 +497,7 @@ class PathManager:
                 self.get_data_storage_path(),
                 self.get_uid_storage_path(),
                 self.get_reference_images_path(),
+                self.get_3d_objects_path(),
                 self.get_temp_processing_path()
             ]
 
@@ -525,6 +564,7 @@ class PathManager:
                     'data_storage': self.get_data_storage_path(),
                     'uid_storage': self.get_uid_storage_path(),
                     'reference_images': self.get_reference_images_path(),
+                    '3d_objects': self.get_3d_objects_path(),
                     'temp_processing': self.get_temp_processing_path(),
                     'unreal_saved': self.get_unreal_saved_directory(),
                     'unreal_screenshots': self.get_unreal_screenshots_path(),
@@ -548,6 +588,7 @@ class PathManager:
                         self.get_data_storage_path(),
                         self.get_uid_storage_path(),
                         self.get_reference_images_path(),
+                        self.get_3d_objects_path(),
                         self.get_temp_processing_path(),
                         self.get_unreal_saved_directory(),
                         self.get_unreal_screenshots_path(),
@@ -597,6 +638,7 @@ class PathManager:
             data_storage = self.get_data_storage_path()
             uid_storage = self.get_uid_storage_path()
             reference_images = self.get_reference_images_path()
+            objects_3d = self.get_3d_objects_path()
             temp_processing = self.get_temp_processing_path()
 
             # Test file operations
