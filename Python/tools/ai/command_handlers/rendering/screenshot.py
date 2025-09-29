@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
-from ...session_management.utils.path_adapters import get_screenshots_path_safe
+from ...session_management.utils.path_manager import get_path_manager
 from ...image_schema_utils import (
     build_screenshot_response,
     build_error_response,
@@ -163,7 +163,8 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         """Find the newest screenshot file in the WindowsEditor directory."""
         try:
             # Get screenshot directory using centralized path management
-            screenshot_dir_path = get_screenshots_path_safe()
+            path_manager = get_path_manager()
+            screenshot_dir_path = path_manager.get_unreal_screenshots_path()
             if not screenshot_dir_path:
                 logger.warning("Unable to determine screenshot directory path - cannot find screenshot files")
                 return None

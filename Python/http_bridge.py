@@ -17,11 +17,7 @@ from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 import threading
 from typing import Dict, Any, Optional, List
-from tools.ai.session_management.utils.path_adapters import (
-    get_unreal_project_path_safe,
-    get_screenshots_path_safe,
-    get_styled_images_path_safe
-)
+from tools.ai.session_management.utils.path_manager import get_path_manager
 
 # Load environment variables from .env file
 try:
@@ -220,9 +216,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 # Handle screenshot files
                 if endpoint_type in ['screenshot-file', 'screenshot']:
                     try:
-                        # Get screenshot directories using centralized path management
-                        screenshot_dir_path = get_screenshots_path_safe()
-                        styled_dir_path = get_styled_images_path_safe()
+                        # Get screenshot directories using direct PathManager
+                        path_manager = get_path_manager()
+                        screenshot_dir_path = path_manager.get_unreal_screenshots_path()
+                        styled_dir_path = path_manager.get_unreal_styled_images_path()
 
                         if not screenshot_dir_path or not styled_dir_path:
                             self.send_response(500)
@@ -266,8 +263,9 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 # Handle video files
                 elif endpoint_type in ['video-file', 'video']:
                     try:
-                        # Get project path using centralized path management
-                        project_path = get_unreal_project_path_safe()
+                        # Get project path using direct PathManager
+                        path_manager = get_path_manager()
+                        project_path = path_manager.get_unreal_project_path()
                         if not project_path:
                             self.send_response(500)
                             self.send_header('Access-Control-Allow-Origin', '*')
@@ -328,8 +326,9 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     if endpoint_type in ['screenshot-file', 'screenshot']:
                         try:
                             # Get screenshot directories using centralized path management
-                            screenshot_dir_path = get_screenshots_path_safe()
-                            styled_dir_path = get_styled_images_path_safe()
+                            path_manager = get_path_manager()
+                            screenshot_dir_path = path_manager.get_unreal_screenshots_path()
+                            styled_dir_path = path_manager.get_unreal_styled_images_path()
 
                             if not screenshot_dir_path or not styled_dir_path:
                                 self._send_error("Unable to determine screenshot directory paths")
@@ -366,8 +365,9 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Handle video files
                     elif endpoint_type in ['video-file', 'video']:
                         try:
-                            # Get project path using centralized path management
-                            project_path = get_unreal_project_path_safe()
+                            # Get project path using direct PathManager
+                            path_manager = get_path_manager()
+                            project_path = path_manager.get_unreal_project_path()
                             if not project_path:
                                 self._send_error("Unable to determine Unreal project path")
                                 return

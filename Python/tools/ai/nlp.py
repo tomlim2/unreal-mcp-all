@@ -25,10 +25,7 @@ import sys
 from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
 from .command_handlers import get_command_registry
-from .session_management.utils.path_adapters import (
-    get_screenshots_path_safe,
-    get_styled_images_path_safe
-)
+from .session_management.utils.path_manager import get_path_manager
 
 # Load environment variables from .env file
 try:
@@ -117,8 +114,9 @@ def _resolve_image_path(filename: str) -> str:
     import os
 
     # Get project paths using centralized path management (with built-in fallbacks)
-    screenshots_dir_path = get_screenshots_path_safe()
-    styled_dir_path = get_styled_images_path_safe()
+    path_manager = get_path_manager()
+    screenshots_dir_path = path_manager.get_unreal_screenshots_path()
+    styled_dir_path = path_manager.get_unreal_styled_images_path()
 
     # If centralized path management fails completely, return filename as-is
     if not screenshots_dir_path or not styled_dir_path:

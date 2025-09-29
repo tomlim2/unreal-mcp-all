@@ -1,9 +1,3 @@
-"""
-Nano Banana image editing handler.
-
-Handles Google Gemini Nano Banana image editing operations.
-"""
-
 import logging
 import os
 import base64
@@ -13,10 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
-from ...session_management.utils.path_adapters import (
-    get_styled_images_path_safe,
-    get_screenshots_path_safe
-)
+from ...session_management.utils.path_manager import get_path_manager
 from ...pricing_manager import get_pricing_manager
 from ...image_schema_utils import (
     build_transform_response,
@@ -551,7 +542,8 @@ Generate the image with minimal changes."""
         """Create a placeholder styled image by copying the original."""
         try:
             # Create styled directory using centralized path management
-            styled_dir_path = get_styled_images_path_safe()
+            path_manager = get_path_manager()
+            styled_dir_path = path_manager.get_unreal_styled_images_path()
             if not styled_dir_path:
                 raise Exception("Unable to determine styled images directory path")
 
@@ -583,7 +575,8 @@ Generate the image with minimal changes."""
         """Save the Gemini generated image to the styled screenshots directory."""
         try:
             # Create styled directory using centralized path management
-            styled_dir_path = get_styled_images_path_safe()
+            path_manager = get_path_manager()
+            styled_dir_path = path_manager.get_unreal_styled_images_path()
             if not styled_dir_path:
                 raise Exception("Unable to determine styled images directory path")
 
@@ -639,7 +632,8 @@ Generate the image with minimal changes."""
         """Find the newest screenshot file in the WindowsEditor directory."""
         try:
             # Get screenshot directory using centralized path management
-            screenshot_dir_path = get_screenshots_path_safe()
+            path_manager = get_path_manager()
+            screenshot_dir_path = path_manager.get_unreal_screenshots_path()
             if not screenshot_dir_path:
                 logger.warning("Unable to determine screenshot directory path - cannot find screenshot files")
                 return None

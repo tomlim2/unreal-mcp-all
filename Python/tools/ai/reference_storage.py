@@ -11,7 +11,7 @@ import base64
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from .reference_uid_manager import generate_reference_uid, add_reference_mapping, get_reference_mapping
-from .session_management.utils.path_adapters import ReferenceStorageAdapter
+from .session_management.utils.path_manager import get_path_manager
 
 logger = logging.getLogger("UnrealMCP")
 
@@ -19,15 +19,22 @@ logger = logging.getLogger("UnrealMCP")
 class ReferenceStorage:
     """Manages reference image storage with UID-based access."""
 
-    def __init__(self, base_storage_path: str = "reference_images"):
-        # Use adapter for backward-compatible path management
-        self._adapter = ReferenceStorageAdapter(base_storage_path)
-        self.base_path = self._adapter.get_base_path()
-        self.base_path.mkdir(exist_ok=True)
+    def __init__(self, base_storage_path: str = None):
+        # Use direct PathManager for centralized path management
+        path_manager = get_path_manager()
+        if base_storage_path is None:
+            self.base_path = Path(path_manager.get_reference_images_path())
+        else:
+            # Legacy support: use provided path but ensure it exists
+            self.base_path = Path(base_storage_path)
+        self.base_path.mkdir(parents=True, exist_ok=True)
 
     def get_session_path(self, session_id: str) -> Path:
         """Get storage path for a specific session."""
-        return self._adapter.get_session_path(session_id)
+        path_manager = get_path_manager()
+        session_path = Path(path_manager.get_reference_session_path(session_id))
+        session_path.mkdir(parents=True, exist_ok=True)
+        return session_path
 
     def store_reference_image(
         self,

@@ -15,6 +15,7 @@ import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Any
+from .session_management.utils.path_manager import get_path_manager
 
 logger = logging.getLogger("UnrealMCP")
 
@@ -29,7 +30,12 @@ class UIDManager:
     - Atomic file operations for reliability
     """
 
-    def __init__(self, storage_file: str = "data_storage/uid/uid_state.json"):
+    def __init__(self, storage_file: str = None):
+        # Use PathManager for centralized UID storage path
+        if storage_file is None:
+            path_manager = get_path_manager()
+            uid_storage_dir = path_manager.get_uid_storage_path()
+            storage_file = str(Path(uid_storage_dir) / "uid_state.json")
         self._storage_file = Path(storage_file)
         self._img_counter = 0
         self._vid_counter = 0
