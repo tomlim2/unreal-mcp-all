@@ -7,10 +7,13 @@ from typing import Dict, List, Optional
 import requests
 
 class RobloxAvatar3DDownloader:
-    def __init__(self, download_folder: str = "real_3d_avatars"):
+    def __init__(self, download_folder: str = "real_3d_avatars", progress_callback=None):
 		# 다운로드 폴더 준비
         self.download_folder = Path(download_folder)
         self.download_folder.mkdir(parents=True, exist_ok=True)
+
+        # Progress callback for integration with async jobs
+        self.progress_callback = progress_callback
 
         # 세션 생성
         self.session = requests.Session()
@@ -234,6 +237,14 @@ class RobloxAvatar3DDownloader:
                 candidates.append(u)
 
         print(f"➡️ {file_type} 다운로드 시도...")
+
+        # Notify progress callback if available
+        if self.progress_callback:
+            try:
+                self.progress_callback("downloading", file_type)
+            except:
+                pass  # Don't fail download if callback fails
+
         for i, url in enumerate(candidates):
             try:
                 label = "기본 서버" if i == 0 else f"대체 서버 #{i}"
@@ -246,6 +257,14 @@ class RobloxAvatar3DDownloader:
                                 f.write(chunk)
                     if file_path.exists() and file_path.stat().st_size > 0:
                         print(f"   ✅ {file_type} 다운로드 완료: {file_path}")
+
+                        # Notify progress callback of successful download
+                        if self.progress_callback:
+                            try:
+                                self.progress_callback("completed", file_type)
+                            except:
+                                pass
+
                         return True
                     else:
                         print("   ⚠️ 빈 파일, 다음 서버 시도")
@@ -266,6 +285,14 @@ class RobloxAvatar3DDownloader:
                 time.sleep(0.4)
 
         print(f"   💔 모든 CDN 서버에서 {file_type} 다운로드 실패")
+
+        # Notify progress callback of failed download
+        if self.progress_callback:
+            try:
+                self.progress_callback("failed", file_type)
+            except:
+                pass
+
         return False
 
     # ----------------------
@@ -282,6 +309,13 @@ class RobloxAvatar3DDownloader:
         """
         print(f"🎯 유저 ID {user_id}의 완전한 3D 아바타 다운로드 시작...")
 
+        # Notify progress callback of start
+        if self.progress_callback:
+            try:
+                self.progress_callback("started", f"user_{user_id}")
+            except:
+                pass
+
         user_info = self.get_user_info(user_id)
         if not user_info:
             return False
@@ -290,9 +324,23 @@ class RobloxAvatar3DDownloader:
         display_name = user_info.get("displayName", username)
         print(f"👤 {display_name} (@{username})")
 
+        # Notify progress callback of user resolution
+        if self.progress_callback:
+            try:
+                self.progress_callback("user_resolved", username)
+            except:
+                pass
+
         metadata = self.get_avatar_3d_metadata(user_id)
         if not metadata:
             return False
+
+        # Notify progress callback of metadata fetch
+        if self.progress_callback:
+            try:
+                self.progress_callback("metadata_fetched", f"{username}_metadata")
+            except:
+                pass
 
         # 폴더 준비
         user_folder = self.download_folder / f"{username}_{user_id}_3D"

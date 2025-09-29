@@ -20,6 +20,7 @@ from .actor.actor import ActorCommandHandler
 from .rendering.screenshot import ScreenshotCommandHandler
 from .nano_banana.image_edit import NanoBananaImageEditHandler
 from .video_generation.video_handler import VideoGenerationHandler
+from .roblox.roblox_handler import RobloxCommandHandler
 
 __all__ = [
     'BaseCommandHandler',
@@ -32,5 +33,6 @@ __all__ = [
     'ActorCommandHandler',
     'ScreenshotCommandHandler',
     'NanoBananaImageEditHandler',
-    'VideoGenerationHandler'
+    'VideoGenerationHandler',
+    'RobloxCommandHandler'
 ]

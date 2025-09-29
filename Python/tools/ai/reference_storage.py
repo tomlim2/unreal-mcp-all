@@ -32,7 +32,8 @@ class ReferenceStorage:
     def get_session_path(self, session_id: str) -> Path:
         """Get storage path for a specific session."""
         path_manager = get_path_manager()
-        session_path = Path(path_manager.get_reference_session_path(session_id))
+        # Use the reference images base path + session for compatibility
+        session_path = Path(path_manager.get_reference_images_path()) / session_id
         session_path.mkdir(parents=True, exist_ok=True)
         return session_path
 

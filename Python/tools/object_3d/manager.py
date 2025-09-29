@@ -152,8 +152,9 @@ class Object3DManager:
             # Generate UID
             obj_uid = generate_object_uid()
 
-            # Get session storage path
-            session_path = Path(self.path_manager.get_3d_objects_session_path(session_id))
+            # Get UID-specific storage path using new PathManager method
+            uid_path = self.path_manager.get_3d_object_uid_path(obj_uid, session_id)
+            session_path = Path(uid_path).parent  # Get parent to maintain compatibility with existing logic
 
             # Determine file naming strategy
             file_extension = source_path.suffix.lower()
@@ -257,8 +258,9 @@ class Object3DManager:
                 logger.warning(f"No session_id in mapping for obj_uid: {obj_uid}")
                 return None
 
-            # Load metadata
-            session_path = Path(self.path_manager.get_3d_objects_session_path(session_id))
+            # Load metadata using new UID-based path
+            uid_path = self.path_manager.get_3d_object_uid_path(obj_uid, session_id)
+            session_path = Path(uid_path).parent  # Get parent to maintain compatibility
             metadata_path = session_path / f"{obj_uid}_meta.json"
 
             if not metadata_path.exists():

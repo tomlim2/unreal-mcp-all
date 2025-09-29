@@ -314,8 +314,48 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             parsed_url = urlparse(self.path)
             path = parsed_url.path
             
+            # Handle Roblox status endpoints first
+            if path.startswith('/api/roblox-status/'):
+                # Handle Roblox download status check
+                path_parts = path.split('/')
+                if len(path_parts) >= 4 and path_parts[2] == 'roblox-status':
+                    uid = path_parts[3]
+                    self._handle_roblox_status(uid)
+                    return
+                else:
+                    self._send_error("Invalid Roblox status endpoint format")
+                    return
+
+            elif path.startswith('/api/roblox-cancel/'):
+                # Handle Roblox download cancellation
+                path_parts = path.split('/')
+                if len(path_parts) >= 4 and path_parts[2] == 'roblox-cancel':
+                    uid = path_parts[3]
+                    self._handle_roblox_cancel(uid)
+                    return
+                else:
+                    self._send_error("Invalid Roblox cancel endpoint format")
+                    return
+
+            elif path.startswith('/api/roblox-file/'):
+                # Handle Roblox file serving
+                path_parts = path.split('/')
+                if len(path_parts) >= 5 and path_parts[2] == 'roblox-file':
+                    uid = path_parts[3]
+                    file_type = path_parts[4]
+                    self._handle_roblox_file(uid, file_type)
+                    return
+                else:
+                    self._send_error("Invalid Roblox file endpoint format")
+                    return
+
+            elif path.startswith('/api/roblox-cleanup'):
+                # Handle Roblox cleanup operations
+                self._handle_roblox_cleanup()
+                return
+
             # Handle file requests first (before sending any headers)
-            if path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/') or path.startswith('/api/video-file/') or path.startswith('/api/video/'):
+            elif path.startswith('/api/screenshot-file/') or path.startswith('/api/screenshot/') or path.startswith('/api/video-file/') or path.startswith('/api/video/'):
                 # Handle screenshot and video file serving
                 path_parts = path.split('/')
                 if len(path_parts) == 4 and path_parts[1] == 'api':
@@ -1186,6 +1226,82 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         except Exception as e:
             logger.error(f"Error serving file {file_path}: {e}")
             self._send_error(f"Error serving file: {e}")
+
+    def _handle_roblox_status(self, uid: str):
+        """Handle Roblox download status check"""
+        try:
+            from api.roblox_status import get_roblox_download_status
+
+            status = get_roblox_download_status(uid)
+
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+
+            response_json = json.dumps(status, cls=SafeJSONEncoder)
+            self.wfile.write(response_json.encode('utf-8'))
+            logger.info(f"Served Roblox download status for: {uid}")
+
+        except Exception as e:
+            logger.error(f"Error getting Roblox status for {uid}: {e}")
+            self._send_error(f"Error getting download status: {e}")
+
+    def _handle_roblox_cancel(self, uid: str):
+        """Handle Roblox download cancellation"""
+        try:
+            from api.roblox_status import cancel_roblox_download
+
+            result = cancel_roblox_download(uid)
+
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+
+            response_json = json.dumps(result, cls=SafeJSONEncoder)
+            self.wfile.write(response_json.encode('utf-8'))
+            logger.info(f"Cancelled Roblox download: {uid}")
+
+        except Exception as e:
+            logger.error(f"Error cancelling Roblox download {uid}: {e}")
+            self._send_error(f"Error cancelling download: {e}")
+
+    def _handle_roblox_file(self, uid: str, file_type: str):
+        """Handle Roblox file serving"""
+        try:
+            from api.roblox_status import get_roblox_file
+
+            file_path = get_roblox_file(uid, file_type)
+            if file_path:
+                logger.info(f"Serving Roblox file: {uid}/{file_type} -> {file_path}")
+                self._serve_file(file_path)
+            else:
+                self._send_error(f"Roblox file not found: {uid}/{file_type}")
+
+        except Exception as e:
+            logger.error(f"Error serving Roblox file {uid}/{file_type}: {e}")
+            self._send_error(f"Error serving file: {e}")
+
+    def _handle_roblox_cleanup(self):
+        """Handle Roblox cleanup operations"""
+        try:
+            from api.roblox_status import cleanup_roblox_jobs
+
+            result = cleanup_roblox_jobs(24)  # Clean up jobs older than 24 hours
+
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+
+            response_json = json.dumps(result, cls=SafeJSONEncoder)
+            self.wfile.write(response_json.encode('utf-8'))
+            logger.info("Completed Roblox cleanup operation")
+
+        except Exception as e:
+            logger.error(f"Error during Roblox cleanup: {e}")
+            self._send_error(f"Error during cleanup: {e}")
 
     def _send_error(self, error_message: str):
         """Send an error response"""
