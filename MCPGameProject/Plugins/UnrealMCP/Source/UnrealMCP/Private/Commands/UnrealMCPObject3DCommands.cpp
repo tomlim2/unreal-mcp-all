@@ -8,7 +8,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/PackageName.h"
 #include "FileHelpers.h"
-#include "IPythonScriptPlugin.h"  // For executing Python import scripts
+#include "Engine/StaticMesh.h"
 
 FUnrealMCPObject3DCommands::FUnrealMCPObject3DCommands()
 {
@@ -117,59 +117,56 @@ TSharedPtr<FJsonObject> FUnrealMCPObject3DCommands::HandleImportObject3DByUID(co
 
 		UE_LOG(LogTemp, Display, TEXT("Package Path (Plugin Content): %s"), *PackagePath);
 
-		// Use Python-based import to avoid Game Thread deadlock
-		// Python runs outside Game Thread, potentially preventing the freeze issue
-		UE_LOG(LogTemp, Display, TEXT("Using Python-based import to avoid Game Thread blocking"));
+		// Use native C++ AssetImportTask for direct import (FBX works without freezing!)
+		UE_LOG(LogTemp, Display, TEXT("Using native C++ AssetImportTask for %s import"), *MeshFormat.ToUpper());
 
-		// Get Python plugin
-		IPythonScriptPlugin* PythonPlugin = FModuleManager::LoadModulePtr<IPythonScriptPlugin>("PythonScriptPlugin");
-		if (!PythonPlugin)
+		// Get AssetTools module
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		IAssetTools& AssetTools = AssetToolsModule.Get();
+
+		// Create import task
+		UAssetImportTask* ImportTask = NewObject<UAssetImportTask>();
+		ImportTask->Filename = MeshFilePath;
+		ImportTask->DestinationPath = PackagePath;
+		ImportTask->bSave = true;
+		ImportTask->bAutomated = true;
+		ImportTask->bReplaceExisting = false;
+		ImportTask->bReplaceExistingSettings = false;
+
+		UE_LOG(LogTemp, Display, TEXT("Import Task Configuration:"));
+		UE_LOG(LogTemp, Display, TEXT("  - Filename: %s"), *ImportTask->Filename);
+		UE_LOG(LogTemp, Display, TEXT("  - Destination: %s"), *ImportTask->DestinationPath);
+		UE_LOG(LogTemp, Display, TEXT("  - Automated: %s"), ImportTask->bAutomated ? TEXT("true") : TEXT("false"));
+
+		// Execute import
+		UE_LOG(LogTemp, Display, TEXT("Executing AssetTools.ImportAssetTasks()..."));
+		AssetTools.ImportAssetTasks({ ImportTask });
+		UE_LOG(LogTemp, Display, TEXT("Import task completed!"));
+
+		// Check import results
+		if (ImportTask->ImportedObjectPaths.Num() > 0)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Python Script Plugin not available"));
+			FullAssetPath = ImportTask->ImportedObjectPaths[0];
+			UE_LOG(LogTemp, Display, TEXT("✅ Import successful: %s"), *FullAssetPath);
+
+			// Try to load the imported asset
+			ImportedMesh = Cast<UStaticMesh>(UEditorAssetLibrary::LoadAsset(FullAssetPath));
+			if (ImportedMesh)
+			{
+				UE_LOG(LogTemp, Display, TEXT("✅ Asset loaded successfully as StaticMesh"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("⚠️ Asset imported but could not be loaded as StaticMesh"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("❌ Import failed: No objects were imported"));
 			return FUnrealMCPCommonUtils::CreateErrorResponse(
-				TEXT("Python Script Plugin not loaded. Please enable it in Project Settings -> Plugins")
+				FString::Printf(TEXT("Failed to import %s file: %s"), *MeshFormat.ToUpper(), *MeshFilePath)
 			);
 		}
-
-		// Build Python script path - use format-agnostic import script
-		FString PluginBaseDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir() / TEXT("UnrealMCP"));
-		FString PythonScriptPath = PluginBaseDir / TEXT("Content/Python/import_mesh_asset.py");
-
-		UE_LOG(LogTemp, Display, TEXT("Python script path: %s"), *PythonScriptPath);
-
-		// Convert Windows paths to Python-friendly format (forward slashes)
-		FString MeshFilePathForPython = MeshFilePath.Replace(TEXT("\\"), TEXT("/"));
-		FString PackagePathForPython = PackagePath.Replace(TEXT("\\"), TEXT("/"));
-
-		// Build Python command to execute
-		// Use exec() to run the file directly, which avoids module import issues
-		FString PythonCommand = FString::Printf(
-			TEXT("exec(open(r'%s').read()); import_mesh(r'%s', '%s')"),
-			*PythonScriptPath,
-			*MeshFilePathForPython,
-			*PackagePathForPython
-		);
-
-		UE_LOG(LogTemp, Display, TEXT("Executing Python command: %s"), *PythonCommand);
-
-		// Execute Python import (runs outside Game Thread)
-		bool bPythonSuccess = PythonPlugin->ExecPythonCommand(*PythonCommand);
-
-		if (!bPythonSuccess)
-		{
-			UE_LOG(LogTemp, Error, TEXT("Python command execution failed"));
-			return FUnrealMCPCommonUtils::CreateErrorResponse(
-				TEXT("Failed to execute Python import command")
-			);
-		}
-
-		// Note: Python import runs asynchronously, so we can't get immediate results
-		// We return success immediately and Python will log the actual import result
-		UE_LOG(LogTemp, Display, TEXT("Python import command sent successfully"));
-		UE_LOG(LogTemp, Display, TEXT("Check Unreal Python logs for actual import status"));
-
-		// Construct expected asset path for response
-		FullAssetPath = FString::Printf(TEXT("%s/%s"), *PackagePath, *AssetName);
 	}
 
 	// Step 6: Build simplified success response
