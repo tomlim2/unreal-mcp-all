@@ -76,8 +76,7 @@ export interface TransformRequest {
   reference_prompts?: string[];
   model: string;
   sessionId: string;
-  referenceImageUids?: string[];
-  referenceImages?: Array<{preview: string; purpose: string; file: File}>;
+  referenceImageData?: Array<{data: string; mime_type: string}>;
 }
 
 // API Service Interface

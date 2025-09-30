@@ -249,7 +249,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 							prompt: data.prompt,
 							main_prompt: data.main_prompt,
 							reference_prompts: data.reference_prompts,
-							referenceImageUids: data.referenceImageUids?.length || 0
+							referenceImageData: data.referenceImageData?.length || 0
 						});
 						await onTransformSubmit({
 							prompt: data.prompt,
@@ -257,8 +257,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 							reference_prompts: data.reference_prompts,
 							model: selectedLlm,
 							sessionId,
-							referenceImageUids: data.referenceImageUids,
-							referenceImages: data.referenceImages
+							referenceImageData: data.referenceImageData
 						});
 						onRefreshContext();
 					} catch (err) {

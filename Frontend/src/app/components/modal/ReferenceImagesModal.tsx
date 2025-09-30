@@ -111,39 +111,12 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     setReferenceImages(newReferenceImages);
   };
 
-  // Upload reference image and get refer_uid
-  const uploadReferenceImage = async (file: File, purpose: string): Promise<string> => {
+  // Convert file to base64 data URI
+  const fileToDataUri = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64Data = (reader.result as string).split(',')[1];
-          const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
-
-          const response = await fetch(`http://localhost:${httpBridgePort}/api/reference-images`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              action: 'upload_reference_image',
-              session_id: sessionId,
-              image_data: base64Data,
-              purpose,
-              mime_type: file.type
-            })
-          });
-
-          const data = await response.json();
-
-          if (data.success && data.refer_uid) {
-            resolve(data.refer_uid);
-          } else {
-            reject(new Error(data.error || 'Failed to upload reference image'));
-          }
-        } catch (error) {
-          reject(error);
-        }
+      reader.onload = () => {
+        resolve(reader.result as string); // Returns "data:image/png;base64,..."
       };
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsDataURL(file);
@@ -181,7 +154,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     setReferencePrompts(newReferencePrompts);
   };
 
-  // Handle submit - upload all images at once
+  // Handle submit - send images directly with transformation request
   const handleSubmit = async () => {
     if (!latestImage?.available || !latestImage.uid) {
       alert('No target image available');
@@ -196,17 +169,20 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     setSubmitting(true);
 
     try {
-      // Upload all reference images to get refer_uids
-      const referenceImageUids = [];
+      // Convert all reference images to base64 data URIs
+      const referenceImageData = [];
 
       for (let i = 0; i < referenceImages.length; i++) {
         const refImage = referenceImages[i];
         try {
-          const refer_uid = await uploadReferenceImage(refImage.file, refImage.purpose);
-          referenceImageUids.push(refer_uid);
+          const dataUri = await fileToDataUri(refImage.file);
+          referenceImageData.push({
+            data: dataUri,
+            mime_type: refImage.file.type
+          });
         } catch (error) {
-          console.error(`Failed to upload reference image ${i + 1}:`, error);
-          alert(`Failed to upload reference image ${i + 1}. Please try again.`);
+          console.error(`Failed to convert reference image ${i + 1}:`, error);
+          alert(`Failed to process reference image ${i + 1}. Please try again.`);
           setSubmitting(false);
           return;
         }
@@ -228,17 +204,15 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         main_prompt: mainPrompt.trim() || undefined, // NEW: Optional main prompt
         reference_prompts: activeReferencePrompts, // NEW: Individual prompts per image
         targetImageUid: latestImage.uid,
-        referenceImages, // Keep for legacy compatibility
-        referenceImageUids // New UID-based field
+        referenceImageData // NEW: Direct image data (replaces referenceImageUids)
       };
 
-      console.log('ReferenceImagesModal: Submitting data with enhanced prompts:', {
+      console.log('ReferenceImagesModal: Submitting data with direct images:', {
         prompt: data.prompt,
         main_prompt: data.main_prompt,
         reference_prompts: data.reference_prompts,
         targetImageUid: data.targetImageUid,
-        referenceImageUids: data.referenceImageUids?.length || 0,
-        referenceImages: data.referenceImages?.length || 0
+        referenceImageData: data.referenceImageData?.length || 0
       });
 
       await onSubmit(data);

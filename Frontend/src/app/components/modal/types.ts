@@ -86,19 +86,21 @@ export interface CustomModalConfig extends BaseModalConfig {
 // Reference Images modal types
 export interface ReferenceImageUpload {
   file: File;
-  purpose: 'style' | 'color' | 'composition';
+  purpose: 'style' | 'color' | 'composition'; // Legacy field, not used
   preview?: string;
-  refer_uid?: string; // Added for UID-based system
-  uploading?: boolean; // Track upload state
+}
+
+export interface ReferenceImageData {
+  data: string; // base64 data URI
+  mime_type: string;
 }
 
 export interface ReferenceImagesData {
   prompt: string; // Keep for backward compatibility
-  main_prompt?: string; // NEW: Optional main prompt
-  reference_prompts?: string[]; // NEW: Individual prompts per image
+  main_prompt?: string; // Optional main transformation prompt
+  reference_prompts?: string[]; // Individual prompts per image
   targetImageUid: string;
-  referenceImages: ReferenceImageUpload[];
-  referenceImageUids?: string[]; // New UID-based field
+  referenceImageData?: ReferenceImageData[]; // Direct image data (new approach)
 }
 
 export interface ReferenceImagesModalConfig extends BaseModalConfig {
