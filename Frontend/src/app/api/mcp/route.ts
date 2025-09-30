@@ -6,7 +6,7 @@ const MCP_HTTP_BRIDGE_URL = `http://127.0.0.1:${MCP_HTTP_BRIDGE_PORT}`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, context, session_id, llm_model, images, reference_images, reference_image_uids, target_image_uid } = await request.json();
+    const { prompt, context, session_id, llm_model, images, reference_images, reference_image_uids, target_image_uid, main_prompt, reference_prompts } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -19,6 +19,15 @@ export async function POST(request: NextRequest) {
       llm_model,
       session_id
     };
+
+    // Add new enhanced prompt fields
+    if (main_prompt) {
+      requestBody.main_prompt = main_prompt;
+    }
+
+    if (reference_prompts && Array.isArray(reference_prompts) && reference_prompts.length > 0) {
+      requestBody.reference_prompts = reference_prompts;
+    }
 
     // Add target_image_uid if provided (new UID-based system for main target image)
     if (target_image_uid) {

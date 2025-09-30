@@ -193,11 +193,6 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
       return;
     }
 
-    if (referenceImages.length === 0) {
-      alert('Please upload at least one reference image');
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -221,6 +216,12 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
       const activeReferencePrompts = referenceImages.map((_, index) =>
         referencePrompts[index] || ''
       );
+
+      console.log('🔍 DEBUG Reference Prompts:', {
+        referencePromptsState: referencePrompts,
+        referenceImagesCount: referenceImages.length,
+        activeReferencePrompts: activeReferencePrompts
+      });
 
       const data: ReferenceImagesData = {
         prompt: mainPrompt.trim() || 'Transform using reference images', // Minimal backward compatibility
@@ -326,9 +327,6 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
 
           {/* Main Prompt Section */}
           <div className={styles.section}>
-            <label htmlFor="mainPrompt" className={styles.label}>
-              Main Transformation Prompt (Optional)
-            </label>
             <textarea
               id="mainPrompt"
               value={mainPrompt}
@@ -432,8 +430,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
             onClick={handleSubmit}
             disabled={
               submitting ||
-              (!mainPrompt.trim() && referencePrompts.every(p => !p.trim())) ||
-              referenceImages.length === 0
+              (!mainPrompt.trim() && referencePrompts.every(p => !p.trim()))
             }
           >
             {submitting ? 'Uploading & Processing...' : 'Transform Image'}
