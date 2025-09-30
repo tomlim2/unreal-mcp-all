@@ -78,8 +78,8 @@ TSharedPtr<FJsonObject> FUnrealMCPActorCommands::HandleCommand(const FString& Co
 	{
 		return HandleDeleteMMControlLight(Params);
 	}
-	
-	
+
+
 	return FUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown actor command: %s"), *CommandType));
 }
 

@@ -323,21 +323,32 @@ class PathManager:
         """
         Get the path for a specific 3D object UID.
 
-        Assets structure: assets/objects3d/obj/uid/
-        Each object gets its own directory containing .obj, .mtl, textures, and metadata.
+        Assets structure:
+        - OBJ format: assets/objects3d/obj/uid/
+        - FBX format: assets/objects3d/fbx/uid/
+
+        Each object gets its own directory containing mesh files, textures, and metadata.
         Session information is stored in metadata, not directory structure.
 
         Args:
-            uid: Object UID (e.g., obj_001)
+            uid: Object UID (e.g., obj_001 or fbx_001)
             session_id: Optional session ID (stored in metadata, not used for path)
 
         Returns:
             str: Path to the specific object directory
         """
-        base_path = self.get_3d_objects_path()
+        # Detect format from UID prefix
+        if uid.startswith('fbx_'):
+            format_dir = 'fbx'
+        elif uid.startswith('obj_'):
+            format_dir = 'obj'
+        else:
+            # Default to obj for backwards compatibility
+            format_dir = 'obj'
 
-        # Assets use flat UID structure without session hierarchy
-        object_path = os.path.join(base_path, uid)
+        # Build path: assets/objects3d/{format}/uid/
+        base_storage = self.get_data_storage_path()
+        object_path = os.path.join(base_storage, 'assets', 'objects3d', format_dir, uid)
 
         if self.config.create_directories:
             Path(object_path).mkdir(parents=True, exist_ok=True)

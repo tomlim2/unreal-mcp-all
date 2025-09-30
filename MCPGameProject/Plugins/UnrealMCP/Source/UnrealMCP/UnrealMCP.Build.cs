@@ -56,8 +56,10 @@ public class UnrealMCP : ModuleRules
 				"PropertyEditor",
 				"Projects",
 				"AssetRegistry",
-				"ContentBrowser"
-				// ... add private dependencies that you statically link with here ...	
+				"ContentBrowser",
+				"AssetTools",
+				"PythonScriptPlugin"  // For executing Python import scripts
+				// ... add private dependencies that you statically link with here ...
 			}
 		);
 		

@@ -21,6 +21,7 @@ from .rendering.screenshot import ScreenshotCommandHandler
 from .nano_banana.image_edit import NanoBananaImageEditHandler
 from .video_generation.video_handler import VideoGenerationHandler
 from .roblox.roblox_handler import RobloxCommandHandler
+from .asset.import_object3d import Object3DImportHandler
 
 __all__ = [
     'BaseCommandHandler',
@@ -34,5 +35,6 @@ __all__ = [
     'ScreenshotCommandHandler',
     'NanoBananaImageEditHandler',
     'VideoGenerationHandler',
-    'RobloxCommandHandler'
+    'RobloxCommandHandler',
+    'Object3DImportHandler'
 ]

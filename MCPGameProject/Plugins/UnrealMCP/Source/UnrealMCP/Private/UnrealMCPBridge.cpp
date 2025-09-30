@@ -56,6 +56,7 @@
 #include "Commands/UnrealMCPBlueprintCommands.h"
 #include "Commands/UnrealMCPBlueprintNodeCommands.h"
 #include "Commands/UnrealMCPRenderingCommands.h"
+#include "Commands/UnrealMCPObject3DCommands.h"
 #include "Commands/UnrealMCPCommonUtils.h"
 
 // Default settings
@@ -80,6 +81,7 @@ void UUnrealMCPBridge::Initialize(FSubsystemCollectionBase& Collection)
     BlueprintCommands = MakeShared<FUnrealMCPBlueprintCommands>();
     BlueprintNodeCommands = MakeShared<FUnrealMCPBlueprintNodeCommands>();
     RenderingCommands = MakeShared<FUnrealMCPRenderingCommands>();
+    Object3DCommands = MakeShared<FUnrealMCPObject3DCommands>();
 
     // Start the server automatically
     StartServer();
@@ -213,10 +215,10 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
                 ResultJson->SetStringField(TEXT("message"), TEXT("pong"));
             }
             // Actor Commands
-            else if (CommandType == TEXT("get_actors_in_level") || 
+            else if (CommandType == TEXT("get_actors_in_level") ||
                      CommandType == TEXT("find_actors_by_name") ||
-                     CommandType == TEXT("create_actor") || 
-                     CommandType == TEXT("delete_actor") || 
+                     CommandType == TEXT("create_actor") ||
+                     CommandType == TEXT("delete_actor") ||
                      CommandType == TEXT("set_actor_transform") ||
                      CommandType == TEXT("get_actor_properties") ||
                      CommandType == TEXT("get_time_of_day") ||
@@ -235,6 +237,11 @@ FString UUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const TShar
                      CommandType == TEXT("select_visible_actors"))
             {
                 ResultJson = ActorCommands->HandleCommand(CommandType, Params);
+            }
+            // 3D Object Commands
+            else if (CommandType == TEXT("import_object3d_by_uid"))
+            {
+                ResultJson = Object3DCommands->HandleCommand(CommandType, Params);
             }
             // Editor Commands
             else if (CommandType == TEXT("focus_viewport"))
