@@ -148,10 +148,6 @@ def _validate_and_process_images(images: List[Dict[str, Any]]) -> List[Dict[str,
             # Track total size
             total_size += len(decoded_img['data'])
 
-            # Add optional purpose field
-            if 'purpose' in img:
-                decoded_img['purpose'] = img['purpose']
-
             processed_images.append(decoded_img)
 
         except ValueError as e:
@@ -183,13 +179,8 @@ def _log_image_processing(images: List[Dict], reference_images: List[Dict]) -> N
     if reference_images:
         ref_info = []
         for ref in reference_images:
-            if 'refer_uid' in ref:
-                # UID-based reference
-                ref_info.append(f"{ref.get('purpose', 'unknown')}-{ref.get('mime_type', 'unknown')}(UID:{ref['refer_uid']})")
-            else:
-                # Data-based reference
-                data_size = len(ref.get('data', b'')) // 1024
-                ref_info.append(f"{ref.get('purpose', 'unknown')}-{ref.get('mime_type', 'unknown')}({data_size}KB)")
+            data_size = len(ref.get('data', b'')) // 1024
+            ref_info.append(f"{ref.get('mime_type', 'unknown')}({data_size}KB)")
         logger.info(f"Processing {len(reference_images)} reference images: {ref_info}")
 
 
@@ -652,62 +643,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             if 'reference_images' in request_data:
                 print(f"DEBUG: Reference images found in request: {len(request_data['reference_images'])}", flush=True)
 
-            # Handle specific API endpoints first
-            if path == '/api/reference-images':
-                # Handle reference image upload request
-                print(f"DEBUG: Handling /api/reference-images request", flush=True)
-                try:
-                    action = request_data.get('action')
-                    print(f"DEBUG: Action = {action}", flush=True)
-                    if action == 'upload_reference_image':
-                        session_id = request_data.get('session_id')
-                        image_data = request_data.get('image_data')
-                        purpose = None  # Do NOT set purpose at upload time - will be auto-detected from prompts
-                        mime_type = request_data.get('mime_type', 'image/jpeg')
-
-                        if not session_id:
-                            self._send_error("Missing 'session_id' for reference image upload")
-                            return
-
-                        if not image_data:
-                            self._send_error("Missing 'image_data' for reference image upload")
-                            return
-
-                        # Store reference image and get UID (without purpose)
-                        from tools.ai.reference_storage import store_reference_image
-                        refer_uid = store_reference_image(session_id, image_data, purpose, mime_type)
-
-                        result = {
-                            'success': True,
-                            'refer_uid': refer_uid,
-                            'message': f'Reference image uploaded successfully with UID: {refer_uid}'
-                        }
-
-                        response_json = json.dumps(result)
-                        self.wfile.write(response_json.encode('utf-8'))
-                        return
-
-                    else:
-                        self._send_error(f"Unknown action for reference images: {action}")
-                        return
-
-                except Exception as e:
-                    import traceback
-                    logger.error(f"Error handling reference image upload: {e}")
-                    logger.error(f"Exception traceback: {traceback.format_exc()}")
-                    print(f"DEBUG: Exception in reference image upload: {e}", flush=True)
-                    print(f"DEBUG: Full traceback: {traceback.format_exc()}", flush=True)
-
-                    # Send proper JSON error response
-                    error_response = {
-                        'success': False,
-                        'error': f'Failed to upload reference image: {str(e)}'
-                    }
-                    response_json = json.dumps(error_response)
-                    self.wfile.write(response_json.encode('utf-8'))
-                    return
-
-            elif path == '/':
+            # Handle main processing endpoint
+            if path == '/':
                 # Check if this is a session context request or NLP processing
                 action = request_data.get('action')
                 
@@ -772,66 +709,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         self._send_error(f"Failed to delete session: {e}")
                         return
                 
-                elif action == 'upload_reference_image':
-                    # Handle reference image upload
-                    session_id = request_data.get('session_id')
-                    image_data = request_data.get('image_data')
-                    purpose = None  # Do NOT set purpose at upload time - will be auto-detected from prompts
-                    mime_type = request_data.get('mime_type', 'image/jpeg')
-
-                    if not session_id or not image_data:
-                        self._send_error("Missing 'session_id' or 'image_data' for upload_reference_image")
-                        return
-
-                    try:
-                        from tools.ai.reference_storage import store_reference_image
-                        refer_uid = store_reference_image(session_id, image_data, purpose, mime_type)
-
-                        result = {
-                            'success': True,
-                            'refer_uid': refer_uid,
-                            'purpose': None,  # Will be auto-detected from prompts later
-                            'mime_type': mime_type,
-                            'session_id': session_id,
-                            'status': 'uploaded'
-                        }
-
-                        response_json = json.dumps(result)
-                        self.wfile.write(response_json.encode('utf-8'))
-                        return
-
-                    except Exception as e:
-                        logger.error(f"Error uploading reference image: {e}")
-                        self._send_error(f"Failed to upload reference image: {e}")
-                        return
-
-                elif action == 'get_session_references':
-                    # Handle getting session reference images
-                    session_id = request_data.get('session_id')
-                    if not session_id:
-                        self._send_error("Missing 'session_id' for get_session_references")
-                        return
-
-                    try:
-                        from tools.ai.reference_storage import get_session_references
-                        references = get_session_references(session_id)
-
-                        result = {
-                            'success': True,
-                            'session_id': session_id,
-                            'references': references,
-                            'count': len(references)
-                        }
-
-                        response_json = json.dumps(result)
-                        self.wfile.write(response_json.encode('utf-8'))
-                        return
-
-                    except Exception as e:
-                        logger.error(f"Error getting session references: {e}")
-                        self._send_error(f"Failed to get session references: {e}")
-                        return
-
                 elif action == 'create_session':
                     # Handle session creation request - bypass NLP
                     session_name = request_data.get('session_name')
@@ -902,44 +779,18 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         if raw_images:
                             images = _validate_and_process_images(raw_images)
 
-                        # Process reference images - support both old and new methods
+                        # Process reference images - direct data only
                         raw_reference_images = request_data.get('reference_images', [])
-                        reference_image_uids = request_data.get('reference_image_uids', [])
 
-                        print(f"DEBUG: Processing reference images - raw: {len(raw_reference_images)}, uids: {len(reference_image_uids)}", flush=True)
+                        print(f"DEBUG: Processing reference images - count: {len(raw_reference_images)}", flush=True)
 
-                        # Handle UID-based reference images (new method)
-                        if reference_image_uids:
-                            print(f"DEBUG: Using UID-based reference images ({len(reference_image_uids)} UIDs)", flush=True)
-                            from tools.ai.reference_storage import get_reference_image
-
-                            for i, refer_uid in enumerate(reference_image_uids):
-                                if not refer_uid or not isinstance(refer_uid, str):
-                                    raise ValueError(f"Reference image {i}: Invalid UID: {refer_uid}")
-
-                                print(f"DEBUG: Loading refer_uid: {refer_uid}", flush=True)
-
-                                # Verify reference exists (but don't load full data)
-                                ref_data = get_reference_image(refer_uid)
-                                if not ref_data:
-                                    raise ValueError(f"Reference image not found: {refer_uid}")
-
-                                # Convert to NLP format with UID (not full data)
-                                # NOTE: Do NOT set 'purpose' here - it will be auto-detected from prompts in image_edit.py
-                                reference_images.append({
-                                    'refer_uid': refer_uid,
-                                    'mime_type': ref_data['mime_type']
-                                })
-
-                            print(f"DEBUG: Successfully loaded {len(reference_images)} UID-based reference images", flush=True)
-
-                        # Handle legacy base64 reference images (fallback)
-                        elif raw_reference_images:
-                            print(f"DEBUG: Using legacy base64 reference images ({len(raw_reference_images)} images)", flush=True)
+                        # Handle direct base64 reference images
+                        if raw_reference_images:
+                            print(f"DEBUG: Using direct base64 reference images ({len(raw_reference_images)} images)", flush=True)
                             for i, raw_ref in enumerate(raw_reference_images):
                                 print(f"DEBUG: Raw ref {i}: keys={list(raw_ref.keys())}", flush=True)
 
-                            print(f"DEBUG: Validating {len(raw_reference_images)} reference images (strict mode)", flush=True)
+                            print(f"DEBUG: Validating {len(raw_reference_images)} reference images", flush=True)
                             reference_images = _validate_and_process_images(raw_reference_images)
 
                             if not reference_images or len(reference_images) != len(raw_reference_images):
@@ -980,39 +831,19 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         if reference_images:
                             nlp_reference_images = []
                             for i, ref in enumerate(reference_images):
-                                # Check if UID-based or data-based reference image
-                                if 'refer_uid' in ref:
-                                    # UID-based reference image
-                                    if not ref.get('refer_uid'):
-                                        raise ValueError(f"Reference image {i}: Missing 'refer_uid' field")
-                                    if not ref.get('mime_type'):
-                                        raise ValueError(f"Reference image {i}: Missing 'mime_type' field")
+                                # Validate data-based reference image
+                                if not ref.get('data'):
+                                    raise ValueError(f"Reference image {i}: Missing 'data' field")
+                                if not ref.get('mime_type'):
+                                    raise ValueError(f"Reference image {i}: Missing 'mime_type' field")
 
-                                    nlp_ref = {
-                                        'refer_uid': ref['refer_uid'],
-                                        'mime_type': ref['mime_type']
-                                    }
-                                    if 'purpose' in ref:
-                                        nlp_ref['purpose'] = ref['purpose']
+                                nlp_ref = {
+                                    'data': ref['data'],
+                                    'mime_type': ref['mime_type']
+                                }
 
-                                    nlp_reference_images.append(nlp_ref)
-                                    print(f"DEBUG: NLP ref {i}: UID={ref['refer_uid']}, purpose={ref.get('purpose', 'none')}, mime_type={ref['mime_type']}", flush=True)
-                                else:
-                                    # Data-based reference image (legacy)
-                                    if not ref.get('data'):
-                                        raise ValueError(f"Reference image {i}: Missing 'data' field")
-                                    if not ref.get('mime_type'):
-                                        raise ValueError(f"Reference image {i}: Missing 'mime_type' field")
-
-                                    nlp_ref = {
-                                        'data': ref['data'],
-                                        'mime_type': ref['mime_type']
-                                    }
-                                    if 'purpose' in ref:
-                                        nlp_ref['purpose'] = ref['purpose']
-
-                                    nlp_reference_images.append(nlp_ref)
-                                    print(f"DEBUG: NLP ref {i}: purpose={ref.get('purpose', 'none')}, mime_type={ref['mime_type']}, data_length={len(ref['data'])}", flush=True)
+                                nlp_reference_images.append(nlp_ref)
+                                print(f"DEBUG: NLP ref {i}: mime_type={ref['mime_type']}, data_length={len(ref['data'])}", flush=True)
 
                             print(f"DEBUG: Successfully converted {len(nlp_reference_images)} reference images for NLP", flush=True)
 

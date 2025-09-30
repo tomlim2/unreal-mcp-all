@@ -215,7 +215,7 @@ export function createApiService(): ApiService {
           prompt: data.prompt,
           main_prompt: data.main_prompt,
           reference_prompts: data.reference_prompts,
-          referenceImageUids: data.referenceImageUids?.length || 0
+          referenceImageData: data.referenceImageData?.length || 0
         });
 
         // Add main target image UID if available
@@ -223,16 +223,9 @@ export function createApiService(): ApiService {
           requestBody.target_image_uid = latestImageData.latest_image.uid;
         }
 
-        // Use UID-based system for reference images if available, fallback to legacy base64
-        if (data.referenceImageUids && data.referenceImageUids.length > 0) {
-          requestBody.reference_image_uids = data.referenceImageUids;
-        } else if (data.referenceImages) {
-          // Legacy fallback
-          requestBody.reference_images = data.referenceImages.map(ref => ({
-            image_data: ref.preview?.split(',')[1] || '', // Remove data:image/...;base64, prefix
-            purpose: ref.purpose,
-            mime_type: ref.file.type
-          }));
+        // Add reference images directly (no UID storage)
+        if (data.referenceImageData && data.referenceImageData.length > 0) {
+          requestBody.reference_images = data.referenceImageData;
         }
 
         const response = await fetch('/api/mcp', {

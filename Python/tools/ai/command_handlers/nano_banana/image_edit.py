@@ -188,8 +188,6 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         if "reference_images" in params:
             ref_images = params["reference_images"]
             logger.info(f"  - reference_images count: {len(ref_images)}")
-            for i, ref in enumerate(ref_images):
-                logger.info(f"    [{i}] refer_uid: {ref.get('refer_uid', 'NO_UID')}, purpose: {ref.get('purpose', 'NO_PURPOSE')}")
 
         # Always use new prompt organization system
         # Extract prompts from parameters (with fallback to style_prompt for backward compatibility)
@@ -202,20 +200,6 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             main_prompt = params["style_prompt"]
 
         logger.info(f"🎯 Prompt organization system - main: '{main_prompt}', refs: {reference_prompts}")
-
-        # Detect purpose from prompts (pose/composition vs style)
-        detected_purpose = self._detect_purpose_from_prompts(
-            main_prompt=main_prompt,
-            reference_prompts=reference_prompts
-        )
-        logger.info(f"🔍 Detected purpose from prompts: {detected_purpose}")
-
-        # Auto-set purpose for reference images if not already set
-        if "reference_images" in params and detected_purpose:
-            for ref_img in params["reference_images"]:
-                if 'purpose' not in ref_img or not ref_img['purpose']:
-                    ref_img['purpose'] = detected_purpose
-                    logger.info(f"✅ Auto-set reference image purpose to: {detected_purpose}")
 
         # Organize prompts into single style_prompt
         params["style_prompt"] = self._translate_and_organize_prompts(
@@ -271,20 +255,8 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         }
         logger.info(f"Loaded target image from UID {target_image_uid}: {file_path}")
 
-        # Load reference images from UIDs if present
-        reference_images = []
-        reference_images_param = params.get("reference_images", [])
-        if reference_images_param:
-            from ...reference_storage import get_reference_image
-            for ref in reference_images_param:
-                refer_uid = ref.get('refer_uid')
-                if refer_uid:
-                    logger.info(f"Loading reference image from UID: {refer_uid}")
-                    ref_data = get_reference_image(refer_uid)
-                    if ref_data:
-                        reference_images.append(ref_data)
-                    else:
-                        logger.warning(f"Reference image UID not found: {refer_uid}")
+        # Get reference images directly from params (no UID loading needed)
+        reference_images = params.get("reference_images", [])
 
         try:
             if reference_images:
@@ -514,25 +486,6 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         # The style_prompt is already organized by _translate_and_organize_prompts function
         # So we just need to create the final transformation instruction
 
-        # Legacy purpose-based handling for backward compatibility
-        # (in case old-style purpose data is still passed)
-        purposes = [ref.get('purpose', 'style') for ref in reference_images]
-        if 'composition' in purposes:
-            # Special case: composition changes require different handling
-            return f"""Change the pose and body position of the character in the first image to match the reference image exactly.
-
-CRITICAL INSTRUCTIONS:
-1. Copy the EXACT pose, stance, and body position from the reference image
-2. Match arm positions, leg positions, and overall posture precisely
-3. Keep the character's face, appearance, clothing, and style UNCHANGED
-4. Keep the background and environment IDENTICAL
-5. Apply {intensity_description} transformation intensity
-6. Only modify the pose/position - preserve everything else
-
-Additional instructions: {style_prompt}
-Generate the image with the new pose matching the reference."""
-
-        # Use the already organized and translated style prompt
         return f"""Transform the first image using the following instructions with a {intensity_description} intensity:
 
 {style_prompt}
@@ -713,35 +666,6 @@ Only return the English translation, nothing else:
         
         # If it's already in English (ASCII characters only), return as-is
         return style_prompt
-
-    def _detect_purpose_from_prompts(self, main_prompt: str, reference_prompts: List[str]) -> str:
-        """
-        Detect the purpose (composition/pose vs style) from prompt text.
-
-        Args:
-            main_prompt: Main transformation prompt
-            reference_prompts: List of reference image prompts
-
-        Returns:
-            'composition' for pose/body position changes, 'style' for style/color changes
-        """
-        # Combine all prompts for analysis
-        all_text = f"{main_prompt} {' '.join(reference_prompts)}".lower()
-
-        # Korean keywords for pose/composition
-        pose_keywords_kr = ['포즈', '자세', '동작', '몸', '손', '발', '팔', '다리', '앉', '서', '눕', '취해', '취하']
-
-        # English keywords for pose/composition
-        pose_keywords_en = ['pose', 'posture', 'position', 'body', 'hand', 'arm', 'leg', 'sit', 'stand', 'lie', 'gesture', 'stance', 'take']
-
-        # Check for pose/composition keywords
-        for keyword in pose_keywords_kr + pose_keywords_en:
-            if keyword in all_text:
-                logger.info(f"🎯 Detected pose/composition keyword: '{keyword}'")
-                return 'composition'
-
-        # Default to style
-        return 'style'
 
     def _translate_and_organize_prompts(self, main_prompt: str, reference_prompts: List[str]) -> str:
         """Translate and organize multiple prompts using LLM-based prompt combination."""
