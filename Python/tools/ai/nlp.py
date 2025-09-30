@@ -645,6 +645,8 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
 
 **Commands:**
 - transform_image_style: Apply style to latest image
+**Reference Images:** WHEN reference_image_uids available, ALWAYS use transform_image_style
+- Korean prompts: "이 포즈를 취해주세요" = take pose from reference, "이 색깔로" = use reference color
 **Format:** {{"explanation": "desc", "commands": [{{"type": "command", "params": {{"style_prompt": "style desc", "intensity": 0.8}}}}], "expectedResult": "result"}}
 
 Latest image available. Return valid JSON only."""
@@ -679,11 +681,20 @@ Your role is to provide intuitive creative control by translating natural langua
   * Auto-uses latest screenshot (target_image_uid provided automatically)
   * Supports reference images for style/composition guidance
 
+**REFERENCE IMAGES PROCESSING:**
+- WHEN reference images are provided (reference_image_uids available):
+  * ALWAYS use transform_image_style command
+  * Reference images + prompts = POWERFUL transformation capability
+  * Korean prompts like "이 포즈를 취해주세요" = "take this pose from reference"
+  * Examples: "이 색깔로" → use reference color, "이 포즈로" → copy reference pose
+  * System automatically loads reference images - YOU JUST GENERATE THE COMMAND
+
 **CRITICAL**: transform_image_style uses AI image generation to MODIFY ANY VISUAL ASPECT
 - Pose changes: YES ✅
 - Character actions: YES ✅
 - Add/remove objects: YES ✅
 - Scene modifications: YES ✅
+- Reference image guidance: YES ✅
 
 **AI Video Generation (Veo-3):**
 - generate_video_from_image: Generate 8-second video from image
@@ -724,6 +735,9 @@ Your role is to provide intuitive creative control by translating natural langua
   * "비 내려" (without "언리얼") → transform_image_style
   * "손 들어" → transform_image_style
   * "사이버펑크로" → transform_image_style
+  * "이 포즈를 취해주세요" → transform_image_style (WITH reference images)
+  * "이 색깔로 바꿔주세요" → transform_image_style (WITH reference images)
+  * "Transform using reference images" → transform_image_style (WITH reference images)
 
 **CRITICAL DECISION LOGIC:**
 - "언리얼로 색 온도 따뜻하게" → set_color_temperature ✅

@@ -181,10 +181,15 @@ def _log_image_processing(images: List[Dict], reference_images: List[Dict]) -> N
         logger.info(f"Processing {len(images)} target images: {image_info}")
 
     if reference_images:
-        ref_info = [
-            f"{ref.get('purpose', 'unknown')}-{ref.get('mime_type', 'unknown')}({len(ref.get('data', b''))//1024}KB)"
-            for ref in reference_images
-        ]
+        ref_info = []
+        for ref in reference_images:
+            if 'refer_uid' in ref:
+                # UID-based reference
+                ref_info.append(f"{ref.get('purpose', 'unknown')}-{ref.get('mime_type', 'unknown')}(UID:{ref['refer_uid']})")
+            else:
+                # Data-based reference
+                data_size = len(ref.get('data', b'')) // 1024
+                ref_info.append(f"{ref.get('purpose', 'unknown')}-{ref.get('mime_type', 'unknown')}({data_size}KB)")
         logger.info(f"Processing {len(reference_images)} reference images: {ref_info}")
 
 
@@ -657,7 +662,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     if action == 'upload_reference_image':
                         session_id = request_data.get('session_id')
                         image_data = request_data.get('image_data')
-                        purpose = request_data.get('purpose', 'style')
+                        purpose = None  # Do NOT set purpose at upload time - will be auto-detected from prompts
                         mime_type = request_data.get('mime_type', 'image/jpeg')
 
                         if not session_id:
@@ -668,7 +673,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             self._send_error("Missing 'image_data' for reference image upload")
                             return
 
-                        # Store reference image and get UID
+                        # Store reference image and get UID (without purpose)
                         from tools.ai.reference_storage import store_reference_image
                         refer_uid = store_reference_image(session_id, image_data, purpose, mime_type)
 
@@ -771,7 +776,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     # Handle reference image upload
                     session_id = request_data.get('session_id')
                     image_data = request_data.get('image_data')
-                    purpose = request_data.get('purpose', 'style')
+                    purpose = None  # Do NOT set purpose at upload time - will be auto-detected from prompts
                     mime_type = request_data.get('mime_type', 'image/jpeg')
 
                     if not session_id or not image_data:
@@ -785,7 +790,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         result = {
                             'success': True,
                             'refer_uid': refer_uid,
-                            'purpose': purpose,
+                            'purpose': None,  # Will be auto-detected from prompts later
                             'mime_type': mime_type,
                             'session_id': session_id,
                             'status': 'uploaded'
@@ -920,10 +925,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                                     raise ValueError(f"Reference image not found: {refer_uid}")
 
                                 # Convert to NLP format with UID (not full data)
+                                # NOTE: Do NOT set 'purpose' here - it will be auto-detected from prompts in image_edit.py
                                 reference_images.append({
                                     'refer_uid': refer_uid,
-                                    'mime_type': ref_data['mime_type'],
-                                    'purpose': ref_data.get('purpose', 'style')
+                                    'mime_type': ref_data['mime_type']
                                 })
 
                             print(f"DEBUG: Successfully loaded {len(reference_images)} UID-based reference images", flush=True)
@@ -1023,6 +1028,21 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         # Extract new prompt fields from request
                         main_prompt = request_data.get('main_prompt')
                         reference_prompts = request_data.get('reference_prompts', [])
+
+                        print(f"🔍 DEBUG: Extracted prompts from request:", flush=True)
+                        print(f"  - main_prompt: '{main_prompt}'", flush=True)
+                        print(f"  - reference_prompts: {reference_prompts}", flush=True)
+
+                        # Auto-generate main_prompt if empty but reference_prompts exist
+                        original_main_prompt = main_prompt
+                        if ((not main_prompt or main_prompt.strip() == '') and
+                            reference_prompts and
+                            any(p.strip() for p in reference_prompts)):
+
+                            # Combine reference prompts into a coherent transformation request
+                            combined_prompts = ", ".join(reference_prompts)
+                            main_prompt = f"Apply style transformation: {combined_prompts}"
+                            print(f"DEBUG: Auto-generated main_prompt (original was empty), reference_prompts: {reference_prompts}", flush=True)
 
                         print(f"DEBUG: Passing to NLP - main_prompt: '{main_prompt}', reference_prompts: {reference_prompts}", flush=True)
 

@@ -255,7 +255,7 @@ class PathManager:
         Get the reference images storage base path.
 
         Returns:
-            str: Reference images base path (data_storage/reference_images)
+            str: Reference images base path (assets/images/references)
         """
         if 'reference_images' in self._cached_paths:
             return self._cached_paths['reference_images']
@@ -264,8 +264,8 @@ class PathManager:
             ref_path = self.config.reference_images_path
             logger.debug(f"Using configured reference images path: {ref_path}")
         else:
-            # Default to data_storage/reference_images
-            ref_path = os.path.join(self.get_data_storage_path(), 'reference_images')
+            # Default to assets/images/references for better organization
+            ref_path = os.path.join(self.get_data_storage_path(), 'assets', 'images', 'references')
             logger.debug(f"Using default reference images path: {ref_path}")
 
         if self.config.create_directories:
@@ -278,24 +278,21 @@ class PathManager:
         """
         Get the path for a specific reference image UID.
 
-        New structure: data_storage/reference_images/[session_id]/uid/ or data_storage/reference_images/uid/
+        Assets structure: assets/images/references/uid/
         Each reference gets its own directory containing the image and metadata.
+        Session information is stored in metadata, not directory structure.
 
         Args:
             uid: Reference UID (e.g., refer_001)
-            session_id: Optional session ID for organization
+            session_id: Optional session ID (stored in metadata, not used for path)
 
         Returns:
             str: Path to the specific reference directory
         """
         base_path = self.get_reference_images_path()
 
-        if session_id:
-            # Structure: reference_images/session_id/uid/
-            ref_path = os.path.join(base_path, session_id, uid)
-        else:
-            # Structure: reference_images/uid/
-            ref_path = os.path.join(base_path, uid)
+        # Assets use flat UID structure without session hierarchy
+        ref_path = os.path.join(base_path, uid)
 
         if self.config.create_directories:
             Path(ref_path).mkdir(parents=True, exist_ok=True)
@@ -308,13 +305,13 @@ class PathManager:
         Get the 3D objects storage base path.
 
         Returns:
-            str: 3D objects base storage path (data_storage/object_3d)
+            str: 3D objects base storage path (assets/objects3d/obj)
         """
         if 'object_3d' in self._cached_paths:
             return self._cached_paths['object_3d']
 
-        # Use centralized data_storage/object_3d path for cleaner organization
-        objects_path = os.path.join(self.get_data_storage_path(), 'object_3d')
+        # Use assets/objects3d/obj path for better asset organization
+        objects_path = os.path.join(self.get_data_storage_path(), 'assets', 'objects3d', 'obj')
 
         if self.config.create_directories:
             Path(objects_path).mkdir(parents=True, exist_ok=True)
@@ -326,24 +323,21 @@ class PathManager:
         """
         Get the path for a specific 3D object UID.
 
-        New structure: data_storage/object_3d/[session_id]/uid/ or data_storage/object_3d/uid/
+        Assets structure: assets/objects3d/obj/uid/
         Each object gets its own directory containing .obj, .mtl, textures, and metadata.
+        Session information is stored in metadata, not directory structure.
 
         Args:
             uid: Object UID (e.g., obj_001)
-            session_id: Optional session ID for organization
+            session_id: Optional session ID (stored in metadata, not used for path)
 
         Returns:
             str: Path to the specific object directory
         """
         base_path = self.get_3d_objects_path()
 
-        if session_id:
-            # Structure: object_3d/session_id/uid/
-            object_path = os.path.join(base_path, session_id, uid)
-        else:
-            # Structure: object_3d/uid/
-            object_path = os.path.join(base_path, uid)
+        # Assets use flat UID structure without session hierarchy
+        object_path = os.path.join(base_path, uid)
 
         if self.config.create_directories:
             Path(object_path).mkdir(parents=True, exist_ok=True)

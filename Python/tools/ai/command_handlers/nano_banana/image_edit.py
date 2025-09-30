@@ -191,19 +191,37 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             for i, ref in enumerate(ref_images):
                 logger.info(f"    [{i}] refer_uid: {ref.get('refer_uid', 'NO_UID')}, purpose: {ref.get('purpose', 'NO_PURPOSE')}")
 
-        # Handle new prompt organization system
-        if "main_prompt" in params or "reference_prompts" in params:
-            logger.info("🎯 Using NEW prompt organization system")
-            params["style_prompt"] = self._translate_and_organize_prompts(
-                main_prompt=params.get("main_prompt", ""),
-                reference_prompts=params.get("reference_prompts", [])
-            )
-        elif "style_prompt" in params:
-            logger.info("🔄 Using LEGACY single prompt handling")
-            # Legacy single prompt handling
-            params["style_prompt"] = self._translate_style_prompt_if_needed(params["style_prompt"])
-        else:
-            logger.warning("⚠️ No prompt data found in parameters!")
+        # Always use new prompt organization system
+        # Extract prompts from parameters (with fallback to style_prompt for backward compatibility)
+        main_prompt = params.get("main_prompt", "")
+        reference_prompts = params.get("reference_prompts", [])
+
+        # If no new-style prompts, use style_prompt as fallback
+        if not main_prompt and not reference_prompts and "style_prompt" in params:
+            logger.info("🔄 Fallback: Using style_prompt as main_prompt")
+            main_prompt = params["style_prompt"]
+
+        logger.info(f"🎯 Prompt organization system - main: '{main_prompt}', refs: {reference_prompts}")
+
+        # Detect purpose from prompts (pose/composition vs style)
+        detected_purpose = self._detect_purpose_from_prompts(
+            main_prompt=main_prompt,
+            reference_prompts=reference_prompts
+        )
+        logger.info(f"🔍 Detected purpose from prompts: {detected_purpose}")
+
+        # Auto-set purpose for reference images if not already set
+        if "reference_images" in params and detected_purpose:
+            for ref_img in params["reference_images"]:
+                if 'purpose' not in ref_img or not ref_img['purpose']:
+                    ref_img['purpose'] = detected_purpose
+                    logger.info(f"✅ Auto-set reference image purpose to: {detected_purpose}")
+
+        # Organize prompts into single style_prompt
+        params["style_prompt"] = self._translate_and_organize_prompts(
+            main_prompt=main_prompt,
+            reference_prompts=reference_prompts
+        )
 
         logger.info(f"📝 Final style_prompt: '{params.get('style_prompt', 'NO_STYLE_PROMPT')}'")
 
@@ -695,6 +713,35 @@ Only return the English translation, nothing else:
         
         # If it's already in English (ASCII characters only), return as-is
         return style_prompt
+
+    def _detect_purpose_from_prompts(self, main_prompt: str, reference_prompts: List[str]) -> str:
+        """
+        Detect the purpose (composition/pose vs style) from prompt text.
+
+        Args:
+            main_prompt: Main transformation prompt
+            reference_prompts: List of reference image prompts
+
+        Returns:
+            'composition' for pose/body position changes, 'style' for style/color changes
+        """
+        # Combine all prompts for analysis
+        all_text = f"{main_prompt} {' '.join(reference_prompts)}".lower()
+
+        # Korean keywords for pose/composition
+        pose_keywords_kr = ['포즈', '자세', '동작', '몸', '손', '발', '팔', '다리', '앉', '서', '눕', '취해', '취하']
+
+        # English keywords for pose/composition
+        pose_keywords_en = ['pose', 'posture', 'position', 'body', 'hand', 'arm', 'leg', 'sit', 'stand', 'lie', 'gesture', 'stance', 'take']
+
+        # Check for pose/composition keywords
+        for keyword in pose_keywords_kr + pose_keywords_en:
+            if keyword in all_text:
+                logger.info(f"🎯 Detected pose/composition keyword: '{keyword}'")
+                return 'composition'
+
+        # Default to style
+        return 'style'
 
     def _translate_and_organize_prompts(self, main_prompt: str, reference_prompts: List[str]) -> str:
         """Translate and organize multiple prompts using LLM-based prompt combination."""

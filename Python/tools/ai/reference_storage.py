@@ -29,13 +29,13 @@ class ReferenceStorage:
             self.base_path = Path(base_storage_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-    def get_session_path(self, session_id: str) -> Path:
-        """Get storage path for a specific session."""
+    def get_reference_uid_path(self, refer_uid: str) -> Path:
+        """Get storage path for a specific reference UID using UID-based structure."""
         path_manager = get_path_manager()
-        # Use the reference images base path + session for compatibility
-        session_path = Path(path_manager.get_reference_images_path()) / session_id
-        session_path.mkdir(parents=True, exist_ok=True)
-        return session_path
+        # Use UID-based path structure instead of session-based
+        uid_path = Path(path_manager.get_reference_uid_path(refer_uid))
+        uid_path.mkdir(parents=True, exist_ok=True)
+        return uid_path
 
     def store_reference_image(
         self,
@@ -48,15 +48,15 @@ class ReferenceStorage:
             # Generate unique refer_uid
             refer_uid = generate_reference_uid()
 
-            # Get session storage path
-            session_path = self.get_session_path(session_id)
+            # Get UID-based storage path
+            uid_path = self.get_reference_uid_path(refer_uid)
 
             # Determine file extension from mime_type
             ext = self._get_extension_from_mime_type(mime_type)
 
-            # Store image file
-            image_filename = f"{refer_uid}{ext}"
-            image_path = session_path / image_filename
+            # Store image file (use just the extension, UID is in directory name)
+            image_filename = f"image{ext}"
+            image_path = uid_path / image_filename
 
             # Decode and save image
             image_bytes = base64.b64decode(image_data)
@@ -73,7 +73,7 @@ class ReferenceStorage:
                 "size_bytes": len(image_bytes)
             }
 
-            metadata_path = session_path / f"{refer_uid}_meta.json"
+            metadata_path = uid_path / "metadata.json"
             with open(metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, indent=2)
 
@@ -103,14 +103,9 @@ class ReferenceStorage:
                 logger.warning(f"No mapping found for refer_uid: {refer_uid}")
                 return None
 
-            session_id = mapping.get('session_id')
-            if not session_id:
-                logger.warning(f"No session_id in mapping for refer_uid: {refer_uid}")
-                return None
-
-            # Load metadata
-            session_path = self.get_session_path(session_id)
-            metadata_path = session_path / f"{refer_uid}_meta.json"
+            # Load metadata from UID-based structure
+            uid_path = self.get_reference_uid_path(refer_uid)
+            metadata_path = uid_path / "metadata.json"
 
             if not metadata_path.exists():
                 logger.warning(f"Metadata not found: {metadata_path}")
@@ -120,7 +115,7 @@ class ReferenceStorage:
                 metadata = json.load(f)
 
             # Load image data
-            image_path = session_path / metadata['filename']
+            image_path = uid_path / metadata['filename']
             if not image_path.exists():
                 logger.warning(f"Image file not found: {image_path}")
                 return None
@@ -190,20 +185,26 @@ class ReferenceStorage:
                 logger.warning(f"No mapping found for refer_uid: {refer_uid}")
                 return False
 
-            session_id = mapping.get('session_id')
-            session_path = self.get_session_path(session_id)
+            # Delete using UID-based structure
+            uid_path = self.get_reference_uid_path(refer_uid)
 
             # Delete image file and metadata
-            metadata_path = session_path / f"{refer_uid}_meta.json"
+            metadata_path = uid_path / "metadata.json"
             if metadata_path.exists():
                 with open(metadata_path, 'r', encoding='utf-8') as f:
                     metadata = json.load(f)
 
-                image_path = session_path / metadata['filename']
+                image_path = uid_path / metadata['filename']
                 if image_path.exists():
                     image_path.unlink()
 
                 metadata_path.unlink()
+
+                # Remove the entire UID directory if empty
+                try:
+                    uid_path.rmdir()
+                except OSError:
+                    pass  # Directory not empty, leave it
 
             logger.info(f"Deleted reference image {refer_uid}")
             return True
