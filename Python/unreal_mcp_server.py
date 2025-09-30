@@ -136,11 +136,11 @@ class UnrealConnection:
                 pass
             self.socket = None
             self.connected = False
-        
+
         if not self.connect():
             logger.error("Failed to connect to Unreal Engine for command")
             return None
-        
+
         try:
             # Prepare command object for Unreal Engine
             command_obj = {
@@ -149,6 +149,14 @@ class UnrealConnection:
             }
             command_json = json.dumps(command_obj)
             logger.info(f"Sending command: {command_json}")
+
+            # Set longer timeout for import operations (they can take 30+ seconds)
+            if command in ["import_object3d_by_uid", "import_fbx", "import_asset"]:
+                logger.info(f"Setting extended timeout for import operation: {command}")
+                self.socket.settimeout(120)  # 2 minutes for imports
+            else:
+                self.socket.settimeout(30)  # 30 seconds for regular commands
+
             self.socket.sendall(command_json.encode('utf-8'))
 
             # Read response using improved handler
@@ -186,6 +194,19 @@ class UnrealConnection:
             
             return response
             
+        except socket.timeout:
+            logger.error(f"Command '{command}' timed out waiting for Unreal response")
+            # Always reset connection state on timeout
+            self.connected = False
+            try:
+                self.socket.close()
+            except:
+                pass
+            self.socket = None
+            return {
+                "status": "error",
+                "error": f"Command '{command}' timed out. The operation may still be running in Unreal Engine."
+            }
         except Exception as e:
             logger.error(f"Error sending command: {e}")
             # Always reset connection state on any error

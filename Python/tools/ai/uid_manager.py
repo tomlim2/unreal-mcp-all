@@ -40,7 +40,8 @@ class UIDManager:
         self._img_counter = 0
         self._vid_counter = 0
         self._ref_counter = 0  # New counter for reference images
-        self._obj_counter = 0  # New counter for 3D objects
+        self._obj_counter = 0  # New counter for 3D objects (OBJ format)
+        self._fbx_counter = 0  # New counter for FBX format 3D objects
         self._uid_mappings = {}
         self._lock = threading.Lock()
         self._initialized = False
@@ -100,7 +101,7 @@ class UIDManager:
             return uid
 
     def get_next_object_uid(self) -> str:
-        """Generate next sequential 3D object UID (e.g., obj_001).
+        """Generate next sequential 3D object UID for OBJ format (e.g., obj_001).
 
         Returns:
             Sequential object UID string in format obj_XXX
@@ -114,14 +115,32 @@ class UIDManager:
             self._save_state()
 
             uid = f"obj_{self._obj_counter:03d}"
-            logger.info(f"Generated 3D object UID: {uid}")
+            logger.info(f"Generated OBJ UID: {uid}")
+            return uid
+
+    def get_next_fbx_uid(self) -> str:
+        """Generate next sequential FBX UID (e.g., fbx_001).
+
+        Returns:
+            Sequential FBX UID string in format fbx_XXX
+        """
+        with self._lock:
+            if not self._initialized:
+                self._load_state()
+                self._initialized = True
+
+            self._fbx_counter += 1
+            self._save_state()
+
+            uid = f"fbx_{self._fbx_counter:03d}"
+            logger.info(f"Generated FBX UID: {uid}")
             return uid
 
     def get_current_counters(self) -> Dict[str, int]:
         """Get current counter values without incrementing.
 
         Returns:
-            Dictionary with img_counter and vid_counter values
+            Dictionary with all counter values
         """
         with self._lock:
             if not self._initialized:
@@ -131,7 +150,8 @@ class UIDManager:
                 'img_counter': self._img_counter,
                 'vid_counter': self._vid_counter,
                 'ref_counter': self._ref_counter,
-                'obj_counter': self._obj_counter
+                'obj_counter': self._obj_counter,
+                'fbx_counter': self._fbx_counter
             }
 
     def add_mapping(self, uid: str, content_type: str, filename: str,
@@ -282,8 +302,9 @@ class UIDManager:
                         self._img_counter = data.get('img_counter', 0)
                         self._vid_counter = data.get('vid_counter', 0)
                         self._ref_counter = data.get('ref_counter', 0)  # Load reference counter
-                        self._obj_counter = data.get('obj_counter', 0)  # Load 3D object counter
-                        logger.info(f"Loaded counters - img: {self._img_counter}, vid: {self._vid_counter}, ref: {self._ref_counter}, obj: {self._obj_counter}")
+                        self._obj_counter = data.get('obj_counter', 0)  # Load 3D object counter (OBJ)
+                        self._fbx_counter = data.get('fbx_counter', 0)  # Load FBX counter
+                        logger.info(f"Loaded counters - img: {self._img_counter}, vid: {self._vid_counter}, ref: {self._ref_counter}, obj: {self._obj_counter}, fbx: {self._fbx_counter}")
 
                     # Load mappings
                     self._uid_mappings = data.get('uid_mappings', {})
@@ -325,7 +346,8 @@ class UIDManager:
                 'img_counter': self._img_counter,
                 'vid_counter': self._vid_counter,
                 'ref_counter': self._ref_counter,  # Save reference counter
-                'obj_counter': self._obj_counter,  # Save 3D object counter
+                'obj_counter': self._obj_counter,  # Save 3D object counter (OBJ)
+                'fbx_counter': self._fbx_counter,  # Save FBX counter
                 'uid_mappings': self._uid_mappings,
                 'last_updated': datetime.now().isoformat()
             }

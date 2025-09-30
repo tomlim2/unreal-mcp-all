@@ -140,6 +140,7 @@ class CommandRegistry:
         from .nano_banana.image_edit import NanoBananaImageEditHandler
         from .video_generation.video_handler import VideoGenerationHandler
         from .roblox.roblox_handler import RobloxCommandHandler
+        from .asset.import_object3d import Object3DImportHandler
 
         handlers = [
             UDSCommandHandler(),
@@ -150,7 +151,8 @@ class CommandRegistry:
             ScreenshotCommandHandler(),
             NanoBananaImageEditHandler(),
             VideoGenerationHandler(),
-            RobloxCommandHandler()
+            RobloxCommandHandler(),
+            Object3DImportHandler()
         ]
         
         for handler in handlers:
