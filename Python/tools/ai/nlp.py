@@ -910,11 +910,18 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     # Use command registry for unified execution
     registry = get_command_registry()
     
-    # Check if this is a Nano Banana command that doesn't need Unreal Engine
-    nano_banana_commands = ['transform_image_style']
-    
-    if command_type in nano_banana_commands:
-        logger.info(f"Executing Nano Banana command {command_type} without Unreal Engine connection")
+    # Check if this is a command that doesn't need Unreal Engine connection
+    # Nano Banana: Image transformation (uses external API)
+    # Roblox: Avatar downloads (uses Roblox API + local file storage)
+    no_unreal_required_commands = [
+        'transform_image_style',
+        'download_roblox_obj',
+        'get_roblox_download_status',
+        'cancel_roblox_download'
+    ]
+
+    if command_type in no_unreal_required_commands:
+        logger.info(f"Executing {command_type} without Unreal Engine connection (standalone command)")
         result = registry.execute_command(command, None)
         
     else:
