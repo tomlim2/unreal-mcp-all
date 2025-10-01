@@ -896,31 +896,24 @@ Combined prompt:"""
         """
         Generate standardized filename for generated images.
 
-        Format: {uid}_{model}_{operation}_{timestamp}.png
-        Example: img_003_gemini2.5_transform_20251002_002157.png
+        Format: {uid}_{YYYYMMDD}.png
+        Example: img_003_20251002.png
 
         Args:
             image_uid: Image UID (e.g., img_003)
-            model: Model name (e.g., gemini-2.5-flash-image)
-            operation: Operation type (e.g., transform, style, blend)
+            model: Model name (unused, kept for API compatibility)
+            operation: Operation type (unused, kept for API compatibility)
 
         Returns:
-            Formatted filename with timestamp
+            Formatted filename with date
         """
         from datetime import datetime
 
-        # Sanitize model name for filename
-        model_clean = model.lower()
-        model_clean = model_clean.replace('gemini-', 'gemini')
-        model_clean = model_clean.replace('-flash-image', '')
-        model_clean = model_clean.replace('-', '.')
-        model_clean = model_clean.replace('_', '.')
+        # Generate date in YYYYMMDD format
+        date_str = datetime.now().strftime("%Y%m%d")
 
-        # Generate timestamp in YYYYMMDD_HHMMSS format
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        # Build filename: uid_model_operation_timestamp.png
-        filename = f"{image_uid}_{model_clean}_{operation}_{timestamp}.png"
+        # Build filename: uid_date.png
+        filename = f"{image_uid}_{date_str}.png"
 
         return filename
 
