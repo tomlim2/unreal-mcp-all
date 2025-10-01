@@ -41,6 +41,38 @@ export default function AppHome() {
     console.log('No context to refresh on /app page');
   };
 
+  const handleTransformSubmit = async (data: {
+    prompt: string;
+    main_prompt?: string;
+    reference_prompts?: string[];
+    model: string;
+    sessionId: string;
+    mainImageData?: any;
+    referenceImageData?: any;
+  }) => {
+    try {
+      // Create new session with the prompt as the session name
+      const newSession = await handleCreateSession(data.prompt.trim());
+      if (newSession) {
+        // Send the transform request to the newly created session
+        await apiService.transform({
+          prompt: data.prompt,
+          sessionId: newSession.session_id,
+          model: data.model,
+          main_prompt: data.main_prompt,
+          reference_prompts: data.reference_prompts,
+          referenceImageData: data.referenceImageData,
+          mainImageData: data.mainImageData
+        });
+
+        // Redirect to the newly created session
+        router.push(`/app/${newSession.session_id}`);
+      }
+    } catch (error) {
+      console.error('Failed to create session and transform image:', error);
+    }
+  };
+
   return (
     <>
       {error && (
@@ -49,19 +81,20 @@ export default function AppHome() {
           <button onClick={() => setError(null)}>×</button>
         </div>
       )}
-      <ConversationHistory 
+      <ConversationHistory
         context={null}
         loading={false}
         error={null}
         sessionsLoaded={sessionsLoaded}
         isNewSessionPage={true}
       />
-      <ChatInput 
+      <ChatInput
         loading={false}
         error={null}
         sessionId={null}
         llmFromDb="gemini-2"
         onSubmit={handleChatSubmit}
+        onTransformSubmit={handleTransformSubmit}
         onRefreshContext={refreshContext}
         allowModelSwitching={true}
       />

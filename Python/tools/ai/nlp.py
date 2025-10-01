@@ -268,26 +268,38 @@ def _auto_assign_latest_image_if_needed(command, session_context):
     # image_url이 없는 이미지 관련 명령들
     image_commands = ["transform_image_style", "generate_video_from_image"]
 
-    if command_type in image_commands and "image_url" not in params and "image_uid" not in params:
+    # Check for both old and new parameter names
+    has_image = ("image_url" in params or "image_uid" in params or
+                 "target_image_uid" in params or "main_image_data" in params)
+
+    if command_type in image_commands and not has_image:
+        logger.info(f"Attempting auto-assignment for {command_type} (has_image={has_image}, session_context={session_context is not None})")
+
+        latest_uid = None
+
+        # Try 1: Get from session conversation history (preferred for session-based workflow)
         if session_context:
             latest_uid = session_context.get_latest_image_uid()
-            latest_path = session_context.get_latest_image_path()
+            logger.info(f"Retrieved from session context: latest_uid={latest_uid}")
 
-            # Double-check: ensure we only use image UIDs, never video UIDs
-            if latest_uid and latest_uid.startswith('img_'):
-                # For transform_image_style, use both image_url and image_uid/image_path
-                if command_type == "transform_image_style":
-                    params["image_uid"] = latest_uid
-                    params["image_url"] = latest_uid
-                    if latest_path:
-                        params["image_path"] = latest_path
-                # For generate_video_from_image, use image_url only
-                elif command_type == "generate_video_from_image":
-                    params["image_url"] = latest_uid
+        # Try 2: Get from UID manager directly (fallback for global latest image)
+        if not latest_uid:
+            from tools.ai.uid_manager import get_latest_image_uid as get_global_latest_image_uid
+            latest_uid = get_global_latest_image_uid()
+            logger.info(f"Retrieved from UID manager: latest_uid={latest_uid}")
 
-                logger.info(f"Auto-assigned latest image UID for {command_type}: {latest_uid}")
-            else:
-                logger.warning(f"No valid image UID found in session for {command_type} (latest_uid: {latest_uid})")
+        # Double-check: ensure we only use image UIDs, never video UIDs
+        if latest_uid and latest_uid.startswith('img_'):
+            # For transform_image_style, use target_image_uid (new system)
+            if command_type == "transform_image_style":
+                params["target_image_uid"] = latest_uid
+                logger.info(f"✅ Auto-assigned latest image UID for {command_type}: {latest_uid}")
+            # For generate_video_from_image, use image_url
+            elif command_type == "generate_video_from_image":
+                params["image_url"] = latest_uid
+                logger.info(f"✅ Auto-assigned latest image UID for {command_type}: {latest_uid}")
+        else:
+            logger.warning(f"❌ No valid image UID found for {command_type} (latest_uid: {latest_uid})")
 
 
 def _extract_style_essence(user_input: str, provider) -> str:
@@ -336,7 +348,7 @@ Style:"""
         return user_input  # Fallback to original
 
 
-def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optional[List[Dict[str, Any]]], reference_images: Optional[List[Dict[str, Any]]], target_image_uid: str = None) -> None:
+def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optional[List[Dict[str, Any]]], reference_images: Optional[List[Dict[str, Any]]], target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None) -> None:
     """
     Inject image data into commands that support image processing.
 
@@ -345,8 +357,9 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
         images: List of target images with 'mime_type', 'data', optional 'purpose'
         reference_images: List of reference images with 'mime_type', 'data', optional 'purpose'
         target_image_uid: Optional UID for main target image
+        main_image_data: Optional user-uploaded main image (in-memory only, no UID)
     """
-    if not images and not reference_images and not target_image_uid:
+    if not images and not reference_images and not target_image_uid and not main_image_data:
         return
 
     # Commands that support image processing
@@ -364,11 +377,15 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
             if 'params' not in command:
                 command['params'] = {}
 
-            # Add target image UID if provided (new method)
-            if target_image_uid:
+            # Priority 1: Add user-uploaded main image (in-memory, no UID) - takes precedence over auto-fetched UID
+            if main_image_data:
+                command['params']['main_image_data'] = main_image_data
+                logger.info(f"Added user-uploaded main image ({main_image_data.get('mime_type')}, {len(main_image_data.get('data', b''))//1024}KB) to command {command_type}")
+            # Priority 2: Add target image UID if provided (existing screenshot or auto-fetched)
+            elif target_image_uid:
                 command['params']['target_image_uid'] = target_image_uid
                 logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
-            # Add target image data (legacy method)
+            # Priority 3: Add target image data (legacy method)
             elif images:
                 target_image = images[0]
                 command['params']['target_image'] = {
@@ -404,7 +421,7 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
                 command['params']['image_url'] = None
 
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
     try:
         # Get session manager and session context if session_id provided
         session_manager = None
@@ -523,8 +540,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     parsed_response = _extract_from_partial_response(ai_response)
 
         # Process images for commands if images are provided
-        if (images or reference_images or target_image_uid) and parsed_response.get("commands"):
-            _process_images_for_commands(parsed_response["commands"], images, reference_images, target_image_uid)
+        if (images or reference_images or target_image_uid or main_image_data) and parsed_response.get("commands"):
+            _process_images_for_commands(parsed_response["commands"], images, reference_images, target_image_uid, main_image_data)
 
         # Execute commands using direct connection with schema validation
         execution_results = []
@@ -580,10 +597,32 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                         "validation": "failed" if "validation failed" in str(e).lower() else "passed"
                     })
                     logger.error(f"Failed to execute command {command.get('type')}: {e}")
+        # Sanitize commands for response (remove large binary data)
+        def sanitize_commands_for_response(commands):
+            """Remove large binary data from commands before sending response."""
+            sanitized = []
+            for cmd in commands:
+                cmd_copy = cmd.copy()
+                if "params" in cmd_copy:
+                    params_copy = cmd_copy["params"].copy()
+                    # Replace large binary data with summary
+                    if "main_image_data" in params_copy and isinstance(params_copy["main_image_data"], dict):
+                        img_data = params_copy["main_image_data"]
+                        data_size = len(img_data.get('data', b'')) if isinstance(img_data.get('data'), bytes) else len(str(img_data.get('data', '')))
+                        params_copy["main_image_data"] = {
+                            "mime_type": img_data.get("mime_type"),
+                            "data": f"<bytes:{data_size} bytes>"
+                        }
+                    if "reference_images" in params_copy and isinstance(params_copy["reference_images"], list):
+                        params_copy["reference_images"] = f"<{len(params_copy['reference_images'])} reference images>"
+                    cmd_copy["params"] = params_copy
+                sanitized.append(cmd_copy)
+            return sanitized
+
         # Prepare final response
         result = {
             "explanation": parsed_response.get("explanation", "Processed your request"),
-            "commands": parsed_response.get("commands", []),
+            "commands": sanitize_commands_for_response(parsed_response.get("commands", [])),
             "expectedResult": parsed_response.get("expectedResult", "Commands executed"),
             "executionResults": execution_results,
             "modelUsed": selected_model  # Include which model was used for cost tracking
@@ -613,10 +652,10 @@ def register_nlp_tools(mcp):
     pass
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images, target_image_uid, main_prompt, reference_prompts)
+        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images, target_image_uid, main_image_data, main_prompt, reference_prompts)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {

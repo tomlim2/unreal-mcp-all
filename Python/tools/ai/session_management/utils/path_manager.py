@@ -274,6 +274,26 @@ class PathManager:
         self._cached_paths['reference_images'] = ref_path
         return ref_path
 
+    def get_generated_images_path(self) -> str:
+        """
+        Get the generated/styled images storage path.
+
+        Returns:
+            str: Generated images path (assets/images/generated)
+        """
+        if 'generated_images' in self._cached_paths:
+            return self._cached_paths['generated_images']
+
+        # Default to assets/images/generated for AI-generated images
+        gen_path = os.path.join(self.get_data_storage_path(), 'assets', 'images', 'generated')
+        logger.debug(f"Using generated images path: {gen_path}")
+
+        if self.config.create_directories:
+            Path(gen_path).mkdir(parents=True, exist_ok=True)
+
+        self._cached_paths['generated_images'] = gen_path
+        return gen_path
+
     def get_3d_objects_path(self) -> str:
         """
         Get the 3D objects storage base path.

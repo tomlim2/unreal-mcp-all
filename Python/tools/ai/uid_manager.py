@@ -459,3 +459,33 @@ def delete_mappings_by_session_id(session_id: str) -> List[str]:
         List of deleted UIDs
     """
     return get_uid_manager().delete_mappings_by_session_id(session_id)
+
+
+def get_latest_image_uid() -> Optional[str]:
+    """Get the most recently created image UID across all sessions.
+
+    Returns:
+        Latest image UID (img_XXX) or None if no images exist
+    """
+    manager = get_uid_manager()
+    all_mappings = manager.get_all_mappings()
+
+    # Filter for image UIDs only
+    image_mappings = {
+        uid: data for uid, data in all_mappings.items()
+        if uid.startswith('img_') and data.get('content_type') == 'image'
+    }
+
+    if not image_mappings:
+        return None
+
+    # Sort by created_at timestamp (newest first)
+    sorted_images = sorted(
+        image_mappings.items(),
+        key=lambda x: x[1].get('created_at', ''),
+        reverse=True
+    )
+
+    latest_uid = sorted_images[0][0]
+    logger.debug(f"Latest image UID from UID manager: {latest_uid}")
+    return latest_uid

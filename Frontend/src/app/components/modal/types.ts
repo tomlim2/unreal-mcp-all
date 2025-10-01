@@ -99,12 +99,13 @@ export interface ReferenceImagesData {
   prompt: string; // Keep for backward compatibility
   main_prompt?: string; // Optional main transformation prompt
   reference_prompts?: string[]; // Individual prompts per image
-  targetImageUid: string;
+  targetImageUid?: string; // Optional: use existing screenshot
+  mainImageData?: ReferenceImageData; // Optional: user-uploaded main image
   referenceImageData?: ReferenceImageData[]; // Direct image data (new approach)
 }
 
 export interface ReferenceImagesModalConfig extends BaseModalConfig {
-  sessionId: string;
+  sessionId: string | null; // Allow null for first page usage
   onSubmit: (data: ReferenceImagesData) => void | Promise<void>;
 }
 

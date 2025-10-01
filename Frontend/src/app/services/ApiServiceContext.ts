@@ -191,10 +191,6 @@ export function createApiService(): ApiService {
 
     transform: async (data: TransformRequest): Promise<AIResponse> => {
       try {
-        // Fetch latest image UID from session
-        const latestImageResponse = await fetch(`http://127.0.0.1:8080/api/session/${data.sessionId}/latest-image`);
-        const latestImageData = await latestImageResponse.json();
-
         // Prepare request body
         const requestBody: Record<string, any> = {
           prompt: data.prompt,
@@ -211,17 +207,31 @@ export function createApiService(): ApiService {
           requestBody.reference_prompts = data.reference_prompts;
         }
 
+        // Add main image - either uploaded or from UID
+        if (data.mainImageData) {
+          // User-uploaded main image
+          requestBody.mainImageData = data.mainImageData;
+        } else if (data.sessionId) {
+          // Try to fetch latest image UID from session
+          try {
+            const latestImageResponse = await fetch(`http://127.0.0.1:8080/api/session/${data.sessionId}/latest-image`);
+            const latestImageData = await latestImageResponse.json();
+
+            if (latestImageData.success && latestImageData.latest_image.uid) {
+              requestBody.target_image_uid = latestImageData.latest_image.uid;
+            }
+          } catch (err) {
+            console.warn('Could not fetch latest image, will use uploaded image if provided:', err);
+          }
+        }
+
         console.log('API Service: Sending transform request with enhanced prompts:', {
           prompt: data.prompt,
           main_prompt: data.main_prompt,
           reference_prompts: data.reference_prompts,
+          mainImageData: data.mainImageData ? 'present' : 'none',
           referenceImageData: data.referenceImageData?.length || 0
         });
-
-        // Add main target image UID if available
-        if (latestImageData.success && latestImageData.latest_image.uid) {
-          requestBody.target_image_uid = latestImageData.latest_image.uid;
-        }
 
         // Add reference images directly (no UID storage)
         if (data.referenceImageData && data.referenceImageData.length > 0) {
