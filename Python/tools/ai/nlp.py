@@ -384,12 +384,8 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
                 for ref_img in reference_images[:3]:  # Gemini supports max 3 images
                     processed_ref = {}
 
-                    # Support both UID-based and legacy data-based formats
-                    if 'refer_uid' in ref_img:
-                        # UID-based reference (new method)
-                        processed_ref['refer_uid'] = ref_img['refer_uid']
-                    elif 'data' in ref_img:
-                        # Legacy data-based reference
+                    # Data-based reference images
+                    if 'data' in ref_img:
                         processed_ref['data'] = ref_img['data']
                         processed_ref['mime_type'] = ref_img.get('mime_type', 'image/png')
 

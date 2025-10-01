@@ -39,7 +39,6 @@ class UIDManager:
         self._storage_file = Path(storage_file)
         self._img_counter = 0
         self._vid_counter = 0
-        self._ref_counter = 0  # New counter for reference images
         self._obj_counter = 0  # New counter for 3D objects (OBJ format)
         self._fbx_counter = 0  # New counter for FBX format 3D objects
         self._uid_mappings = {}
@@ -80,24 +79,6 @@ class UIDManager:
 
             uid = f"vid_{self._vid_counter:03d}"
             logger.info(f"Generated video UID: {uid}")
-            return uid
-
-    def get_next_reference_uid(self) -> str:
-        """Generate next sequential reference image UID (e.g., refer_001).
-
-        Returns:
-            Sequential reference UID string in format refer_XXX
-        """
-        with self._lock:
-            if not self._initialized:
-                self._load_state()
-                self._initialized = True
-
-            self._ref_counter += 1
-            self._save_state()
-
-            uid = f"refer_{self._ref_counter:03d}"
-            logger.info(f"Generated reference UID: {uid}")
             return uid
 
     def get_next_object_uid(self) -> str:
@@ -149,7 +130,6 @@ class UIDManager:
             return {
                 'img_counter': self._img_counter,
                 'vid_counter': self._vid_counter,
-                'ref_counter': self._ref_counter,
                 'obj_counter': self._obj_counter,
                 'fbx_counter': self._fbx_counter
             }
@@ -301,10 +281,9 @@ class UIDManager:
                         # New format with separate counters
                         self._img_counter = data.get('img_counter', 0)
                         self._vid_counter = data.get('vid_counter', 0)
-                        self._ref_counter = data.get('ref_counter', 0)  # Load reference counter
                         self._obj_counter = data.get('obj_counter', 0)  # Load 3D object counter (OBJ)
                         self._fbx_counter = data.get('fbx_counter', 0)  # Load FBX counter
-                        logger.info(f"Loaded counters - img: {self._img_counter}, vid: {self._vid_counter}, ref: {self._ref_counter}, obj: {self._obj_counter}, fbx: {self._fbx_counter}")
+                        logger.info(f"Loaded counters - img: {self._img_counter}, vid: {self._vid_counter}, obj: {self._obj_counter}, fbx: {self._fbx_counter}")
 
                     # Load mappings
                     self._uid_mappings = data.get('uid_mappings', {})
@@ -345,7 +324,6 @@ class UIDManager:
             state_data = {
                 'img_counter': self._img_counter,
                 'vid_counter': self._vid_counter,
-                'ref_counter': self._ref_counter,  # Save reference counter
                 'obj_counter': self._obj_counter,  # Save 3D object counter (OBJ)
                 'fbx_counter': self._fbx_counter,  # Save FBX counter
                 'uid_mappings': self._uid_mappings,
@@ -408,15 +386,6 @@ def generate_video_uid() -> str:
         Sequential UID string (e.g., vid_001)
     """
     return get_uid_manager().get_next_video_uid()
-
-
-def generate_reference_uid() -> str:
-    """Convenience function to generate next reference UID.
-
-    Returns:
-        Sequential UID string (e.g., refer_001)
-    """
-    return get_uid_manager().get_next_reference_uid()
 
 
 def generate_object_uid() -> str:
