@@ -81,14 +81,7 @@ export default function Sidebar({
         )}
       </div>
       <div className={styles.footer}>
-        <h3 className={styles.todoTitle}>Next Steps</h3>
-        <ul className={styles.todoList}>
-          <li className={styles.todoItem}>Add Nano banana</li>
-          <li className={styles.todoItem}>Add get actors by activated viewport</li>
-          <li className={styles.todoItem}>And more function</li>
-        </ul>
         <p className={styles.copyright}>
-          github repo available soon
         </p>
       </div>
     </div>

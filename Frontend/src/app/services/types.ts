@@ -76,6 +76,7 @@ export interface TransformRequest {
   reference_prompts?: string[];
   model: string;
   sessionId: string;
+  mainImageData?: {data: string; mime_type: string}; // User-uploaded main image
   referenceImageData?: Array<{data: string; mime_type: string}>;
 }
 

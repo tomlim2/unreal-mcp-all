@@ -16,8 +16,8 @@ interface ChatInputProps {
 		reference_prompts?: string[];
 		model: string;
 		sessionId: string;
-		referenceImageUids?: string[];
-		referenceImages?: Array<{preview: string; purpose: string; file: File}>;
+		mainImageData?: any;
+		referenceImageData?: any;
 	}) => Promise<unknown>;
 	onRefreshContext: () => void;
 	allowModelSwitching?: boolean; // New prop to control model switcher
@@ -188,8 +188,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 		setShowExamples(false);
 
 		try {
-			const data = await onSubmit(prompt, selectedLlm);
-			console.log("AI Response:", data);
+			await onSubmit(prompt, selectedLlm);
 			onRefreshContext();
 			setPrompt("");
 		} catch (err) {
@@ -218,8 +217,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 		setShowExamples(false);
 
 		try {
-			const data = await onSubmit("Take a screenshot", selectedLlm);
-			console.log("Screenshot Response:", data);
+			await onSubmit("Take a screenshot", selectedLlm);
 			onRefreshContext();
 		} catch (err) {
 			console.error('Screenshot failed:', err);
@@ -233,30 +231,23 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	};
 
 	const handleTransformClick = async () => {
-		console.log('Transform button clicked', { isProcessing, sessionId, hasOnTransformSubmit: !!onTransformSubmit });
-		if (isProcessing || !sessionId || !onTransformSubmit) return;
+		if (isProcessing || !onTransformSubmit) return;
 
 		try {
-			const result = await showReferenceImages({
+			await showReferenceImages({
 				sessionId,
 				onSubmit: async (data) => {
 					setSubmitting(true);
 					setShowExamples(false);
 
 					try {
-						// Pass data to parent component for API handling
-						console.log('ChatInput: Forwarding reference images data:', {
-							prompt: data.prompt,
-							main_prompt: data.main_prompt,
-							reference_prompts: data.reference_prompts,
-							referenceImageData: data.referenceImageData?.length || 0
-						});
 						await onTransformSubmit({
 							prompt: data.prompt,
 							main_prompt: data.main_prompt,
 							reference_prompts: data.reference_prompts,
 							model: selectedLlm,
 							sessionId,
+							mainImageData: data.mainImageData,
 							referenceImageData: data.referenceImageData
 						});
 						onRefreshContext();
@@ -267,10 +258,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 					}
 				}
 			});
-
-			if (result) {
-				console.log("Reference images submitted:", result);
-			}
 		} catch (err) {
 			console.error('Reference images modal failed:', err);
 		}
@@ -278,18 +265,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
 	const isProcessing = loading || submitting;
 	const canSubmit = prompt.trim() && !isProcessing;
-	const canTransform = !isProcessing && sessionId && onTransformSubmit;
+	const canTransform = !isProcessing && onTransformSubmit;
 
-	// Debug log for transform button state
-	useEffect(() => {
-		console.log('Transform button state:', {
-			canTransform,
-			isProcessing,
-			sessionId,
-			hasOnTransformSubmit: !!onTransformSubmit
-		});
-	}, [canTransform, isProcessing, sessionId, onTransformSubmit]);
-	
 	// Re-focus after loading finishes
 	useEffect(() => {
 		if (!isProcessing && sessionId) {

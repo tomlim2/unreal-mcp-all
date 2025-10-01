@@ -216,24 +216,33 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         path_manager = get_path_manager()
                         screenshot_dir_path = path_manager.get_unreal_screenshots_path()
                         styled_dir_path = path_manager.get_unreal_styled_images_path()
+                        generated_dir_path = path_manager.get_generated_images_path()
 
-                        if not screenshot_dir_path or not styled_dir_path:
+                        # Always have generated_dir available (doesn't require Unreal project)
+                        if not generated_dir_path:
                             self.send_response(500)
                             self.send_header('Access-Control-Allow-Origin', '*')
                             self.end_headers()
                             return
 
-                        # Build path to screenshot file - check both WindowsEditor and styled directories
-                        screenshot_dir = Path(screenshot_dir_path)
-                        styled_dir = Path(styled_dir_path)
+                        # Build list of directories to check (generated is always available)
+                        search_paths = []
+                        if screenshot_dir_path:
+                            search_paths.append(Path(screenshot_dir_path))
+                        if styled_dir_path:
+                            search_paths.append(Path(styled_dir_path))
+                        search_paths.append(Path(generated_dir_path))
 
-                        file_path = screenshot_dir / filename
-                        if not file_path.exists():
-                            # Try styled directory if not found in WindowsEditor
-                            file_path = styled_dir / filename
+                        # Try to find file in all available directories
+                        file_path = None
+                        for search_dir in search_paths:
+                            candidate_path = search_dir / filename
+                            if candidate_path.exists():
+                                file_path = candidate_path
+                                break
 
                         # Check if file exists
-                        if file_path.exists() and filename.lower().endswith('.png'):
+                        if file_path and file_path.exists() and filename.lower().endswith('.png'):
                             file_size = file_path.stat().st_size
 
                             # Send success headers without body
@@ -365,22 +374,31 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             path_manager = get_path_manager()
                             screenshot_dir_path = path_manager.get_unreal_screenshots_path()
                             styled_dir_path = path_manager.get_unreal_styled_images_path()
+                            generated_dir_path = path_manager.get_generated_images_path()
 
-                            if not screenshot_dir_path or not styled_dir_path:
-                                self._send_error("Unable to determine screenshot directory paths")
+                            # Always have generated_dir available (doesn't require Unreal project)
+                            if not generated_dir_path:
+                                self._send_error("Unable to determine generated images directory path")
                                 return
 
-                            # Build path to screenshot file - check both WindowsEditor and styled directories
-                            screenshot_dir = Path(screenshot_dir_path)
-                            styled_dir = Path(styled_dir_path)
+                            # Build list of directories to check (generated is always available)
+                            search_paths = []
+                            if screenshot_dir_path:
+                                search_paths.append(Path(screenshot_dir_path))
+                            if styled_dir_path:
+                                search_paths.append(Path(styled_dir_path))
+                            search_paths.append(Path(generated_dir_path))
 
-                            file_path = screenshot_dir / filename
-                            if not file_path.exists():
-                                # Try styled directory if not found in WindowsEditor
-                                file_path = styled_dir / filename
+                            # Try to find file in all available directories
+                            file_path = None
+                            for search_dir in search_paths:
+                                candidate_path = search_dir / filename
+                                if candidate_path.exists():
+                                    file_path = candidate_path
+                                    break
 
                             # Validate file exists and is a PNG
-                            if not file_path.exists():
+                            if not file_path or not file_path.exists():
                                 self._send_error(f"Screenshot file not found: {filename}")
                                 return
 
@@ -763,45 +781,61 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     session_id = request_data.get('session_id')
                     llm_model = request_data.get('llm_model')
 
-                    # Process image data if present
+                    # Process image data using resource processor
+                    from core.resources.images import process_main_image, process_reference_images
+
                     images = []
-                    reference_images = []  # Always initialize to prevent undefined variable errors
-                    target_image_uid = None  # New: main target image UID
+                    reference_images = []
+                    target_image_uid = None
+                    main_image_data = None
 
                     try:
-                        # Process target image UID (new method)
-                        target_image_uid = request_data.get('target_image_uid')
+                        # Process main/target image (supports both UID and user upload)
+                        target_image_uid, main_image_data = process_main_image(
+                            main_image_request=request_data.get('mainImageData'),
+                            target_image_uid=request_data.get('target_image_uid')
+                        )
+
+                        # If no image source provided, try to fetch latest image from session
+                        if not target_image_uid and not main_image_data and session_id:
+                            try:
+                                sess_manager = get_session_manager()
+                                session_context = sess_manager.get_session(session_id)
+                                if session_context:
+                                    latest_image_uid = session_context.get_latest_image_uid()
+                                    if latest_image_uid:
+                                        target_image_uid = latest_image_uid
+                                        print(f"DEBUG: Auto-fetched latest image from session: {target_image_uid}", flush=True)
+                                    else:
+                                        print(f"DEBUG: No latest image found in session {session_id}", flush=True)
+                                else:
+                                    print(f"DEBUG: Session {session_id} not found", flush=True)
+                            except Exception as e:
+                                print(f"DEBUG: Failed to auto-fetch latest image: {e}", flush=True)
+
                         if target_image_uid:
                             print(f"DEBUG: Using target image UID: {target_image_uid}", flush=True)
+                        elif main_image_data:
+                            print(f"DEBUG: Using user-uploaded main image (in-memory, no UID)", flush=True)
 
-                        # Process target images (legacy base64 method)
+                        # Process legacy images (if any)
                         raw_images = request_data.get('images', [])
                         if raw_images:
                             images = _validate_and_process_images(raw_images)
 
-                        # Process reference images - direct data only
+                        # Process reference images using resource processor
                         raw_reference_images = request_data.get('reference_images', [])
 
-                        print(f"DEBUG: Processing reference images - count: {len(raw_reference_images)}", flush=True)
-
-                        # Handle direct base64 reference images
                         if raw_reference_images:
-                            print(f"DEBUG: Using direct base64 reference images ({len(raw_reference_images)} images)", flush=True)
-                            for i, raw_ref in enumerate(raw_reference_images):
-                                print(f"DEBUG: Raw ref {i}: keys={list(raw_ref.keys())}", flush=True)
+                            print(f"DEBUG: Processing {len(raw_reference_images)} reference images", flush=True)
+                            reference_images = process_reference_images(raw_reference_images)
 
-                            print(f"DEBUG: Validating {len(raw_reference_images)} reference images", flush=True)
-                            reference_images = _validate_and_process_images(raw_reference_images)
-
-                            if not reference_images or len(reference_images) != len(raw_reference_images):
-                                raise ValueError(f"Reference images validation failed: expected {len(raw_reference_images)}, got {len(reference_images) if reference_images else 0}")
-
-                            print(f"DEBUG: Successfully validated {len(reference_images)} reference images", flush=True)
+                            print(f"DEBUG: Successfully processed {len(reference_images)} reference images (in-memory, no UID)", flush=True)
                             for i, ref in enumerate(reference_images):
-                                print(f"DEBUG: Processed ref {i}: keys={list(ref.keys())}, data_length={len(ref.get('data', ''))}", flush=True)
+                                print(f"DEBUG: Ref {i}: {ref['mime_type']}, {len(ref['data']) // 1024}KB", flush=True)
 
                         # Log image processing (safely)
-                        if images or reference_images:
+                        if images or reference_images or main_image_data:
                             _log_image_processing(images, reference_images)
 
                     except ValueError as e:
@@ -882,6 +916,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             images=images if images else None,
                             reference_images=nlp_reference_images,
                             target_image_uid=target_image_uid,
+                            main_image_data=main_image_data,
                             main_prompt=main_prompt,
                             reference_prompts=reference_prompts
                         )

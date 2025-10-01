@@ -44,15 +44,24 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
 
   // Form state
   const [mainPrompt, setMainPrompt] = useState('');
+  const [mainImageUpload, setMainImageUpload] = useState<{ file: File; preview: string } | null>(null);
   const [referenceImages, setReferenceImages] = useState<ReferenceImageUpload[]>([]);
   const [referencePrompts, setReferencePrompts] = useState<string[]>(['', '', '']); // Individual prompts for each reference image
 
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const mainImageInputRef = useRef<HTMLInputElement | null>(null);
   const imageUrlRef = useRef<string | null>(null);
 
   // Fetch latest image info - only once on mount
   useEffect(() => {
     async function fetchLatestImage() {
+      // Skip fetching if no sessionId (user will upload main image)
+      if (!sessionId) {
+        setLatestImage({ uid: null, filename: null, thumbnail_url: null, available: false });
+        setLoading(false);
+        return;
+      }
+
       try {
         const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
         const response = await fetch(`http://localhost:${httpBridgePort}/api/session/${sessionId}/latest-image`);
@@ -79,6 +88,41 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     fetchLatestImage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
+
+  // Handle main image upload
+  const handleMainImageUpload = async (file: File | null) => {
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image must be smaller than 10MB');
+      return;
+    }
+
+    // Create preview
+    const preview = URL.createObjectURL(file);
+
+    // Clean up old preview if exists
+    if (mainImageUpload?.preview) {
+      URL.revokeObjectURL(mainImageUpload.preview);
+    }
+
+    setMainImageUpload({ file, preview });
+  };
+
+  // Remove main image upload
+  const removeMainImageUpload = () => {
+    if (mainImageUpload?.preview) {
+      URL.revokeObjectURL(mainImageUpload.preview);
+    }
+    setMainImageUpload(null);
+  };
 
   // Handle file upload - client-side only processing
   const handleFileUpload = async (index: number, file: File | null) => {
@@ -156,8 +200,12 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
 
   // Handle submit - send images directly with transformation request
   const handleSubmit = async () => {
-    if (!latestImage?.available || !latestImage.uid) {
-      alert('No target image available');
+    // Check if we have either a target image UID OR a main image upload
+    const hasTargetImage = latestImage?.available && latestImage.uid;
+    const hasMainImageUpload = mainImageUpload !== null;
+
+    if (!hasTargetImage && !hasMainImageUpload) {
+      alert('Please provide a target image (either upload one or use an existing screenshot)');
       return;
     }
 
@@ -169,6 +217,23 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     setSubmitting(true);
 
     try {
+      // Convert main image upload to base64 if provided
+      let mainImageData = undefined;
+      if (mainImageUpload) {
+        try {
+          const dataUri = await fileToDataUri(mainImageUpload.file);
+          mainImageData = {
+            data: dataUri,
+            mime_type: mainImageUpload.file.type
+          };
+        } catch (error) {
+          console.error('Failed to convert main image:', error);
+          alert('Failed to process main image. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       // Convert all reference images to base64 data URIs
       const referenceImageData = [];
 
@@ -203,7 +268,8 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         prompt: mainPrompt.trim() || 'Transform using reference images', // Minimal backward compatibility
         main_prompt: mainPrompt.trim() || undefined, // NEW: Optional main prompt
         reference_prompts: activeReferencePrompts, // NEW: Individual prompts per image
-        targetImageUid: latestImage.uid,
+        targetImageUid: hasTargetImage ? latestImage.uid : undefined,
+        mainImageData: mainImageData, // NEW: User-uploaded main image
         referenceImageData // NEW: Direct image data (replaces referenceImageUids)
       };
 
@@ -212,6 +278,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         main_prompt: data.main_prompt,
         reference_prompts: data.reference_prompts,
         targetImageUid: data.targetImageUid,
+        mainImageData: mainImageData ? 'present' : 'none',
         referenceImageData: data.referenceImageData?.length || 0
       });
 
@@ -228,6 +295,9 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
   // Handle close
   const handleClose = () => {
     // Clean up preview URLs
+    if (mainImageUpload?.preview) {
+      URL.revokeObjectURL(mainImageUpload.preview);
+    }
     referenceImages.forEach(ref => {
       if (ref.preview) {
         URL.revokeObjectURL(ref.preview);
@@ -249,30 +319,8 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     );
   }
 
-  if (!latestImage?.available) {
-    return (
-      <div className={styles.modal}>
-        <div className={styles.modalContent}>
-          <div className={styles.header}>
-            <h2>Reference Images</h2>
-            <button className={styles.closeButton} onClick={handleClose}>×</button>
-          </div>
-
-          <div className={styles.noImagesState}>
-            <div className={styles.warningIcon}>⚠️</div>
-            <h3>No recent images available</h3>
-            <p>Take a screenshot or generate an image first to use this feature</p>
-
-            <div className={styles.actions}>
-              <button className={styles.button} onClick={handleClose}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Show main image upload UI if no latest image OR user uploaded an image
+  const showMainImageUpload = !latestImage?.available || mainImageUpload !== null;
 
   return (
     <div className={styles.modal}>
@@ -285,18 +333,71 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         <div className={styles.body}>
           {/* Target Image Section */}
           <div className={styles.section}>
-            <h3>Target Image</h3>
-            <div className={styles.targetImage}>
-              <img
-                src={imageUrlRef.current || getFullImageUrl(latestImage.thumbnail_url!)}
-                alt={`Image ${latestImage.uid}`}
-                className={styles.thumbnail}
-              />
-              <div className={styles.imageInfo}>
-                <span className={styles.uid}>UID: {latestImage.uid}</span>
-                <span className={styles.filename}>{latestImage.filename}</span>
+            <h3>Target Image (Main Image to Transform)</h3>
+            {showMainImageUpload ? (
+              <div className={styles.targetImage}>
+                {mainImageUpload ? (
+                  <div className={styles.uploadedImage}>
+                    <img
+                      src={mainImageUpload.preview}
+                      alt="Main image to transform"
+                      className={styles.thumbnail}
+                    />
+                    <button
+                      className={styles.removeButton}
+                      onClick={removeMainImageUpload}
+                      disabled={submitting}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={styles.uploadPlaceholder}
+                    onClick={() => mainImageInputRef.current?.click()}
+                  >
+                    <span className={styles.uploadIcon}>+</span>
+                    <span>Upload Main Image to Transform</span>
+                  </div>
+                )}
+                <input
+                  ref={mainImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleMainImageUpload(e.target.files?.[0] || null)}
+                  style={{ display: 'none' }}
+                  disabled={submitting}
+                />
               </div>
-            </div>
+            ) : (
+              <div className={styles.targetImage}>
+                <img
+                  src={imageUrlRef.current || getFullImageUrl(latestImage!.thumbnail_url!)}
+                  alt={`Image ${latestImage!.uid}`}
+                  className={styles.thumbnail}
+                />
+                <div className={styles.imageInfo}>
+                  <span className={styles.uid}>UID: {latestImage!.uid}</span>
+                  <span className={styles.filename}>{latestImage!.filename}</span>
+                </div>
+                <button
+                  className={styles.button}
+                  onClick={() => mainImageInputRef.current?.click()}
+                  disabled={submitting}
+                  style={{ marginTop: '8px' }}
+                >
+                  Upload Different Image Instead
+                </button>
+                <input
+                  ref={mainImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleMainImageUpload(e.target.files?.[0] || null)}
+                  style={{ display: 'none' }}
+                  disabled={submitting}
+                />
+              </div>
+            )}
           </div>
 
           {/* Main Prompt Section */}

@@ -16,8 +16,13 @@ class ChatMessage:
     content: str
     commands: List[Dict[str, Any]] = field(default_factory=list)
     execution_results: List[Dict[str, Any]] = field(default_factory=list)
+    # AI response fields
+    explanation: str = ""
+    expectedResult: str = ""
+    error: str = None
+    fallback: bool = False
     # NEW: Job-related fields for worker pattern
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = {
@@ -25,12 +30,19 @@ class ChatMessage:
             'role': self.role,
             'content': self.content,
             'commands': self.commands,
-            'execution_results': self.execution_results
+            'execution_results': self.execution_results,
+            'explanation': self.explanation,
+            'expectedResult': self.expectedResult,
         }
-        
-            
+
+        # Only include error and fallback if they have values
+        if self.error:
+            data['error'] = self.error
+        if self.fallback:
+            data['fallback'] = self.fallback
+
         return data
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ChatMessage':
         """Create from dictionary (JSON deserialization)."""
@@ -40,6 +52,10 @@ class ChatMessage:
             content=data['content'],
             commands=data.get('commands', []),
             execution_results=data.get('execution_results', []),
+            explanation=data.get('explanation', ''),
+            expectedResult=data.get('expectedResult', ''),
+            error=data.get('error'),
+            fallback=data.get('fallback', False),
         )
 
 
@@ -158,19 +174,24 @@ class SessionContext:
     session_name: Optional[str] = None
     llm_model: str = 'gemini-2'  # Default to Gemini 2.5 Flash model
     
-    def add_message(self, role: str, content: str, commands: List[Dict[str, Any]] = None, 
-                   execution_results: List[Dict[str, Any]] = None):
+    def add_message(self, role: str, content: str, commands: List[Dict[str, Any]] = None,
+                   execution_results: List[Dict[str, Any]] = None, explanation: str = "",
+                   expectedResult: str = "", error: str = None, fallback: bool = False):
         """Add a new message to the conversation history."""
         message = ChatMessage(
             timestamp=datetime.now(),
             role=role,
             content=content,
             commands=commands or [],
-            execution_results=execution_results or []
+            execution_results=execution_results or [],
+            explanation=explanation,
+            expectedResult=expectedResult,
+            error=error,
+            fallback=fallback
         )
         self.conversation_history.append(message)
         self.last_accessed = datetime.now()
-        
+
         # Keep conversation history manageable (last 50 messages)
         if len(self.conversation_history) > 50:
             self.conversation_history = self.conversation_history[-50:]
@@ -188,12 +209,25 @@ class SessionContext:
         # Add user message
         self.add_message('user', user_input)
 
-        # Add AI response
+        # Add AI response with all fields
         ai_content = ai_response.get('explanation', 'Processed your request')
         commands = ai_response.get('commands', [])
         execution_results = ai_response.get('executionResults', [])
+        explanation = ai_response.get('explanation', '')
+        expectedResult = ai_response.get('expectedResult', '')
+        error = ai_response.get('error')
+        fallback = ai_response.get('fallback', False)
 
-        self.add_message('assistant', ai_content, commands, execution_results)
+        self.add_message(
+            'assistant',
+            ai_content,
+            commands,
+            execution_results,
+            explanation=explanation,
+            expectedResult=expectedResult,
+            error=error,
+            fallback=fallback
+        )
 
         # Update scene state based on executed commands
         for i, command in enumerate(commands):

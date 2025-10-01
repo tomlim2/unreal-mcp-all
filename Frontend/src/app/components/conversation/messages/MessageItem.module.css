@@ -86,12 +86,9 @@
 .debugLabel {
   color: #79c0ff;
   font-weight: bold;
-  font-size: 11px;
+  font-size: 0.725rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid #21262d;
-  padding-bottom: 4px;
 }
 
 .debugValue {
@@ -700,6 +697,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 0.8125rem;
+  margin-bottom: .25rem;
 }
 
 .debugLabel {
@@ -753,9 +751,6 @@
 .totalCost {
   font-weight: bold;
   color: #fff !important;
-  border-top: 1px solid #444;
-  padding-top: 5px;
-  margin-top: 5px;
 }
 
 /* Image metadata table styles */
