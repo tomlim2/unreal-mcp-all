@@ -47,13 +47,17 @@ class RobloxErrorCodes:
 
 
 @dataclass
-class RobloxError:
+class RobloxError(Exception):
     """Structured error information for Roblox operations."""
     code: str
     message: str
     details: Optional[Dict[str, Any]] = None
     suggestion: Optional[str] = None
     retry_after: Optional[int] = None  # Seconds to wait before retry
+
+    def __str__(self) -> str:
+        """Return string representation for exception handling."""
+        return self.message
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""

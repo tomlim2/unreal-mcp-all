@@ -141,12 +141,16 @@ class Object3DImportHandler(BaseCommandHandler):
                 metadata = json.load(f)
 
             # Extract username and user_id (required for directory naming)
-            # Handle both flat and nested metadata structures
+            # Handle multiple metadata structures
             if "user_info" in metadata:
                 # Nested structure from Roblox API
                 user_info = metadata["user_info"]
                 username = user_info.get("name", user_info.get("displayName", "Unknown"))
                 user_id = user_info.get("id", 0)
+            elif "username" in metadata and "user_id" in metadata:
+                # FBX conversion metadata (has username/user_id at root)
+                username = metadata.get("username", "Unknown")
+                user_id = metadata.get("user_id", 0)
             else:
                 # Flat structure (legacy or other sources)
                 username = metadata.get("name", "Unknown")

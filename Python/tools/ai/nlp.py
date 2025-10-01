@@ -669,7 +669,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
 **3D Content & Assets:**
-- Roblox Avatars: download_roblox_obj (download 3D avatar models with async processing)
+- Roblox Avatars: download_roblox_obj (download 3D avatar models with async processing), convert_roblox_obj_to_fbx (convert OBJ to FBX format)
 - Asset Import: import_object3d_by_uid (import downloaded 3D objects as Unreal Editor assets)
 
 **Rendering & Capture:**
@@ -721,6 +721,11 @@ Your role is to provide intuitive creative control by translating natural langua
   * "download roblox avatar for BuildermanOG" → download_roblox_obj
   * "로블록스 아바타 다운로드해줘 user123" → download_roblox_obj
   * "get roblox obj for 12345" → download_roblox_obj
+- IF input contains convert keywords: "convert", "변환", "fbx로 변환", "to fbx", "obj to fbx"
+- THEN use convert_roblox_obj_to_fbx command:
+  * "convert obj_001 to fbx" → convert_roblox_obj_to_fbx
+  * "obj_001을 fbx로 변환해줘" → convert_roblox_obj_to_fbx
+  * "convert roblox avatar to fbx" → convert_roblox_obj_to_fbx (uses most recent obj_XXX UID)
 - IF input contains import keywords: "import", "임포트", "가져와", "불러와", "bring into unreal"
 - THEN use import_object3d_by_uid command:
   * "import the roblox avatar" → import_object3d_by_uid (uses most recent obj_XXX UID)
@@ -760,7 +765,8 @@ Your role is to provide intuitive creative control by translating natural langua
 - aspect_ratio: "16:9" or "9:16" (video only)
 - resolution: "720p" or "1080p" (video only)
 - user_input: Roblox username or user ID (required for download_roblox_obj)
-- uid: Object UID (required for import_object3d_by_uid, format: obj_XXX)
+- obj_uid: OBJ UID to convert (required for convert_roblox_obj_to_fbx, format: obj_XXX)
+- uid: Object UID (required for import_object3d_by_uid, format: obj_XXX or fbx_XXX)
 
 **Image/Video Source:**
 - target_image_uid: Automatically provided (latest screenshot)
@@ -808,6 +814,11 @@ WITH "roblox" (→ Roblox Download):
 - "download roblox avatar for BuildermanOG" → download_roblox_obj ✅
 - "로블록스 아바타 다운로드해줘 user123" → download_roblox_obj ✅
 - "get roblox obj for 12345" → download_roblox_obj ✅
+
+WITH "convert" (→ FBX Conversion):
+- "convert obj_001 to fbx" → convert_roblox_obj_to_fbx ✅
+- "obj_001을 fbx로 변환해줘" → convert_roblox_obj_to_fbx ✅
+- "convert roblox avatar to fbx" → convert_roblox_obj_to_fbx ✅
 
 **RESPONSE FORMAT (MANDATORY):**
 You MUST return valid JSON in this exact format:
@@ -924,7 +935,8 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
         'transform_image_style',
         'download_roblox_obj',
         'get_roblox_download_status',
-        'cancel_roblox_download'
+        'cancel_roblox_download',
+        'convert_roblox_obj_to_fbx'
     ]
 
     if command_type in no_unreal_required_commands:
