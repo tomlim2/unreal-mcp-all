@@ -384,11 +384,30 @@ class RobloxDownloadJob:
 
             username = user_info.get("name") if user_info else f"user_{user_id}"
 
+            # Get extended info and analyze OBJ structure for avatar_type detection
+            extended_info = await asyncio.get_event_loop().run_in_executor(
+                None, self.downloader.get_extended_avatar_info, user_id
+            )
+
+            # Analyze OBJ structure if file exists
+            obj_file = self.download_folder / "avatar.obj"
+            if obj_file.exists():
+                try:
+                    obj_structure = await asyncio.get_event_loop().run_in_executor(
+                        None, self.downloader.analyze_obj_structure, obj_file
+                    )
+                    if extended_info is not None:
+                        extended_info["obj_structure"] = obj_structure
+                except Exception as e:
+                    logger.warning(f"Failed to analyze OBJ structure: {e}")
+                    if extended_info is not None:
+                        extended_info["obj_structure_error"] = str(e)
+
             # Generate metadata and documentation
             await asyncio.get_event_loop().run_in_executor(
                 None, self.downloader.save_metadata,
                 user_info or {"id": user_id, "name": username},
-                metadata, self.download_folder, None
+                metadata, self.download_folder, extended_info
             )
 
             # Prepare file paths
