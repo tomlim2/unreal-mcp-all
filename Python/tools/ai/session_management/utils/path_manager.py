@@ -274,32 +274,6 @@ class PathManager:
         self._cached_paths['reference_images'] = ref_path
         return ref_path
 
-    def get_reference_uid_path(self, uid: str, session_id: Optional[str] = None) -> str:
-        """
-        Get the path for a specific reference image UID.
-
-        Assets structure: assets/images/references/uid/
-        Each reference gets its own directory containing the image and metadata.
-        Session information is stored in metadata, not directory structure.
-
-        Args:
-            uid: Reference UID (e.g., refer_001)
-            session_id: Optional session ID (stored in metadata, not used for path)
-
-        Returns:
-            str: Path to the specific reference directory
-        """
-        base_path = self.get_reference_images_path()
-
-        # Assets use flat UID structure without session hierarchy
-        ref_path = os.path.join(base_path, uid)
-
-        if self.config.create_directories:
-            Path(ref_path).mkdir(parents=True, exist_ok=True)
-
-        return ref_path
-
-
     def get_3d_objects_path(self) -> str:
         """
         Get the 3D objects storage base path.

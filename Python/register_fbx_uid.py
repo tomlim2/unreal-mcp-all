@@ -57,7 +57,6 @@ def register_fbx_uid():
     print(f"   fbx_counter: {counters['fbx_counter']}")
     print(f"   img_counter: {counters['img_counter']}")
     print(f"   vid_counter: {counters['vid_counter']}")
-    print(f"   ref_counter: {counters['ref_counter']}")
 
 if __name__ == "__main__":
     register_fbx_uid()
