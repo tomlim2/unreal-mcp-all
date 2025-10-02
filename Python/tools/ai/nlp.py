@@ -704,7 +704,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
 
 **3D Content & Assets:**
-- Roblox Avatars: download_roblox_obj (download 3D avatar models with async processing), convert_roblox_obj_to_fbx (convert OBJ to FBX format)
+- Roblox Avatars: download_and_import_roblox_avatar (RECOMMENDED: full pipeline - download, convert, import in one command), download_roblox_obj (download only), convert_roblox_obj_to_fbx (convert only), import_object3d_by_uid (import only)
 - Asset Import: import_object3d_by_uid (import downloaded 3D objects as Unreal Editor assets)
 
 **Rendering & Capture:**
@@ -751,17 +751,22 @@ Your role is to provide intuitive creative control by translating natural langua
 - STOP here, do NOT proceed to STEP 2, 3, or 4
 
 **STEP 1.5: Check for Roblox keywords**
-- IF input contains download keywords: "roblox", "로블록스", "아바타 다운로드", "download avatar", "download roblox", "get roblox"
+- IF input contains download + import keywords (e.g., "download AND import", "download and bring in", "다운로드하고 임포트"):
+- THEN use download_and_import_roblox_avatar (RECOMMENDED - handles full pipeline):
+  * "download roblox avatar 3131 and import it" → download_and_import_roblox_avatar with user_input: "3131"
+  * "로블록스 아바타 BuildermanOG 다운로드하고 가져와" → download_and_import_roblox_avatar with user_input: "BuildermanOG"
+  * "get roblox user 12345 and bring it into unreal" → download_and_import_roblox_avatar with user_input: "12345"
+- ELSE IF input contains only download keywords: "roblox", "로블록스", "아바타 다운로드", "download avatar", "download roblox", "get roblox"
 - THEN use download_roblox_obj command:
   * "download roblox avatar for BuildermanOG" → download_roblox_obj
   * "로블록스 아바타 다운로드해줘 user123" → download_roblox_obj
   * "get roblox obj for 12345" → download_roblox_obj
-- IF input contains convert keywords: "convert", "변환", "fbx로 변환", "to fbx", "obj to fbx"
+- ELSE IF input contains convert keywords: "convert", "변환", "fbx로 변환", "to fbx", "obj to fbx"
 - THEN use convert_roblox_obj_to_fbx command:
   * "convert obj_001 to fbx" → convert_roblox_obj_to_fbx
   * "obj_001을 fbx로 변환해줘" → convert_roblox_obj_to_fbx
   * "convert roblox avatar to fbx" → convert_roblox_obj_to_fbx (uses most recent obj_XXX UID)
-- IF input contains import keywords: "import", "임포트", "가져와", "불러와", "bring into unreal"
+- ELSE IF input contains import keywords: "import", "임포트", "가져와", "불러와", "bring into unreal"
 - THEN use import_object3d_by_uid command:
   * "import the roblox avatar" → import_object3d_by_uid (uses most recent obj_XXX UID)
   * "obj_001을 임포트해줘" → import_object3d_by_uid with uid: obj_001
@@ -799,7 +804,7 @@ Your role is to provide intuitive creative control by translating natural langua
 - prompt: Description for video animation
 - aspect_ratio: "16:9" or "9:16" (video only)
 - resolution: "720p" or "1080p" (video only)
-- user_input: Roblox username or user ID (required for download_roblox_obj)
+- user_input: Roblox username or user ID (required for download_roblox_obj and download_and_import_roblox_avatar)
 - obj_uid: OBJ UID to convert (required for convert_roblox_obj_to_fbx, format: obj_XXX)
 - uid: Object UID (required for import_object3d_by_uid, format: obj_XXX or fbx_XXX)
 
@@ -845,7 +850,12 @@ WITH "video" (→ Video Generation):
 - "영상 생성해줘" → generate_video_from_image ✅
 - "Create a video" → generate_video_from_image ✅
 
-WITH "roblox" (→ Roblox Download):
+WITH "roblox" + "import" (→ Full Pipeline - RECOMMENDED):
+- "download roblox avatar 3131 and import it" → download_and_import_roblox_avatar ✅
+- "로블록스 아바타 BuildermanOG 다운로드하고 가져와" → download_and_import_roblox_avatar ✅
+- "get roblox user 12345 and bring it into unreal" → download_and_import_roblox_avatar ✅
+
+WITH "roblox" only (→ Roblox Download):
 - "download roblox avatar for BuildermanOG" → download_roblox_obj ✅
 - "로블록스 아바타 다운로드해줘 user123" → download_roblox_obj ✅
 - "get roblox obj for 12345" → download_roblox_obj ✅
