@@ -64,23 +64,5 @@ export default function MessageItem({ message, sessionName, index, sessionId }: 
       />
     );
   }
-
-  // System message rendering
-  if (message.role === 'system') {
-    return (
-      <div key={keyPrefix} className={`${styles.message} ${styles.system}`}>
-        <div className={styles.messageHeader}>
-          <span className={styles.roleLabel}>System</span>
-          {sessionName && (
-            <span className={styles.sessionName}>{sessionName}</span>
-          )}
-        </div>
-        <div className={styles.messageContent}>
-          {message.content}
-        </div>
-      </div>
-    );
-  }
-
   return null;
 }

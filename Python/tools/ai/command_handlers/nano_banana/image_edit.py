@@ -72,6 +72,37 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     def get_supported_commands(self) -> List[str]:
         return ["transform_image_style"]
     
+    def _extract_image_dimensions(self, image_data: Dict[str, Any]) -> Dict[str, int]:
+        """Extract width and height from image data (bytes or file path)."""
+        dimensions = {'width': 0, 'height': 0}
+
+        try:
+            if PIL_AVAILABLE:
+                # Try to extract from file path first
+                if image_data.get('file_path'):
+                    with Image.open(image_data['file_path']) as img:
+                        dimensions['width'] = img.width
+                        dimensions['height'] = img.height
+                        return dimensions
+
+                # Try to extract from bytes data
+                if image_data.get('data'):
+                    import io
+                    if isinstance(image_data['data'], bytes):
+                        img_bytes = image_data['data']
+                    else:
+                        # Assume base64 string
+                        img_bytes = base64.b64decode(image_data['data'])
+
+                    with Image.open(io.BytesIO(img_bytes)) as img:
+                        dimensions['width'] = img.width
+                        dimensions['height'] = img.height
+                        return dimensions
+        except Exception as e:
+            logger.warning(f"Failed to extract image dimensions: {e}")
+
+        return dimensions
+
     def _extract_image_metadata(self, image_path: str, resolution_multiplier: float = 1.0, model: str = "gemini-2.5-flash-image") -> Dict[str, Any]:
         metadata = {
             "width": 0,
@@ -457,6 +488,10 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             logger.info(f"Applying Gemini multi-image transformation: {style_prompt} (intensity: {intensity})")
             logger.info(f"Using {len(reference_images)} reference images")
 
+            # Extract main image dimensions for aspect ratio preservation
+            main_image_dimensions = self._extract_image_dimensions(target_image_data)
+            logger.info(f"Main image dimensions: {main_image_dimensions['width']}x{main_image_dimensions['height']}")
+
             # Pre-flight request size validation
             size_info = self._estimate_request_size(target_image_data, reference_images, style_prompt)
             logger.info(f"Request size estimation: {size_info['total_size_mb']}MB, {size_info['estimated_tokens']} tokens")
@@ -518,8 +553,10 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                     }
                 })
 
-            # Build multi-image prompt
-            transformation_prompt = self._build_multi_image_prompt(style_prompt, valid_references, intensity)
+            # Build multi-image prompt with main image dimensions
+            transformation_prompt = self._build_multi_image_prompt(
+                style_prompt, valid_references, intensity, main_image_dimensions
+            )
 
             # Generate styled image using Gemini multi-image API
             logger.info(f"Sending multi-image transformation request to Gemini with {len(image_parts)} images...")
@@ -540,12 +577,17 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             logger.error(f"Gemini multi-image transformation failed: {e}")
             raise Exception(f"Multi-image transformation failed: {str(e)}")
 
-    def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], intensity: float) -> str:
+    def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], intensity: float, main_image_dimensions: Dict[str, int] = None) -> str:
         """Build the multi-image generation prompt for Gemini using organized prompts."""
         intensity_description = "subtle" if intensity < 0.4 else "moderate" if intensity < 0.7 else "strong"
 
         # The style_prompt is already organized by _translate_and_organize_prompts function
         # So we just need to create the final transformation instruction
+
+        # Add dimension constraint if available
+        dimension_instruction = ""
+        if main_image_dimensions and main_image_dimensions.get('width') and main_image_dimensions.get('height'):
+            dimension_instruction = f"\n6. IMPORTANT: Generate output with exact dimensions {main_image_dimensions['width']}x{main_image_dimensions['height']} pixels to match the main image aspect ratio"
 
         return f"""Transform the first image using the following instructions with a {intensity_description} intensity:
 
@@ -556,7 +598,7 @@ INSTRUCTIONS:
 2. Use the reference images to guide the transformation
 3. Maintain the original subject and composition while applying changes
 4. Create a harmonious result that preserves the main subject
-5. Incorporate elements from reference images as specified
+5. Incorporate elements from reference images as specified{dimension_instruction}
 
 Generate the transformed image."""
     
@@ -750,24 +792,50 @@ Only return the English translation, nothing else:
                 logger.warning("No main or reference prompts provided")
                 return "Transform the image with artistic style"
 
-            # If only one prompt, just translate it
+            # If only one prompt, handle based on language
             if len(all_prompts) == 1:
                 single_prompt = all_prompts[0].split(": ", 1)[1] if ": " in all_prompts[0] else all_prompts[0]
-                return self._translate_style_prompt_if_needed(single_prompt)
 
-            # Use LLM to organize multiple prompts
-            return self._organize_prompts_with_llm(all_prompts)
+                # Check if Korean (or non-English) - translate it
+                if self._is_non_english(single_prompt):
+                    logger.info(f"Detected non-English prompt, translating: {single_prompt}")
+                    return self._translate_style_prompt_if_needed(single_prompt)
+                else:
+                    # English - minimal change, just return as-is
+                    logger.info(f"Detected English prompt, using as-is: {single_prompt}")
+                    return single_prompt
+
+            # Multiple prompts - check if any are Korean/non-English
+            has_non_english = any(self._is_non_english(p.split(": ", 1)[1] if ": " in p else p) for p in all_prompts)
+
+            if has_non_english:
+                # Has Korean/non-English - translate and organize with LLM
+                logger.info("Detected non-English in prompts, using LLM translation and organization")
+                return self._organize_prompts_with_llm(all_prompts)
+            else:
+                # All English - minimal formatting, just combine
+                logger.info("All prompts are English, using simple combination")
+                return self._concatenate_prompts_simple(all_prompts)
 
         except Exception as e:
             logger.error(f"Prompt organization failed: {e}")
             # Fallback to first available prompt or default
             if main_prompt.strip():
-                return self._translate_style_prompt_if_needed(main_prompt)
+                if self._is_non_english(main_prompt):
+                    return self._translate_style_prompt_if_needed(main_prompt)
+                return main_prompt
             elif reference_prompts and any(p.strip() for p in reference_prompts):
                 first_ref = next(p for p in reference_prompts if p.strip())
-                return self._translate_style_prompt_if_needed(first_ref)
+                if self._is_non_english(first_ref):
+                    return self._translate_style_prompt_if_needed(first_ref)
+                return first_ref
             else:
                 return "Transform the image with artistic style"
+
+    def _is_non_english(self, text: str) -> bool:
+        """Check if text contains non-English (e.g., Korean) characters."""
+        # Check for non-ASCII characters (Korean, Chinese, Japanese, etc.)
+        return any(ord(char) > 127 for char in text)
 
     def _organize_prompts_with_llm(self, all_prompts: List[str]) -> str:
         """Use LLM to organize multiple prompts into a coherent single prompt."""

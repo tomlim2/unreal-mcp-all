@@ -516,14 +516,8 @@ export default function AssistantMessage({
                   </div>
                 )}
 
-                {message.expectedResult && (
-                  <div className={styles.aiSection}>
-                    <strong>EXPECTED RESULT:</strong>
-                    <p>{message.expectedResult}</p>
-                  </div>
-                )}
-
-                {message.error && (
+                {/* Only show top-level error if there are no execution results with errors */}
+                {message.error && (!message.execution_results || !message.execution_results.some(r => r.error)) && (
                   <div className={styles.aiSection}>
                     <strong>ERROR:</strong>
                     <p>{message.error}</p>
