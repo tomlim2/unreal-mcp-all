@@ -141,6 +141,7 @@ class CommandRegistry:
         from .video_generation.video_handler import VideoGenerationHandler
         from .roblox.roblox_handler import RobloxCommandHandler
         from .roblox.roblox_fbx_converter import RobloxFBXConverterHandler
+        from .roblox.roblox_pipeline import RobloxPipelineHandler
         from .asset.import_object3d import Object3DImportHandler
 
         handlers = [
@@ -154,6 +155,7 @@ class CommandRegistry:
             VideoGenerationHandler(),
             RobloxCommandHandler(),
             RobloxFBXConverterHandler(),
+            RobloxPipelineHandler(),
             Object3DImportHandler()
         ]
         
