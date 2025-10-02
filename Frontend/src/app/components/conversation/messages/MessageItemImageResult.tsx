@@ -81,7 +81,7 @@ export default function MessageItemImageResult({
             {/* Display UID and filename only */}
             <div className={styles.transformationDetails}>
               <small className={styles.styleInfo}>
-                {resultData?.uids?.image && `UID: ${resultData.uids.image}`}
+                {resultData?.uids?.image && `${resultData.uids.image}`}
                 {resultData?.uids?.image && resultData?.filename && ` | `}
                 {resultData?.filename && `File: ${resultData.filename}`}
               </small>
@@ -111,6 +111,11 @@ export default function MessageItemImageResult({
       </div>
     );
   } else {
-    return <div className={styles.errorMessage}>{result.error}</div>;
+    // Only show error message for image-related commands
+    const imageRelatedCommands = ['transform_image_style', 'generate_image', 'edit_image'];
+    if (imageRelatedCommands.includes(result.command)) {
+      return <div className={styles.errorMessage}>{result.error}</div>;
+    }
+    return null; // Let ExecutionResults handle non-image errors
   }
 }

@@ -11,29 +11,42 @@ interface ConversationHistoryProps {
   isNewSessionPage?: boolean;
 }
 
-const ConversationHistory = ({ 
-  context, 
-  error, 
+const ConversationHistory = ({
+  context,
+  error,
   isNewSessionPage = false,
 }: ConversationHistoryProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isFirstLoadRef = useRef<boolean>(true);
+  const previousMessageCountRef = useRef<number>(0);
 
   const scrollToBottom = (instant = false) => {
-    messagesEndRef.current?.scrollIntoView({ 
-      behavior: instant ? 'auto' : 'smooth' 
+    messagesEndRef.current?.scrollIntoView({
+      behavior: instant ? 'auto' : 'smooth'
     });
   };
 
   // Reset first load flag when session changes
   useEffect(() => {
     isFirstLoadRef.current = true;
+    previousMessageCountRef.current = 0;
   }, [context?.session_id]);
 
   useEffect(() => {
     if (context?.conversation_history) {
-      scrollToBottom(isFirstLoadRef.current);
-      isFirstLoadRef.current = false;
+      const currentMessageCount = context.conversation_history.length;
+
+      // Only scroll if:
+      // 1. First load (instant scroll to bottom)
+      // 2. New message added (message count increased)
+      if (isFirstLoadRef.current) {
+        scrollToBottom(true); // Instant scroll on first load
+        isFirstLoadRef.current = false;
+        previousMessageCountRef.current = currentMessageCount;
+      } else if (currentMessageCount > previousMessageCountRef.current) {
+        scrollToBottom(false); // Smooth scroll for new messages
+        previousMessageCountRef.current = currentMessageCount;
+      }
     }
   }, [context?.conversation_history]);
 

@@ -58,7 +58,6 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
 
   return (
     <div className={styles.results}>
-      <strong>Unreal Engine Execution Results:</strong>
       {filteredResults.map((result, resultIndex) => {
         const resultData = result.result as Record<string, unknown> | undefined;
 
@@ -114,6 +113,15 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
                     <strong>Failed OBJ UID:</strong> {objUid}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* General error display for non-FBX, non-image, non-video commands */}
+            {!isFbxConversion && !result.success && errorMessage && (
+              <div className={styles.resultContent}>
+                <div className={styles.errorMessage}>
+                  {errorMessage}
+                </div>
               </div>
             )}
 

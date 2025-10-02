@@ -115,7 +115,7 @@ export default function MessageItemVideoResult({
             {/* Display UID and filename only */}
             <div className={styles.transformationDetails}>
               <small className={styles.styleInfo}>
-                {resultData?.uids?.video && `UID: ${resultData.uids.video}`}
+                {resultData?.uids?.video && `${resultData.uids.video}`}
                 {resultData?.uids?.video && resultData?.filename && ` | `}
                 {resultData?.filename && `File: ${resultData.filename}`}
               </small>
@@ -145,6 +145,11 @@ export default function MessageItemVideoResult({
       </div>
     );
   } else {
-    return <div className={styles.errorMessage}>{result.error}</div>;
+    // Only show error message for video-related commands
+    const videoRelatedCommands = ['generate_video_from_image', 'generate_video', 'edit_video'];
+    if (videoRelatedCommands.includes(result.command)) {
+      return <div className={styles.errorMessage}>{result.error}</div>;
+    }
+    return null; // Let ExecutionResults handle non-video errors
   }
 }

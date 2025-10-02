@@ -9,7 +9,7 @@
   color: #ffffff;
   align-self: flex-end;
   margin-left: auto;
-  margin: 3rem 0 1rem 0;
+  margin: 4rem 0 0 0;
   max-width: 400px;
   width: auto;
   border-radius: 18px;
@@ -19,7 +19,7 @@
 }
 
 .message.assistant {
-  padding: 15px 0;
+  padding: 1rem 0;
   color: #ffffff;
   align-self: flex-start;
   margin: 0;
@@ -129,45 +129,36 @@
 
 .tabButtons {
   display: flex;
-  border-bottom: 1px solid #444;
   margin-bottom: 0;
+  gap: 12px;
+  padding: 0 16px;
 }
 
 .tabButton {
-  background-color: #2a2a2a;
+  background: transparent;
   color: #ccc;
   border: none;
-  padding: 12px 20px;
+  padding: 8px 4px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  border-top: 1px solid #444;
-  border-left: 1px solid #444;
-  border-right: 1px solid #444;
-  border-bottom: 1px solid #444;
   margin-right: 2px;
-  transition: all 0.2s ease;
   position: relative;
 }
 
 .tabButton:hover {
-  background-color: #3a3a3a;
   color: #fff;
 }
 
 .tabButton.activeTab {
-  background-color: #1e1e1e;
+  border-bottom: 2px solid #cccccc;
   color: #fff;
-  border-bottom: 1px solid #1e1e1e;
   z-index: 1;
 }
 
 .tabContent {
-  background-color: #1e1e1e;
-  border: 1px solid #444;
   border-top: none;
-  padding: 20px;
-  margin-bottom: 15px;
+  padding: 0px 20px 10px 20px;
 }
 
 /* Response Tab */
@@ -230,12 +221,6 @@
   margin-top: 15px;
   padding-top: 15px;
   border-top: 1px solid #444;
-}
-
-.messageHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .sessionName {
@@ -380,7 +365,6 @@
   display: block;
   font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.5px;
   color: #cccccc;
   margin-bottom: 4px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
@@ -391,7 +375,6 @@
   font-size: 0.95rem;
   line-height: 1.4;
   color: #ffffff;
-  font-style: italic;
 }
 
 .commands {
@@ -518,23 +501,17 @@
 
 .screenshotContainer {
   margin-top: 12px;
-  background: #2a2a2a;
-  border: 1px solid #666666;
-  border-radius: 4px;
   width: 100%;
   min-height: 80px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
 .screenshot {
   max-width: 100%;
-  max-height: 100%;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-height: 760px;
   cursor: pointer;
   transition: transform 0.2s ease;
   object-fit: contain;
@@ -582,18 +559,14 @@
 }
 
 .transformationDetails {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #444444;
   width: 100%;
 }
 
 .styleInfo {
   color: #888888;
   font-size: 0.85rem;
-  font-style: italic;
   display: block;
-  padding: 8px 12px;
+  padding: 8px 0px;
 }
 
 .retryButton:active {

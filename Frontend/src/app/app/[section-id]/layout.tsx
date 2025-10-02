@@ -114,6 +114,20 @@ function ConversationProvider({
     setChatLoading(true);
     setChatError(null);
 
+    // Optimistically add user message to UI immediately
+    if (messageInfo) {
+      const optimisticMessage = {
+        timestamp: new Date().toISOString(),
+        role: 'user' as const,
+        content: prompt.trim(),
+      };
+
+      setMessageInfo({
+        ...messageInfo,
+        conversation_history: [...messageInfo.conversation_history, optimisticMessage]
+      });
+    }
+
     try {
       const result = await apiService.chat(prompt, sectionId, llmModel);
       console.log('Chat result:', result);
@@ -125,6 +139,9 @@ function ConversationProvider({
     } catch (error) {
       console.error('Chat error:', error);
       setChatError(error instanceof Error ? error.message : 'Chat failed');
+      // Refresh to revert optimistic update on error
+      contextCache.current.delete(sectionId);
+      await fetchSessionContext(sectionId, true);
     } finally {
       setChatLoading(false);
     }
