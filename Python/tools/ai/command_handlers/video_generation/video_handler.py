@@ -23,6 +23,10 @@ from ...video_schema_utils import (
     generate_video_filename
 )
 from ...uid_manager import generate_image_uid, generate_video_uid, add_uid_mapping
+from core.errors import (
+    video_not_found, video_generation_failed, video_api_unavailable,
+    invalid_video_duration, AppError, ErrorCategory
+)
 
 try:
     from PIL import Image
@@ -140,9 +144,9 @@ class VideoGenerationHandler(BaseCommandHandler):
         # Check if Gemini is available (lazy initialization)
         if not self._ensure_gemini_initialized():
             if not GEMINI_AVAILABLE and not GOOGLE_GENAI_AVAILABLE:
-                errors.append("Google AI packages not available")
+                raise video_api_unavailable("Veo-3", "Google AI packages not installed")
             else:
-                errors.append("Gemini API not properly configured (check GOOGLE_API_KEY)")
+                raise video_api_unavailable("Veo-3", "GOOGLE_API_KEY not configured")
 
         if command_type == "generate_video_from_image":
             # Required parameters
@@ -238,23 +242,19 @@ class VideoGenerationHandler(BaseCommandHandler):
             # image_url is now REQUIRED - no fallback to latest screenshot
             image_url = params.get("image_url")
             if not image_url:
-                return build_error_response(
-                    "image_url parameter is required for video generation. Please specify an image UID (e.g., 'img_074')",
-                    "image_url_required",
-                    request_id,
-                    start_time
+                raise AppError(
+                    code="VIDEO_IMAGE_REQUIRED",
+                    message="image_url parameter is required for video generation",
+                    category=ErrorCategory.USER_INPUT,
+                    suggestion="Please specify an image UID (e.g., 'img_074')",
+                    request_id=request_id
                 )
 
             # Resolve the specified image (supports UID only)
             from ...uid_manager import get_uid_mapping
             source_image = self._resolve_image_path(image_url)
             if not source_image:
-                return build_error_response(
-                    f"Specified image not found: {image_url}. Please use a valid image UID (e.g., 'img_074')",
-                    "specified_image_not_found",
-                    request_id,
-                    start_time
-                )
+                raise video_not_found(image_url, request_id=request_id)
 
             latest_screenshot = Path(source_image)
             logger.info(f"Using specified image: {image_url} -> {latest_screenshot.name}")
@@ -337,26 +337,26 @@ class VideoGenerationHandler(BaseCommandHandler):
                     start_time=start_time
                 )
             else:
-                return build_error_response(
-                    "Failed to generate video with Veo-3",
-                    "video_generation_failed",
-                    request_id,
-                    start_time
+                raise video_generation_failed(
+                    reason="No video data returned from Veo-3 API",
+                    model="veo-3",
+                    request_id=request_id
                 )
 
+        except AppError:
+            raise
         except Exception as e:
             logger.error(f"Video generation failed: {e}")
-            return build_error_response(
-                f"Video generation failed: {str(e)}",
-                "execution_error",
-                request_id,
-                start_time
+            raise video_generation_failed(
+                reason=str(e),
+                model="veo-3",
+                request_id=request_id
             )
 
     def _generate_video_with_veo3(self, image_path: str, prompt: str, aspect_ratio: str, resolution: str, negative_prompt: Optional[str]) -> Optional[str]:
         """Generate video using Veo-3 API."""
         if not self._ensure_gemini_initialized():
-            raise Exception("Veo-3 video generation not available")
+            raise video_api_unavailable("Veo-3", "API not initialized")
 
         try:
             logger.info(f"Generating Veo-3 video: {prompt} ({aspect_ratio}, {resolution})")
@@ -373,7 +373,7 @@ class VideoGenerationHandler(BaseCommandHandler):
 
             # Build config - only if types is available
             if not types:
-                raise Exception("Google GenAI types not available")
+                raise video_api_unavailable("Veo-3", "Google GenAI types not available")
 
             config = types.GenerateVideosConfig(
                 aspect_ratio=aspect_ratio,
@@ -400,12 +400,18 @@ class VideoGenerationHandler(BaseCommandHandler):
             start_time = time.time()
 
             while not operation.done:
-                if time.time() - start_time > max_wait_time:
-                    raise Exception("Video generation timeout (6 minutes)")
+                elapsed = time.time() - start_time
+                if elapsed > max_wait_time:
+                    raise AppError(
+                        code="VIDEO_GENERATION_TIMEOUT",
+                        message=f"Video generation timeout after {elapsed:.1f}s",
+                        category=ErrorCategory.EXTERNAL_API,
+                        suggestion="Try a simpler prompt or shorter duration"
+                    )
 
                 time.sleep(20)  # Check every 20 seconds
                 operation = self._client.operations.get(operation)
-                logger.info(f"Video generation in progress... ({time.time() - start_time:.1f}s elapsed)")
+                logger.info(f"Video generation in progress... ({elapsed:.1f}s elapsed)")
 
             # Extract and save video
             if operation.response and operation.response.generated_videos:
@@ -414,12 +420,19 @@ class VideoGenerationHandler(BaseCommandHandler):
                 logger.info(f"Video generated successfully: {video_path}")
                 return video_path
             else:
-                logger.error("No video data in Veo-3 response")
-                return None
+                raise video_generation_failed(
+                    reason="No video data in Veo-3 response",
+                    model="veo-3"
+                )
 
+        except AppError:
+            raise
         except Exception as e:
             logger.error(f"Veo-3 video generation failed: {e}")
-            raise Exception(f"Video generation failed: {str(e)}")
+            raise video_generation_failed(
+                reason=str(e),
+                model="veo-3"
+            )
 
     def _save_video_to_project(self, generated_video, image_path: str, prompt: str) -> str:
         """Save the Veo-3 generated video to the project directory."""
@@ -428,7 +441,12 @@ class VideoGenerationHandler(BaseCommandHandler):
             path_manager = get_path_manager()
             project_path = path_manager.get_unreal_project_path()
             if not project_path:
-                raise Exception("Unable to determine Unreal project path")
+                raise AppError(
+                    code="VIDEO_SAVE_FAILED",
+                    message="Unable to determine Unreal project path",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    suggestion="Check UNREAL_PROJECT_PATH environment variable"
+                )
 
             video_dir = Path(project_path) / "Saved" / "Videos" / "generated"
             video_dir.mkdir(parents=True, exist_ok=True)
@@ -447,9 +465,15 @@ class VideoGenerationHandler(BaseCommandHandler):
             logger.info(f"Veo-3 generated video saved: {video_path}")
             return str(video_path)
 
+        except AppError:
+            raise
         except Exception as e:
             logger.error(f"Failed to save Veo-3 generated video: {e}")
-            raise Exception(f"Failed to save generated video: {str(e)}")
+            raise AppError(
+                code="VIDEO_SAVE_FAILED",
+                message=f"Failed to save generated video: {str(e)}",
+                category=ErrorCategory.INTERNAL_SERVER
+            )
 
     def _find_newest_screenshot(self) -> Optional[Path]:
         """Find the newest screenshot file in the WindowsEditor directory."""

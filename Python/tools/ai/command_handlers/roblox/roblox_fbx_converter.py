@@ -17,7 +17,8 @@ from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 from ...uid_manager import get_uid_manager, generate_object_uid
 from ...session_management.utils.path_manager import get_path_manager
-from .roblox_errors import RobloxError, RobloxErrorHandler, log_roblox_error, RobloxErrorCodes
+from core.errors import RobloxError, RobloxErrorCodes
+from .roblox_errors import RobloxErrorHandler, log_roblox_error
 
 logger = logging.getLogger("UnrealMCP.Roblox.FBXConverter")
 

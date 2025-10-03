@@ -9,9 +9,12 @@ import logging
 from typing import Dict, Any, List
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import (
-    validate_command, 
+    validate_command,
     normalize_sky_parameters,
     ValidatedCommand
+)
+from core.errors import (
+    command_failed, connection_failed, command_timeout, AppError, ErrorCategory
 )
 logger = logging.getLogger("UnrealMCP")
 
@@ -86,31 +89,45 @@ class UDSCommandHandler(BaseCommandHandler):
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         """Execute UDS commands with proper parameter handling."""
         logger.info(f"UDS Handler: Executing {command_type} with params: {params}")
-        
-        # Handle color temperature descriptions that need current value
-        if command_type == "set_color_temperature" and "_color_temp_description" in params:
-            description = params.pop("_color_temp_description")
-            
-            # Get current temperature for relative adjustments
-            current_response = connection.send_command("get_ultra_dynamic_sky", {})
-            current_temp = 6500.0
-            if current_response and "result" in current_response and "color_temperature" in current_response["result"]:
-                current_temp = float(current_response["result"]["color_temperature"])
-            elif current_response and "color_temperature" in current_response:
-                current_temp = float(current_response["color_temperature"])
-            
-            # Convert description to numeric value
-            try:
-                final_temp = map_temperature_description(description, current_temp)
-                params["color_temperature"] = final_temp
-                logger.info(f"Converted '{description}' to {final_temp}K (from current {current_temp}K)")
-            except ValueError as e:
-                raise Exception(str(e))
-        
-        # Send command to Unreal Engine
-        response = connection.send_command(command_type, params)
-        
-        if response and response.get("status") == "error":
-            raise Exception(response.get("error", "Unknown Unreal error"))
-        
-        return response
+
+        try:
+            # Handle color temperature descriptions that need current value
+            if command_type == "set_color_temperature" and "_color_temp_description" in params:
+                description = params.pop("_color_temp_description")
+
+                # Get current temperature for relative adjustments
+                current_response = connection.send_command("get_ultra_dynamic_sky", {})
+                current_temp = 6500.0
+                if current_response and "result" in current_response and "color_temperature" in current_response["result"]:
+                    current_temp = float(current_response["result"]["color_temperature"])
+                elif current_response and "color_temperature" in current_response:
+                    current_temp = float(current_response["color_temperature"])
+
+                # Convert description to numeric value
+                try:
+                    final_temp = map_temperature_description(description, current_temp)
+                    params["color_temperature"] = final_temp
+                    logger.info(f"Converted '{description}' to {final_temp}K (from current {current_temp}K)")
+                except ValueError as e:
+                    raise AppError(
+                        code="INVALID_COLOR_TEMPERATURE",
+                        message=str(e),
+                        category=ErrorCategory.USER_INPUT,
+                        suggestion="Use valid temperature descriptions like 'warm', 'cool', 'warmer', 'cooler', 'daylight', 'sunset'"
+                    )
+
+            # Send command to Unreal Engine
+            response = connection.send_command(command_type, params)
+
+            if response and response.get("status") == "error":
+                error_msg = response.get("error", "Unknown Unreal error")
+                raise command_failed(command_type, error_msg)
+
+            return response
+
+        except ConnectionError as e:
+            logger.error(f"Connection to Unreal failed: {e}")
+            raise connection_failed()
+        except TimeoutError as e:
+            logger.error(f"UDS command timed out: {e}")
+            raise command_timeout(command_type)

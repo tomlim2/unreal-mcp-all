@@ -14,6 +14,10 @@ from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 from ...uid_manager import get_uid_manager, get_uid_mapping
 from ...session_management.utils.path_manager import get_path_manager
+from core.errors import (
+    command_failed, asset_not_found, connection_failed,
+    command_timeout, AppError, ErrorCategory
+)
 
 logger = logging.getLogger("UnrealMCP")
 
@@ -246,11 +250,11 @@ class Object3DImportHandler(BaseCommandHandler):
                 error_msg = response.get("error", "Unknown Unreal import error")
                 logger.error(f"C++ import failed for {uid}: {error_msg}")
 
-                return {
-                    "success": False,
-                    "error": error_msg,
-                    "uid": uid
-                }
+                # Map to appropriate error type
+                if "not found" in error_msg.lower() or "does not exist" in error_msg.lower():
+                    raise asset_not_found(params.get("mesh_file_path", uid))
+                else:
+                    raise command_failed(command_type, error_msg)
 
             # Build simplified success response
             asset_path = response.get("asset_path", "")
@@ -265,11 +269,21 @@ class Object3DImportHandler(BaseCommandHandler):
                 "asset_path": asset_path
             }
 
+        except ConnectionError as e:
+            logger.error(f"Connection to Unreal failed: {e}")
+            raise connection_failed()
+        except TimeoutError as e:
+            logger.error(f"Import command timed out: {e}")
+            raise command_timeout(command_type)
+        except (FileNotFoundError, ValueError) as e:
+            logger.error(f"Asset preparation failed for {uid}: {e}")
+            raise AppError(
+                code="ASSET_PREPARATION_FAILED",
+                message=str(e),
+                category=ErrorCategory.RESOURCE_NOT_FOUND,
+                details={"uid": uid},
+                suggestion="Ensure the asset files exist and metadata is valid"
+            )
         except Exception as e:
             logger.exception(f"Import execution failed for UID {uid}: {e}")
-
-            return {
-                "success": False,
-                "error": str(e),
-                "uid": uid
-            }
+            raise command_failed(command_type, str(e))

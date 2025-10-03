@@ -15,7 +15,8 @@ from typing import Dict, Any, Optional, Callable, List
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-from .roblox_errors import RobloxError, RobloxErrorHandler, log_roblox_error, RobloxErrorCodes
+from core.errors import RobloxError, RobloxErrorCodes
+from .roblox_errors import RobloxErrorHandler, log_roblox_error
 from .scripts.roblox_obj_downloader import RobloxAvatar3DDownloader
 from ...uid_manager import get_uid_manager, generate_object_uid
 from ...session_management.utils.path_manager import get_path_manager
@@ -220,7 +221,7 @@ class RobloxDownloadJob:
             logger.debug(f"Setup storage for {self.uid}: {self.download_folder}")
 
         except Exception as e:
-            raise RobloxErrorHandler.storage_error("storage setup", str(self.download_folder))
+            raise storage_error("storage setup", str(self.download_folder))
 
     async def _resolve_user(self) -> int:
         """Resolve user input to user ID."""
@@ -238,7 +239,7 @@ class RobloxDownloadJob:
             user_id = self.downloader.resolve_user_input(self.user_input)
 
             if user_id is None:
-                raise RobloxErrorHandler.user_not_found(self.user_input)
+                raise user_not_found(self.user_input)
 
             logger.info(f"Resolved user '{self.user_input}' to ID: {user_id}")
             return user_id
@@ -264,7 +265,7 @@ class RobloxDownloadJob:
             )
 
             if metadata is None:
-                raise RobloxErrorHandler.avatar_3d_unavailable(user_id)
+                raise avatar_3d_unavailable(user_id)
 
             logger.info(f"Fetched 3D metadata for user {user_id}")
             return metadata
@@ -311,7 +312,7 @@ class RobloxDownloadJob:
                     self._update_progress("Downloaded MTL material", 2, 2, 70.0)
 
             if not model_files:
-                raise RobloxErrorHandler.download_failed("model files", "No OBJ or MTL files available")
+                raise download_failed("model files", "No OBJ or MTL files available")
 
             return model_files
 

@@ -9,9 +9,12 @@ import logging
 from typing import Dict, Any, List
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import (
-    validate_command, 
+    validate_command,
     normalize_light_parameters,
     ValidatedCommand
+)
+from core.errors import (
+    command_failed, actor_not_found, connection_failed, command_timeout
 )
 
 logger = logging.getLogger("UnrealMCP")
@@ -66,10 +69,24 @@ class LightCommandHandler(BaseCommandHandler):
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         """Execute light commands."""
         logger.info(f"Light Handler: Executing {command_type} with params: {params}")
-        
-        response = connection.send_command(command_type, params)
-        
-        if response and response.get("status") == "error":
-            raise Exception(response.get("error", "Unknown Unreal error"))
-        
-        return response
+
+        try:
+            response = connection.send_command(command_type, params)
+
+            if response and response.get("status") == "error":
+                error_msg = response.get("error", "Unknown Unreal error")
+
+                # Map specific errors to appropriate error types
+                if "not found" in error_msg.lower() and command_type in ["update_mm_control_light", "delete_mm_control_light"]:
+                    raise actor_not_found(params.get("light_name", "unknown"))
+                else:
+                    raise command_failed(command_type, error_msg)
+
+            return response
+
+        except ConnectionError as e:
+            logger.error(f"Connection to Unreal failed: {e}")
+            raise connection_failed()
+        except TimeoutError as e:
+            logger.error(f"Light command timed out: {e}")
+            raise command_timeout(command_type)
