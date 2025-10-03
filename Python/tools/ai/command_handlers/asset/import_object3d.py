@@ -18,6 +18,7 @@ from core.errors import (
     command_failed, asset_not_found, connection_failed,
     command_timeout, AppError, ErrorCategory
 )
+from core.response import success_response
 
 logger = logging.getLogger("UnrealMCP")
 
@@ -260,14 +261,15 @@ class Object3DImportHandler(BaseCommandHandler):
             asset_path = response.get("asset_path", "")
             logger.info(f"Import successful for {uid}: {asset_path}")
 
-            return {
-                "success": True,
-                "message": response.get("message", "Avatar imported to Content Browser"),
-                "uid": uid,
-                "username": username,
-                "user_id": params.get("user_id"),
-                "asset_path": asset_path
-            }
+            return success_response(
+                message=response.get("message", "Avatar imported to Content Browser"),
+                data={
+                    "uid": uid,
+                    "username": username,
+                    "user_id": params.get("user_id"),
+                    "asset_path": asset_path
+                }
+            )
 
         except ConnectionError as e:
             logger.error(f"Connection to Unreal failed: {e}")

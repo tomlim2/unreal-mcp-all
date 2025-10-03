@@ -12,6 +12,7 @@ from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 from ...uid_manager import generate_object_uid
 from core.errors import RobloxError, RobloxErrorCodes
+from core.response import job_success, success_response
 from .roblox_errors import RobloxErrorHandler, log_roblox_error
 from .roblox_job import submit_download_job, get_job_status, cancel_job
 from .roblox_cleanup import cleanup_existing_roblox_downloads
@@ -262,28 +263,27 @@ class RobloxCommandHandler(BaseCommandHandler):
             else:
                 cleanup_message = ""
 
-            # Return immediate response
-            response = {
-                "success": True,
-                "uid": uid,
-                "status": "queued",
-                "message": f"Roblox download queued for '{user_input}'{cleanup_message}",
-                "user_input": user_input,
-                "estimated_time": "2-5 minutes",
-                "poll_url": f"/api/roblox-status/{uid}",
-                "cleanup_info": {
-                    "existing_downloads_cleaned": cleanup_count,
-                    "reused_uid": reuse_uid is not None
-                },
-                "job_details": {
-                    "include_textures": include_textures,
-                    "include_thumbnails": include_thumbnails,
-                    "session_id": session_id
-                }
-            }
-
+            # Return immediate response using job_success helper
             logger.info(f"Roblox download queued: {uid} for user '{user_input}' (cleanup: {cleanup_count})")
-            return response
+            return job_success(
+                uid=uid,
+                message=f"Roblox download queued for '{user_input}'{cleanup_message}",
+                status="queued",
+                estimated_time="2-5 minutes",
+                poll_url=f"/api/roblox-status/{uid}",
+                additional_data={
+                    "user_input": user_input,
+                    "cleanup_info": {
+                        "existing_downloads_cleaned": cleanup_count,
+                        "reused_uid": reuse_uid is not None
+                    },
+                    "job_details": {
+                        "include_textures": include_textures,
+                        "include_thumbnails": include_thumbnails,
+                        "session_id": session_id
+                    }
+                }
+            )
 
         except ValueError as e:
             # Handle job submission errors (e.g., duplicate UID)
@@ -342,13 +342,14 @@ class RobloxCommandHandler(BaseCommandHandler):
             cancelled = cancel_job(uid)
 
             if cancelled:
-                response = {
-                    "success": True,
-                    "uid": uid,
-                    "status": "cancelled",
-                    "message": f"Download job {uid} has been cancelled"
-                }
                 logger.info(f"Cancelled Roblox download: {uid}")
+                response = success_response(
+                    message=f"Download job {uid} has been cancelled",
+                    data={
+                        "uid": uid,
+                        "status": "cancelled"
+                    }
+                )
             else:
                 error = RobloxError(
                     code=RobloxErrorCodes.USER_NOT_FOUND,  # Reusing appropriate code
