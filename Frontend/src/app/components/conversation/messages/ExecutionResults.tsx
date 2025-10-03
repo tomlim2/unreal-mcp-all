@@ -3,12 +3,18 @@
 import styles from './MessageItem.module.css';
 import MessageItemImageResult from './MessageItemImageResult';
 import MessageItemVideoResult from './MessageItemVideoResult';
+import ErrorDisplay from './ErrorDisplay';
+import FbxResultDisplay from './FbxResultDisplay';
 
 interface ExecutionResultData {
   command: string;
   success: boolean;
   result?: unknown;
   error?: string;
+  error_code?: string;
+  error_details?: Record<string, unknown>;
+  suggestion?: string;
+  category?: string;
 }
 
 interface ExecutionResultsProps {
@@ -78,51 +84,30 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
               <span className={styles.commandName}>{result.command}</span>
             </div>
 
-            {/* Roblox FBX Conversion - Success */}
-            {isFbxConversion && result.success && fbxUid && (
-              <div className={styles.resultContent}>
-                <div className={styles.resultMessage}>
-                  ✅ <strong>FBX UID:</strong> {fbxUid}
-                </div>
-                {objUid && (
-                  <div className={styles.resultDetail}>
-                    <strong>Source OBJ UID:</strong> {objUid}
-                  </div>
-                )}
-                {conversionMessage && (
-                  <div className={styles.resultDetail}>
-                    {conversionMessage}
-                  </div>
-                )}
-              </div>
+            {/* Roblox FBX Conversion */}
+            {isFbxConversion && (
+              <FbxResultDisplay
+                success={result.success}
+                fbxUid={fbxUid}
+                objUid={objUid}
+                conversionMessage={conversionMessage}
+                errorMessage={errorMessage}
+                errorCode={result.error_code}
+                category={result.category}
+                errorDetails={result.error_details}
+                suggestion={errorSuggestion || result.suggestion}
+              />
             )}
 
-            {/* Roblox FBX Conversion - Error */}
-            {isFbxConversion && !result.success && errorMessage && (
-              <div className={styles.resultContent}>
-                <div className={styles.errorMessage}>
-                  ❌ <strong>Error:</strong> {errorMessage}
-                </div>
-                {errorSuggestion && (
-                  <div className={styles.errorSuggestion}>
-                    💡 <strong>Suggestion:</strong> {errorSuggestion}
-                  </div>
-                )}
-                {objUid && (
-                  <div className={styles.resultDetail}>
-                    <strong>Failed OBJ UID:</strong> {objUid}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* General error display for non-FBX, non-image, non-video commands */}
+            {/* General error display */}
             {!isFbxConversion && !result.success && errorMessage && (
-              <div className={styles.resultContent}>
-                <div className={styles.errorMessage}>
-                  {errorMessage}
-                </div>
-              </div>
+              <ErrorDisplay
+                errorMessage={errorMessage}
+                errorCode={result.error_code}
+                category={result.category}
+                errorDetails={result.error_details}
+                suggestion={result.suggestion}
+              />
             )}
 
             <MessageItemImageResult result={result} resultIndex={resultIndex} />
