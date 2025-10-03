@@ -99,15 +99,27 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
               />
             )}
 
-            {/* General error display */}
-            {!isFbxConversion && !result.success && errorMessage && (
-              <ErrorDisplay
-                errorMessage={errorMessage}
-                errorCode={result.error_code}
-                category={result.category}
-                errorDetails={result.error_details}
-                suggestion={result.suggestion}
-              />
+            {/* Message display (unified for success and error) */}
+            {!isFbxConversion && (
+              <>
+                {/* Error state */}
+                {!result.success && errorMessage && (
+                  <ErrorDisplay
+                    errorMessage={errorMessage}
+                    errorCode={result.error_code}
+                    category={result.category}
+                    errorDetails={result.error_details}
+                    suggestion={result.suggestion}
+                  />
+                )}
+
+                {/* Success state - show message if available */}
+                {result.success && resultData?.message && (
+                  <div className={styles.successMessage}>
+                    {resultData.message as string}
+                  </div>
+                )}
+              </>
             )}
 
             <MessageItemImageResult result={result} resultIndex={resultIndex} />

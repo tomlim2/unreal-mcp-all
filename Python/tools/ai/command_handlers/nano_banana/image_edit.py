@@ -11,7 +11,6 @@ from ...session_management.utils.path_manager import get_path_manager
 from ...pricing_manager import get_pricing_manager
 from ...image_schema_utils import (
     build_transform_response,
-    build_error_response,
     generate_request_id,
     extract_style_name
 )
@@ -291,21 +290,11 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             logger.info(f"Loading target image from UID: {target_image_uid}")
             mapping = get_uid_mapping(target_image_uid)
             if not mapping:
-                return build_error_response(
-                    f"Target image UID not found: {target_image_uid}",
-                    "uid_not_found",
-                    request_id,
-                    start_time
-                )
+                raise image_not_found(target_image_uid)
 
             file_path = mapping.get('metadata', {}).get('file_path')
             if not file_path or not os.path.exists(file_path):
-                return build_error_response(
-                    f"Target image file not found for UID: {target_image_uid}",
-                    "file_not_found",
-                    request_id,
-                    start_time
-                )
+                raise image_not_found(target_image_uid)
 
             # Read target image file as bytes
             with open(file_path, 'rb') as f:
@@ -335,11 +324,11 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 error_msg += "Please take a screenshot first using the camera button or by saying 'take a screenshot'."
             else:
                 error_msg += "Please provide an image (target_image_uid or main_image_data)."
-            return build_error_response(
-                error_msg,
-                "no_image",
-                request_id,
-                start_time
+            raise AppError(
+                code="NO_IMAGE_AVAILABLE",
+                message=error_msg,
+                category=ErrorCategory.USER_INPUT,
+                suggestion="Take a screenshot or upload an image first"
             )
 
         # Get reference images directly from params (no UID loading needed)
@@ -368,12 +357,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 origin = "single_image_transform"
 
             if not styled_image_path:
-                return build_error_response(
-                    "Failed to apply style transformation",
-                    "transformation_failed",
-                    request_id,
-                    start_time
-                )
+                raise transformation_failed("Style transformation returned no result")
 
             # Use pre-generated filename
             filename = styled_filename
@@ -427,14 +411,12 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 origin=origin
             )
 
+        except AppError:
+            # Re-raise AppError to preserve structured error info
+            raise
         except Exception as e:
             logger.error(f"Transform failed: {e}")
-            return build_error_response(
-                f"Transform failed: {str(e)}",
-                "execution_error",
-                request_id,
-                start_time
-            )
+            raise transformation_failed(str(e))
     
     def _apply_nano_banana_style(self, image_path: str, style_prompt: str, intensity: float, output_filename: str = None) -> Optional[str]:
         """Apply Gemini image generation style transformation to image."""
