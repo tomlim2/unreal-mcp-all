@@ -1,9 +1,9 @@
 """
 AI/NLP Tools
 
-This package contains MCP tools for natural language processing and AI integration.
+This package contains tools for natural language processing and AI integration.
 """
 
-from .nlp import register_nlp_tools
+from .nlp import process_natural_language
 
-__all__ = ['register_nlp_tools']
+__all__ = ['process_natural_language']

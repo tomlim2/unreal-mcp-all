@@ -236,3 +236,54 @@ def conversion_success(
         data.update(additional_data)
 
     return success_response(message=message, data=data)
+
+
+def error_response(
+    code: str,
+    message: str,
+    category: str,
+    status_code: int = 500,
+    details: Optional[Dict[str, Any]] = None,
+    suggestion: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Create a generic error response (companion to success_response).
+
+    Args:
+        code: Error code (e.g., "VALIDATION_FAILED", "IMG_NOT_FOUND")
+        message: Human-readable error message
+        category: Error category string (e.g., "user_input", "external_api")
+        status_code: HTTP status code (default 500)
+        details: Optional error details dict
+        suggestion: Optional suggestion for fixing the error
+
+    Returns:
+        Formatted error response dictionary
+
+    Example:
+        >>> error_response(
+        ...     code="VALIDATION_FAILED",
+        ...     message="Either target_image_uid or main_image_data is required",
+        ...     category="user_input",
+        ...     status_code=400,
+        ...     details={"missing_params": ["target_image_uid", "main_image_data"]},
+        ...     suggestion="Provide target_image_uid for existing screenshot or main_image_data for upload"
+        ... )
+    """
+    response = {
+        "success": False,
+        "status_code": status_code,
+        "error": {
+            "code": code,
+            "message": message,
+            "category": category
+        }
+    }
+
+    if details:
+        response["error"]["details"] = details
+
+    if suggestion:
+        response["error"]["suggestion"] = suggestion
+
+    return response

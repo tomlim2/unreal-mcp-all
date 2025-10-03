@@ -146,31 +146,7 @@ def build_transform_response(
     }
 
 
-def build_error_response(
-    message: str,
-    error_code: Optional[str] = None,
-    request_id: Optional[str] = None,
-    start_time: Optional[float] = None
-) -> Dict[str, Any]:
-    """Build standard error response."""
-    response = {
-        "success": False,
-        "status_code": 400,
-        "message": message
-    }
-    
-    if error_code:
-        response["error_code"] = error_code
-    
-    if request_id and start_time:
-        duration_ms = int((time.time() - start_time) * 1000)
-        response["audit"] = {
-            "request_id": request_id,
-            "duration_ms": duration_ms,
-            "server": "unreal-bridge"
-        }
-    
-    return response
+# REMOVED: build_error_response() - replaced by core.errors.AppError system
 
 
 def extract_style_name(style_prompt: str) -> str:

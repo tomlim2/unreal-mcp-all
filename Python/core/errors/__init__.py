@@ -31,7 +31,10 @@ from .domains import (
     RobloxError, RobloxErrorCodes, user_not_found, invalid_user_input,
     api_rate_limited, avatar_3d_unavailable, download_failed, network_error,
     storage_error, uid_generation_failed, job_queue_full, job_timeout,
-    permission_denied
+    permission_denied,
+    ValidationError, ValidationErrorCodes, validation_failed,
+    missing_required_param, invalid_param_type, invalid_param_value,
+    invalid_param_format
 )
 
 __all__ = [
@@ -93,4 +96,13 @@ __all__ = [
     'job_queue_full',
     'job_timeout',
     'permission_denied',
+
+    # Validation domain
+    'ValidationError',
+    'ValidationErrorCodes',
+    'validation_failed',
+    'missing_required_param',
+    'invalid_param_type',
+    'invalid_param_value',
+    'invalid_param_format',
 ]

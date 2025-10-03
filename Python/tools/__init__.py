@@ -1,20 +1,11 @@
 """
-Tools module for Unreal MCP server.
+Tools module for Unreal HTTP Bridge.
 
 This package contains tools organized by functionality:
-- unreal/: Tools for Unreal Engine bridge communication
-- ai/: Tools for AI/NLP processing  
+- ai/: Tools for AI/NLP processing
 """
 
 # Import organized tool modules
-from .ai import register_nlp_tools
+from .ai import process_natural_language
 
-def register_all_tools(mcp_server):
-    """
-    Register all tools with the MCP server.
-    
-    Args:
-        mcp_server: The MCP server instance to register tools with
-    """
-    # Register AI/NLP tools
-    register_nlp_tools(mcp_server) 
+__all__ = ['process_natural_language'] 

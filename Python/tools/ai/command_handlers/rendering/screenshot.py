@@ -14,7 +14,6 @@ from ...nlp_schema_validator import ValidatedCommand
 from ...session_management.utils.path_manager import get_path_manager
 from ...image_schema_utils import (
     build_screenshot_response,
-    build_error_response,
     generate_request_id
 )
 from ...uid_manager import generate_image_uid, add_uid_mapping
