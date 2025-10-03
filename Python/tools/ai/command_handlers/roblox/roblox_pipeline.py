@@ -226,7 +226,7 @@ class RobloxPipelineHandler(BaseCommandHandler):
             # IMPORTANT: Create fresh connection for import
             # The pipeline connection is stale after 5+ min of polling/conversion
             logger.info("Creating fresh connection for import (pipeline connection is stale)")
-            from unreal_mcp_server import UnrealConnection
+            from tools.unreal_connection import UnrealConnection
             fresh_connection = UnrealConnection()
 
             import_result = import_handler.execute_command(

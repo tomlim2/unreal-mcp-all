@@ -229,7 +229,12 @@ class RobloxDownloadJob:
         self._update_progress("Resolving user identity", 0, 1, 10.0)
 
         if self._check_cancelled():
-            raise Exception("Job cancelled")
+            from core.errors import AppError, ErrorCategory
+            raise AppError(
+                code="JOB_CANCELLED",
+                message="Job cancelled by user",
+                category=ErrorCategory.USER_INPUT
+            )
 
         try:
             # Create downloader instance
@@ -256,7 +261,12 @@ class RobloxDownloadJob:
         self._update_progress("Getting 3D avatar metadata", 0, 1, 25.0)
 
         if self._check_cancelled():
-            raise Exception("Job cancelled")
+            from core.errors import AppError, ErrorCategory
+            raise AppError(
+                code="JOB_CANCELLED",
+                message="Job cancelled by user",
+                category=ErrorCategory.USER_INPUT
+            )
 
         try:
             # Use asyncio to make blocking call non-blocking
@@ -282,7 +292,12 @@ class RobloxDownloadJob:
         self._update_progress("Downloading 3D model files", 0, 2, 50.0)
 
         if self._check_cancelled():
-            raise Exception("Job cancelled")
+            from core.errors import AppError, ErrorCategory
+            raise AppError(
+                code="JOB_CANCELLED",
+                message="Job cancelled by user",
+                category=ErrorCategory.USER_INPUT
+            )
 
         try:
             model_files = {}
@@ -334,7 +349,12 @@ class RobloxDownloadJob:
         self._update_progress(f"Downloading {len(textures)} textures", 0, len(textures), 75.0)
 
         if self._check_cancelled():
-            raise Exception("Job cancelled")
+            from core.errors import AppError, ErrorCategory
+            raise AppError(
+                code="JOB_CANCELLED",
+                message="Job cancelled by user",
+                category=ErrorCategory.USER_INPUT
+            )
 
         try:
             texture_files = []

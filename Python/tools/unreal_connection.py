@@ -1,41 +1,30 @@
 """
-Unreal Engine MCP Server
+Unreal Engine TCP Connection Manager
 
-A simple MCP server for interacting with Unreal Engine.
+Handles TCP socket communication with the Unreal Engine C++ plugin.
 """
 
 import logging
-import os
 import socket
-import sys
 import json
-from contextlib import asynccontextmanager
-from typing import AsyncIterator, Dict, Any, Optional
-from mcp.server.fastmcp import FastMCP
+from typing import Dict, Any, Optional
+import os
 
-# Configure logging with more detailed format
-logging.basicConfig(
-    level=logging.DEBUG,  # Change to DEBUG level for more details
-    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
-    handlers=[
-        logging.FileHandler('unreal_mcp.log'),
-        # logging.StreamHandler(sys.stdout) # Remove this handler to unexpected non-whitespace characters in JSON
-    ]
-)
 logger = logging.getLogger("UnrealMCP")
 
 # Configuration
-UNREAL_HOST = os.getenv("UNREAL_TCP_HOST", "127.0.0.1")
+UNREAL_HOST = os.getenv("UNREAL_TCP_HOST", "127.0.1")
 UNREAL_PORT = int(os.getenv("UNREAL_TCP_PORT", "55557"))
+
 
 class UnrealConnection:
     """Connection to an Unreal Engine instance."""
-    
+
     def __init__(self):
         """Initialize the connection."""
         self.socket = None
         self.connected = False
-    
+
     def connect(self) -> bool:
         """Connect to the Unreal Engine instance."""
         try:
@@ -46,29 +35,29 @@ class UnrealConnection:
                 except:
                     pass
                 self.socket = None
-            
+
             logger.info(f"Connecting to Unreal at {UNREAL_HOST}:{UNREAL_PORT}...")
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.settimeout(5)  # 5 second timeout
-            
+
             # Set socket options for better stability
             self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            
+
             # Set larger buffer sizes
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
-            
+
             self.socket.connect((UNREAL_HOST, UNREAL_PORT))
             self.connected = True
             logger.info("Connected to Unreal Engine")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to connect to Unreal: {e}")
             self.connected = False
             return False
-    
+
     def disconnect(self):
         """Disconnect from the Unreal Engine instance."""
         if self.socket:
@@ -82,7 +71,6 @@ class UnrealConnection:
     def receive_full_response(self, sock, buffer_size=4096) -> bytes:
         """Receive a complete response from Unreal, handling chunked data."""
         chunks = []
-        # Use whatever timeout is already set on the socket (don't override it)
         current_timeout = sock.gettimeout()
         logger.debug(f"Using socket timeout: {current_timeout} seconds")
         try:
@@ -93,11 +81,11 @@ class UnrealConnection:
                         raise Exception("Connection closed before receiving data")
                     break
                 chunks.append(chunk)
-                
+
                 # Process the data received so far
                 data = b''.join(chunks)
                 decoded_data = data.decode('utf-8')
-                
+
                 # Try to parse as JSON to check if complete
                 try:
                     json.loads(decoded_data)
@@ -125,7 +113,7 @@ class UnrealConnection:
         except Exception as e:
             logger.error(f"Error during receive: {str(e)}")
             raise
-    
+
     def send_command(self, command: str, params: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
         """Send a command to Unreal Engine and get the response."""
         # Always reconnect for each command, since Unreal closes the connection after each command
@@ -162,10 +150,10 @@ class UnrealConnection:
             # Read response using improved handler
             response_data = self.receive_full_response(self.socket)
             response = json.loads(response_data.decode('utf-8'))
-            
+
             # Log complete response for debugging
             logger.info(f"Complete response from Unreal: {response}")
-            
+
             # Check for both error formats: {"status": "error", ...} and {"success": false, ...}
             if response.get("status") == "error":
                 error_message = response.get("error") or response.get("message", "Unknown Unreal error")
@@ -182,7 +170,7 @@ class UnrealConnection:
                     "status": "error",
                     "error": error_message
                 }
-            
+
             # Always close the connection after command is complete
             # since Unreal will close it on its side anyway
             try:
@@ -191,9 +179,9 @@ class UnrealConnection:
                 pass
             self.socket = None
             self.connected = False
-            
+
             return response
-            
+
         except socket.timeout:
             logger.error(f"Command '{command}' timed out waiting for Unreal response")
             # Always reset connection state on timeout
@@ -221,8 +209,10 @@ class UnrealConnection:
                 "error": str(e)
             }
 
+
 # Global connection state
 _unreal_connection: UnrealConnection = None
+
 
 def get_unreal_connection() -> Optional[UnrealConnection]:
     """Get the connection to Unreal Engine."""
@@ -250,49 +240,8 @@ def get_unreal_connection() -> Optional[UnrealConnection]:
                     _unreal_connection = None
                 else:
                     logger.info("Successfully reconnected to Unreal Engine")
-        
+
         return _unreal_connection
     except Exception as e:
         logger.error(f"Error getting Unreal connection: {e}")
         return None
-
-@asynccontextmanager
-async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
-    """Handle server startup and shutdown."""
-    global _unreal_connection
-    logger.info("UnrealMCP server starting up")
-    try:
-        _unreal_connection = get_unreal_connection()
-        if _unreal_connection:
-            logger.info("Connected to Unreal Engine on startup")
-        else:
-            logger.warning("Could not connect to Unreal Engine on startup")
-    except Exception as e:
-        logger.error(f"Error connecting to Unreal Engine on startup: {e}")
-        _unreal_connection = None
-    
-    try:
-        yield {}
-    finally:
-        if _unreal_connection:
-            _unreal_connection.disconnect()
-            _unreal_connection = None
-        logger.info("Unreal MCP server shut down")
-
-# Initialize server
-mcp = FastMCP(
-    "UnrealMCP",
-    lifespan=server_lifespan
-)
-
-# Import and register tools using new organized structure
-from tools.ai.nlp import register_nlp_tools
-
-# Register tools
-register_nlp_tools(mcp)
-
-
-# Run the server
-if __name__ == "__main__":
-    logger.info("Starting MCP server with stdio transport")
-    mcp.run(transport='stdio') 

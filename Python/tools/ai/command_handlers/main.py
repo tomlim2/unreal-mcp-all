@@ -199,25 +199,43 @@ class CommandRegistry:
         6. Return response or raise on error
         """
         # Extract command info
+        from core.errors import validation_failed
+
         command_type = command.get("type")
         if not command_type:
-            raise Exception("Command must have a 'type' property")
-        
+            raise validation_failed(
+                message="Command must have a 'type' property",
+                suggestion="Provide 'type' field in command object"
+            )
+
         params = command.get("params", {})
         if not isinstance(params, dict):
-            raise Exception("Command params must be an object")
-        
+            raise validation_failed(
+                message="Command params must be an object",
+                invalid_params={"params": f"Expected object, got {type(params).__name__}"},
+                suggestion="Provide 'params' as a dictionary/object"
+            )
+
         # Get handler
         handler = self.get_handler(command_type)
         if not handler:
-            raise Exception(f"Unknown command type: {command_type}")
+            raise validation_failed(
+                message=f"Unknown command type: {command_type}",
+                invalid_params={"type": command_type},
+                suggestion=f"Use one of: {', '.join(self.get_supported_commands()[:5])}..."
+            )
         
         logger.info(f"Registry: Processing {command_type} with handler: {handler.__class__.__name__}")
         
         # Validate command
+        from core.errors import validation_failed
+
         validated_cmd = handler.validate_command(command_type, params)
         if not validated_cmd.is_valid:
-            raise Exception(f"Command validation failed: {'; '.join(validated_cmd.validation_errors)}")
+            raise validation_failed(
+                message="; ".join(validated_cmd.validation_errors),
+                suggestion="Check command parameters match the required schema"
+            )
         
         # Preprocess parameters
         processed_params = handler.preprocess_params(command_type, validated_cmd.params)

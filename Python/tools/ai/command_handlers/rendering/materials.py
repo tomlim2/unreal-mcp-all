@@ -115,9 +115,12 @@ class MaterialCommandHandler(BaseCommandHandler):
         """Execute material commands."""
         logger.info(f"Material Handler: Executing {command_type} with params: {params}")
         
+        from core.errors import command_failed
+
         response = connection.send_command(command_type, params)
-        
+
         if response and response.get("status") == "error":
-            raise Exception(response.get("error", "Unknown material operation error"))
-        
+            error_msg = response.get("error", "Unknown material operation error")
+            raise command_failed(command_type, error_msg)
+
         return response

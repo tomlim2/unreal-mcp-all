@@ -206,9 +206,17 @@ class Object3DImportHandler(BaseCommandHandler):
             logger.info(f"Full preprocessed params: {processed}")
             return processed
 
+        except AppError:
+            raise  # Re-raise AppError as-is
         except Exception as e:
+            from core.errors import AppError, ErrorCategory
             logger.error(f"Failed to preprocess params for UID {uid}: {e}")
-            raise Exception(f"Failed to prepare import: {str(e)}")
+            raise AppError(
+                code="IMPORT_PREP_FAILED",
+                message=f"Failed to prepare import: {str(e)}",
+                category=ErrorCategory.INTERNAL_SERVER,
+                suggestion="Check UID exists and file paths are accessible"
+            )
 
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         """

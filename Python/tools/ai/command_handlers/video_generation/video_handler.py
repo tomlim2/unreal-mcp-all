@@ -17,7 +17,6 @@ from ...session_management.utils.path_manager import get_path_manager
 from ...pricing_manager import get_pricing_manager
 from ...video_schema_utils import (
     build_video_transform_response,
-    build_error_response,
     generate_request_id,
     extract_parent_filename,
     generate_video_filename
@@ -224,7 +223,12 @@ class VideoGenerationHandler(BaseCommandHandler):
         if command_type == "generate_video_from_image":
             return self._generate_video_from_latest_screenshot(params)
         else:
-            raise Exception(f"Unsupported command: {command_type}")
+            from core.errors import validation_failed
+            raise validation_failed(
+                message=f"Unsupported command: {command_type}",
+                invalid_params={"type": command_type},
+                suggestion="Use 'generate_video_from_image' for video generation"
+            )
 
     def _generate_video_from_latest_screenshot(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Generate video from latest screenshot automatically."""

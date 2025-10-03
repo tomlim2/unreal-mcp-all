@@ -6,7 +6,8 @@ from .response import (
     success_response,
     job_success,
     resource_success,
-    conversion_success
+    conversion_success,
+    error_response
 )
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     'success_response',
     'job_success',
     'resource_success',
-    'conversion_success'
+    'conversion_success',
+    'error_response'
 ]

@@ -249,7 +249,12 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         if command_type == "transform_image_style":
             return self._transform_existing_image(params)
         else:
-            raise Exception(f"Unsupported command: {command_type}")
+            from core.errors import validation_failed
+            raise validation_failed(
+                message=f"Unsupported command: {command_type}",
+                invalid_params={"type": command_type},
+                suggestion="Use 'transform_image_style' for image transformations"
+            )
     
     def _transform_existing_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Transform an existing image with style - supports both UID and user upload."""
@@ -605,10 +610,17 @@ Generate the image with minimal changes."""
         """Create a placeholder styled image by copying the original."""
         try:
             # Create generated images directory using centralized path management
+            from core.errors import AppError, ErrorCategory
+
             path_manager = get_path_manager()
             generated_dir_path = path_manager.get_generated_images_path()
             if not generated_dir_path:
-                raise Exception("Unable to determine generated images directory path")
+                raise AppError(
+                    code="IMG_PATH_ERROR",
+                    message="Unable to determine generated images directory path",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    suggestion="Check data_storage configuration"
+                )
 
             styled_dir = Path(generated_dir_path)
             styled_dir.mkdir(parents=True, exist_ok=True)
@@ -631,17 +643,30 @@ Generate the image with minimal changes."""
             return str(styled_path)
             
         except Exception as e:
+            from core.errors import AppError, ErrorCategory
             logger.error(f"Failed to create placeholder styled image: {e}")
-            raise Exception(f"Failed to create styled image: {str(e)}")
+            raise AppError(
+                code="IMG_PROCESSING_FAILED",
+                message=f"Failed to create styled image: {str(e)}",
+                category=ErrorCategory.INTERNAL_SERVER,
+                suggestion="Check image processing configuration and file permissions"
+            )
 
     def _save_gemini_generated_image(self, response, original_path: str, style_prompt: str, output_filename: str = None) -> str:
         """Save the Gemini generated image to data_storage/assets/images/generated."""
         try:
             # Create generated images directory using centralized path management
+            from core.errors import AppError, ErrorCategory
+
             path_manager = get_path_manager()
             generated_dir_path = path_manager.get_generated_images_path()
             if not generated_dir_path:
-                raise Exception("Unable to determine generated images directory path")
+                raise AppError(
+                    code="IMG_PATH_ERROR",
+                    message="Unable to determine generated images directory path",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    suggestion="Check data_storage configuration"
+                )
 
             styled_dir = Path(generated_dir_path)
             styled_dir.mkdir(parents=True, exist_ok=True)
@@ -687,13 +712,26 @@ Generate the image with minimal changes."""
                                 return str(styled_path)
             
             # No image data found in Gemini response
+            from core.errors import transformation_failed
+
             candidates_count = len(response.candidates) if response.candidates else 0
             logger.error(f"No image data found in Gemini response (candidates: {candidates_count})")
-            raise Exception("No image data found in Gemini response")
+            raise transformation_failed(
+                reason="No image data found in Gemini response",
+                model="gemini"
+            )
             
+        except AppError:
+            raise  # Re-raise AppError as-is
         except Exception as e:
+            from core.errors import AppError, ErrorCategory
             logger.error(f"Failed to save Gemini generated image: {e}")
-            raise Exception(f"Failed to save generated image: {str(e)}")
+            raise AppError(
+                code="IMG_SAVE_FAILED",
+                message=f"Failed to save generated image: {str(e)}",
+                category=ErrorCategory.INTERNAL_SERVER,
+                suggestion="Check file permissions and storage space"
+            )
     
     def _find_newest_screenshot(self) -> Optional[Path]:
         """Find the newest screenshot file in the WindowsEditor directory."""
@@ -1012,7 +1050,13 @@ Combined prompt:"""
 
             return styled_image_path
 
+        except AppError:
+            raise  # Re-raise AppError as-is
         except Exception as e:
+            from core.errors import transformation_failed
             logger.error(f"Fallback transformation failed: {e}")
-            raise Exception(f"Fallback transformation failed: {str(e)}")
+            raise transformation_failed(
+                reason=str(e),
+                model="fallback"
+            )
     

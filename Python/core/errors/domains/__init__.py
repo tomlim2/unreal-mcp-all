@@ -36,6 +36,15 @@ from .roblox import (
     job_timeout,
     permission_denied
 )
+from .validation import (
+    ValidationError,
+    ValidationErrorCodes,
+    validation_failed,
+    missing_required_param,
+    invalid_param_type,
+    invalid_param_value,
+    invalid_param_format
+)
 
 __all__ = [
     # Image domain
@@ -82,4 +91,13 @@ __all__ = [
     'job_queue_full',
     'job_timeout',
     'permission_denied',
+
+    # Validation domain
+    'ValidationError',
+    'ValidationErrorCodes',
+    'validation_failed',
+    'missing_required_param',
+    'invalid_param_type',
+    'invalid_param_value',
+    'invalid_param_format',
 ]

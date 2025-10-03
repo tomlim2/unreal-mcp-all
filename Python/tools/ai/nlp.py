@@ -23,7 +23,6 @@ import json
 import os
 import sys
 from typing import Dict, List, Any, Optional
-from mcp.server.fastmcp import FastMCP, Context
 from .command_handlers import get_command_registry
 from .session_management.utils.path_manager import get_path_manager
 from core.errors import AppError, ErrorCategory
@@ -593,13 +592,15 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                 except AppError as e:
                     # Handle structured errors from command handlers
                     e.log()
+                    error_response = e.to_response()["error"]  # Get structured error format
                     execution_results.append({
                         "command": command.get("type", "unknown"),
                         "success": False,
-                        "error": e.message,
-                        "error_code": e.code,
-                        "error_details": e.details,
-                        "suggestion": e.suggestion,
+                        "error": error_response["message"],
+                        "error_code": error_response["code"],
+                        "category": error_response["category"],
+                        "error_details": error_response.get("details"),
+                        "suggestion": error_response.get("suggestion"),
                         "validation": "passed"  # AppError means validation passed but execution failed
                     })
                 except Exception as e:
@@ -664,10 +665,6 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             "executionResults": [],
             "modelUsed": selected_model if 'selected_model' in locals() else "unknown"
         }
-
-def register_nlp_tools(mcp):
-    """Register NLP tools with MCP server (placeholder for compatibility)."""
-    pass
 
 # Main function for external use with session support
 def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
@@ -1008,7 +1005,7 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
         
     else:
         # All other commands need Unreal Engine connection
-        from unreal_mcp_server import get_unreal_connection
+        from tools.unreal_connection import get_unreal_connection
         unreal = get_unreal_connection()
         if not unreal:
             raise Exception("Could not connect to Unreal Engine")
