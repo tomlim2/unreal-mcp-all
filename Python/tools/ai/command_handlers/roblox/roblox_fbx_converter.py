@@ -18,6 +18,7 @@ from ...nlp_schema_validator import ValidatedCommand
 from ...uid_manager import get_uid_manager, generate_object_uid
 from ...session_management.utils.path_manager import get_path_manager
 from core.errors import RobloxError, RobloxErrorCodes
+from core.response import conversion_success
 from .roblox_errors import RobloxErrorHandler, log_roblox_error
 
 logger = logging.getLogger("UnrealMCP.Roblox.FBXConverter")
@@ -267,17 +268,16 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
 
             logger.info(f"FBX UID registered: {fbx_uid}")
 
-            # Step 6: Return success response
-            response = {
-                "success": True,
-                "obj_uid": obj_uid,
-                "fbx_uid": fbx_uid,
-                "fbx_path": fbx_path,
-                "message": f"Successfully converted {obj_uid} to FBX format"
-            }
-
+            # Step 6: Return success response using conversion_success helper
             logger.info(f"Conversion completed: {obj_uid} -> {fbx_uid}")
-            return response
+            return conversion_success(
+                source_uid=obj_uid,
+                target_uid=fbx_uid,
+                source_type="obj",
+                target_type="fbx",
+                message=f"Successfully converted {obj_uid} to FBX format",
+                additional_data={"fbx_path": fbx_path}
+            )
 
         except RobloxError as e:
             return e.to_dict()

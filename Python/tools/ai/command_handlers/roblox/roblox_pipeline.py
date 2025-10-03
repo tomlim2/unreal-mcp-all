@@ -12,7 +12,12 @@ from pathlib import Path
 
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
-from core.errors import (RobloxError, RobloxErrorCodes, user_not_found, storage_error, avatar_3d_unavailable, download_failed, AppError)
+from core.errors import (
+    RobloxError, RobloxErrorCodes, user_not_found, storage_error,
+    avatar_3d_unavailable, download_failed, AppError, ErrorCategory,
+    command_failed
+)
+from core.response import success_response
 from .roblox_handler import RobloxCommandHandler
 from .roblox_fbx_converter import RobloxFBXConverterHandler
 from .roblox_job import get_job_status
@@ -87,10 +92,10 @@ class RobloxPipelineHandler(BaseCommandHandler):
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         """Execute unified pipeline command."""
         if command_type != "download_and_import_roblox_avatar":
-            return {
-                "success": False,
-                "error": f"Unsupported command: {command_type}"
-            }
+            raise command_failed(
+                command_type,
+                f"Unsupported command: {command_type}"
+            )
 
         return self._execute_pipeline(connection, params)
 
@@ -128,11 +133,12 @@ class RobloxPipelineHandler(BaseCommandHandler):
             )
 
             if not download_result.get("success"):
-                return {
-                    "success": False,
-                    "error": f"Download failed: {download_result.get('error', 'Unknown error')}",
-                    "stage": "download"
-                }
+                raise AppError(
+                    code="PIPELINE_DOWNLOAD_FAILED",
+                    message=f"Download failed: {download_result.get('error', 'Unknown error')}",
+                    category=ErrorCategory.EXTERNAL_API,
+                    details={"stage": "download", "user_input": user_input}
+                )
 
             obj_uid = download_result.get("uid")
             logger.info(f"Download queued: {obj_uid}")
@@ -150,12 +156,12 @@ class RobloxPipelineHandler(BaseCommandHandler):
                     logger.info(f"Download completed: {obj_uid}")
                     break
                 elif job_status.get("status") == "failed":
-                    return {
-                        "success": False,
-                        "error": f"Download failed: {job_status.get('error', 'Unknown error')}",
-                        "stage": "download",
-                        "obj_uid": obj_uid
-                    }
+                    raise AppError(
+                        code="PIPELINE_DOWNLOAD_JOB_FAILED",
+                        message=f"Download job failed: {job_status.get('error', 'Unknown error')}",
+                        category=ErrorCategory.EXTERNAL_API,
+                        details={"stage": "download", "obj_uid": obj_uid}
+                    )
 
                 # Still queued or processing, wait and retry
                 time.sleep(poll_interval)
@@ -163,13 +169,13 @@ class RobloxPipelineHandler(BaseCommandHandler):
                 logger.debug(f"Waiting for download... {elapsed_time}/{max_wait_time}s")
 
             if elapsed_time >= max_wait_time:
-                return {
-                    "success": False,
-                    "error": "Download timeout - avatar download took longer than 5 minutes",
-                    "stage": "download",
-                    "obj_uid": obj_uid,
-                    "suggestion": "Try again or check the avatar complexity"
-                }
+                raise AppError(
+                    code="PIPELINE_DOWNLOAD_TIMEOUT",
+                    message="Download timeout - avatar download took longer than 5 minutes",
+                    category=ErrorCategory.EXTERNAL_API,
+                    details={"stage": "download", "obj_uid": obj_uid, "elapsed_time": elapsed_time},
+                    suggestion="Try again or check the avatar complexity"
+                )
 
             # Step 3: Convert OBJ → FBX
             logger.info("Step 3/4: Converting OBJ to FBX...")
@@ -185,12 +191,12 @@ class RobloxPipelineHandler(BaseCommandHandler):
             )
 
             if not fbx_result.get("success"):
-                return {
-                    "success": False,
-                    "error": f"FBX conversion failed: {fbx_result.get('error', 'Unknown error')}",
-                    "stage": "conversion",
-                    "obj_uid": obj_uid
-                }
+                raise AppError(
+                    code="PIPELINE_FBX_CONVERSION_FAILED",
+                    message=f"FBX conversion failed: {fbx_result.get('error', 'Unknown error')}",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    details={"stage": "conversion", "obj_uid": obj_uid}
+                )
 
             fbx_uid = fbx_result.get("fbx_uid")
             logger.info(f"Conversion completed: {fbx_uid}")
@@ -207,13 +213,12 @@ class RobloxPipelineHandler(BaseCommandHandler):
             # Validate first
             validated = import_handler.validate_command("import_object3d_by_uid", import_params)
             if not validated.is_valid:
-                return {
-                    "success": False,
-                    "error": f"Import validation failed: {'; '.join(validated.validation_errors)}",
-                    "stage": "import",
-                    "obj_uid": obj_uid,
-                    "fbx_uid": fbx_uid
-                }
+                raise AppError(
+                    code="PIPELINE_IMPORT_VALIDATION_FAILED",
+                    message=f"Import validation failed: {'; '.join(validated.validation_errors)}",
+                    category=ErrorCategory.USER_INPUT,
+                    details={"stage": "import", "obj_uid": obj_uid, "fbx_uid": fbx_uid, "errors": validated.validation_errors}
+                )
 
             # Preprocess and execute
             processed_import_params = import_handler.preprocess_params("import_object3d_by_uid", import_params)
@@ -231,31 +236,35 @@ class RobloxPipelineHandler(BaseCommandHandler):
             )
 
             if not import_result.get("success"):
-                return {
-                    "success": False,
-                    "error": f"Import failed: {import_result.get('error', 'Unknown error')}",
-                    "stage": "import",
-                    "obj_uid": obj_uid,
-                    "fbx_uid": fbx_uid
-                }
+                raise AppError(
+                    code="PIPELINE_IMPORT_FAILED",
+                    message=f"Import failed: {import_result.get('error', 'Unknown error')}",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    details={"stage": "import", "obj_uid": obj_uid, "fbx_uid": fbx_uid}
+                )
 
             asset_path = import_result.get("asset_path", "Unknown")
             logger.info(f"Import completed: {asset_path}")
 
             # Step 5: Return combined success result
-            return {
-                "success": True,
-                "obj_uid": obj_uid,
-                "fbx_uid": fbx_uid,
-                "asset_path": asset_path,
-                "message": f"Successfully downloaded and imported Roblox avatar for '{user_input}'",
-                "pipeline_complete": True
-            }
+            return success_response(
+                message=f"Successfully downloaded and imported Roblox avatar for '{user_input}'",
+                data={
+                    "obj_uid": obj_uid,
+                    "fbx_uid": fbx_uid,
+                    "asset_path": asset_path,
+                    "pipeline_complete": True
+                }
+            )
 
+        except AppError:
+            # Re-raise AppError to be handled by nlp.py
+            raise
         except Exception as e:
             logger.exception(f"Pipeline execution failed: {e}")
-            return {
-                "success": False,
-                "error": f"Pipeline failed: {str(e)}",
-                "stage": "unknown"
-            }
+            raise AppError(
+                code="PIPELINE_EXECUTION_FAILED",
+                message=f"Pipeline failed: {str(e)}",
+                category=ErrorCategory.INTERNAL_SERVER,
+                details={"stage": "unknown", "user_input": user_input}
+            )
