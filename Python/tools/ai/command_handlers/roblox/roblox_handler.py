@@ -11,7 +11,8 @@ from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
 from ...uid_manager import generate_object_uid
-from .roblox_errors import RobloxError, RobloxErrorHandler, log_roblox_error, RobloxErrorCodes
+from core.errors import RobloxError, RobloxErrorCodes
+from .roblox_errors import RobloxErrorHandler, log_roblox_error
 from .roblox_job import submit_download_job, get_job_status, cancel_job
 from .roblox_cleanup import cleanup_existing_roblox_downloads
 
@@ -102,7 +103,7 @@ class RobloxCommandHandler(BaseCommandHandler):
                     message=f"Unsupported command: {command_type}",
                     details={"command_type": command_type}
                 )
-                raise Exception(error.message)
+                raise error
 
         except Exception as exc:
             logger.exception(f"Failed to execute {command_type}: {exc}")

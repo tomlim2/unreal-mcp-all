@@ -26,6 +26,7 @@ from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
 from .command_handlers import get_command_registry
 from .session_management.utils.path_manager import get_path_manager
+from core.errors import AppError, ErrorCategory
 
 # Load environment variables from .env file
 try:
@@ -589,14 +590,27 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                         "validation": "passed"
                     })
                     logger.info(f"Successfully executed validated command: {command.get('type')}")
+                except AppError as e:
+                    # Handle structured errors from command handlers
+                    e.log()
+                    execution_results.append({
+                        "command": command.get("type", "unknown"),
+                        "success": False,
+                        "error": e.message,
+                        "error_code": e.code,
+                        "error_details": e.details,
+                        "suggestion": e.suggestion,
+                        "validation": "passed"  # AppError means validation passed but execution failed
+                    })
                 except Exception as e:
+                    # Handle unexpected errors
+                    logger.error(f"Failed to execute command {command.get('type')}: {e}")
                     execution_results.append({
                         "command": command.get("type", "unknown"),
                         "success": False,
                         "error": str(e),
                         "validation": "failed" if "validation failed" in str(e).lower() else "passed"
                     })
-                    logger.error(f"Failed to execute command {command.get('type')}: {e}")
         # Sanitize commands for response (remove large binary data)
         def sanitize_commands_for_response(commands):
             """Remove large binary data from commands before sending response."""
@@ -637,6 +651,10 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             # Note: Removed session-locked LLM model restriction - models can now be switched per request
         
         return result
+    except AppError as e:
+        # Re-raise AppError to be handled by HTTP layer
+        e.log()
+        raise
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {

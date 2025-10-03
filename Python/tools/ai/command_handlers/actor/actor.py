@@ -9,6 +9,10 @@ import logging
 from typing import Dict, Any, List
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
+from core.errors import (
+    command_failed, actor_not_found, connection_failed,
+    command_timeout, invalid_transform
+)
 
 logger = logging.getLogger("UnrealMCP")
 
@@ -72,10 +76,26 @@ class ActorCommandHandler(BaseCommandHandler):
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         """Execute actor commands."""
         logger.info(f"Actor Handler: Executing {command_type} with params: {params}")
-        
-        response = connection.send_command(command_type, params)
-        
-        if response and response.get("status") == "error":
-            raise Exception(response.get("error", "Unknown Unreal error"))
-        
-        return response
+
+        try:
+            response = connection.send_command(command_type, params)
+
+            if response and response.get("status") == "error":
+                error_msg = response.get("error", "Unknown Unreal error")
+
+                # Map specific errors to appropriate error types
+                if "not found" in error_msg.lower() and command_type in ["delete_actor", "set_actor_transform", "get_actor_properties"]:
+                    raise actor_not_found(params.get("name", "unknown"))
+                elif "transform" in error_msg.lower() or "location" in error_msg.lower():
+                    raise invalid_transform(error_msg)
+                else:
+                    raise command_failed(command_type, error_msg)
+
+            return response
+
+        except ConnectionError as e:
+            logger.error(f"Connection to Unreal failed: {e}")
+            raise connection_failed()
+        except TimeoutError as e:
+            logger.error(f"Actor command timed out: {e}")
+            raise command_timeout(command_type)

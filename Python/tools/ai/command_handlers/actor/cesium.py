@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Any, List
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
+from core.errors import command_failed, connection_failed, command_timeout
 
 logger = logging.getLogger("UnrealMCP")
 
@@ -68,10 +69,19 @@ class CesiumCommandHandler(BaseCommandHandler):
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         """Execute Cesium commands."""
         logger.info(f"Cesium Handler: Executing {command_type} with params: {params}")
-        
-        response = connection.send_command(command_type, params)
-        
-        if response and response.get("status") == "error":
-            raise Exception(response.get("error", "Unknown Unreal error"))
-        
-        return response
+
+        try:
+            response = connection.send_command(command_type, params)
+
+            if response and response.get("status") == "error":
+                error_msg = response.get("error", "Unknown Unreal error")
+                raise command_failed(command_type, error_msg)
+
+            return response
+
+        except ConnectionError as e:
+            logger.error(f"Connection to Unreal failed: {e}")
+            raise connection_failed()
+        except TimeoutError as e:
+            logger.error(f"Cesium command timed out: {e}")
+            raise command_timeout(command_type)

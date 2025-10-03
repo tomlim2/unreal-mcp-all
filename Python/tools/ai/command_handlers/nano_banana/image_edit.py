@@ -16,6 +16,10 @@ from ...image_schema_utils import (
     extract_style_name
 )
 from ...uid_manager import generate_image_uid, add_uid_mapping, get_uid_mapping
+from core.errors import (
+    image_not_found, image_size_exceeded, transformation_failed,
+    api_unavailable, AppError, ErrorCategory
+)
 
 try:
     from PIL import Image
@@ -435,7 +439,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     def _apply_nano_banana_style(self, image_path: str, style_prompt: str, intensity: float, output_filename: str = None) -> Optional[str]:
         """Apply Gemini image generation style transformation to image."""
         if not self._ensure_gemini_initialized():
-            raise Exception("Gemini image generation not available")
+            raise api_unavailable("Gemini", "Image generation requires Gemini API")
 
         try:
             logger.info(f"Applying Gemini image transformation: {style_prompt} (intensity: {intensity})")
@@ -477,12 +481,12 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
         except Exception as e:
             logger.error(f"Gemini image transformation failed: {e}")
-            raise Exception(f"Style transformation failed: {str(e)}")
+            raise transformation_failed(str(e), "gemini")
 
     def _apply_nano_banana_with_references(self, target_image_data: Dict[str, Any], reference_images: List[Dict[str, Any]], style_prompt: str, intensity: float, output_filename: str = None) -> Optional[str]:
         """Apply Gemini multi-image generation with reference images."""
         if not self._ensure_gemini_initialized():
-            raise Exception("Gemini image generation not available")
+            raise api_unavailable("Gemini", "Multi-image transformation requires Gemini API")
 
         try:
             logger.info(f"Applying Gemini multi-image transformation: {style_prompt} (intensity: {intensity})")
@@ -499,7 +503,10 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             if not size_info['within_limits']:
                 logger.warning(f"Request may exceed API limits - proceeding with caution")
                 if size_info['total_size_mb'] >= 20.0:
-                    raise Exception(f"Request too large: {size_info['total_size_mb']}MB exceeds 20MB limit")
+                    raise image_size_exceeded(
+                        size_mb=size_info['total_size_mb'],
+                        max_size_mb=20.0
+                    )
                 if size_info['estimated_tokens'] >= 1000000:
                     logger.warning(f"Token count may exceed limit: {size_info['estimated_tokens']}")
                     # Continue but log warning
@@ -575,7 +582,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
         except Exception as e:
             logger.error(f"Gemini multi-image transformation failed: {e}")
-            raise Exception(f"Multi-image transformation failed: {str(e)}")
+            raise transformation_failed(str(e), "gemini_multi_image")
 
     def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], intensity: float, main_image_dimensions: Dict[str, int] = None) -> str:
         """Build the multi-image generation prompt for Gemini using organized prompts."""

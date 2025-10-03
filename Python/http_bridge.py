@@ -30,6 +30,9 @@ except ImportError:
 from tools.ai.session_management import SessionManager, SessionContext, get_session_manager
 from tools.ai.session_management.utils.session_helpers import extract_session_id_from_request, generate_session_id
 
+# Import error handling system
+from core.errors import AppError, ErrorCategory, CATEGORY_STATUS_MAP
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MCPHttpBridge")
@@ -954,6 +957,11 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                         response_json = json.dumps(wrapped_response, cls=SafeJSONEncoder)
                         self.wfile.write(response_json.encode('utf-8'))
                         return
+                    except AppError as e:
+                        # Handle structured errors with proper HTTP status
+                        logger.error(f"AppError in NLP processing: {e.code} - {e.message}")
+                        self._send_app_error(e)
+                        return
                     except Exception as e:
                         logger.error(f"Error in NLP processing: {e}")
                         # Get timestamp for error response
@@ -1189,10 +1197,10 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             logger.error(f"Error during Roblox cleanup: {e}")
             self._send_error(f"Error during cleanup: {e}")
 
-    def _send_error(self, error_message: str):
+    def _send_error(self, error_message: str, status_code: int = 500):
         """Send an error response"""
         try:
-            self.send_response(500)
+            self.send_response(status_code)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
@@ -1202,6 +1210,28 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.wfile.write(response_json.encode('utf-8'))
         except Exception as e:
             logger.error(f"Error sending error response: {e}")
+
+    def _send_app_error(self, error: AppError):
+        """Send AppError with proper HTTP status code and structured response"""
+        try:
+            # Get HTTP status code from error category
+            status_code = CATEGORY_STATUS_MAP.get(error.category, 500)
+
+            # Log the error
+            error.log()
+
+            # Send HTTP response
+            response_dict = error.to_response()
+            self.send_response(status_code)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+
+            response_json = json.dumps(response_dict)
+            self.wfile.write(response_json.encode('utf-8'))
+        except Exception as e:
+            logger.error(f"Error sending AppError response: {e}")
+            self._send_error(str(e))
 
     def _send_image_error(self, error_type: str, message: str, status_code: int = 400):
         """

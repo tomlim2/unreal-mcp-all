@@ -18,6 +18,7 @@ from ...image_schema_utils import (
     generate_request_id
 )
 from ...uid_manager import generate_image_uid, add_uid_mapping
+from core.errors import screenshot_failed, command_timeout, connection_failed
 
 try:
     from PIL import Image
@@ -99,21 +100,21 @@ class ScreenshotCommandHandler(BaseCommandHandler):
         try:
             # Take screenshot via Unreal connection
             response = connection.send_command(command_type, params)
-            
+
             if response and response.get("status") == "error":
-                return build_error_response(
-                    response.get("error", f"Unknown Unreal {command_type} error"),
-                    "unreal_command_error",
-                    request_id,
-                    start_time
+                error_msg = response.get("error", f"Unknown Unreal {command_type} error")
+                raise screenshot_failed(
+                    reason=error_msg,
+                    resolution=f"{params.get('resolution_multiplier', 1.0)}x",
+                    request_id=request_id
                 )
-            
+
             # Wait a moment for file to be created
             time.sleep(0.5)
-            
+
             # Find newest screenshot file
             screenshot_file = self._find_newest_screenshot()
-            
+
             if screenshot_file:
                 # Generate UID for screenshot using persistent manager
                 image_uid = generate_image_uid()
@@ -143,20 +144,24 @@ class ScreenshotCommandHandler(BaseCommandHandler):
                     start_time=start_time
                 )
             else:
-                return build_error_response(
-                    "Screenshot command executed but file not found",
-                    "file_not_found",
-                    request_id,
-                    start_time
+                raise screenshot_failed(
+                    reason="Screenshot command executed but file not found",
+                    resolution=f"{params.get('resolution_multiplier', 1.0)}x",
+                    request_id=request_id
                 )
-                
+
+        except ConnectionError as e:
+            logger.error(f"Connection to Unreal failed: {e}")
+            raise connection_failed(request_id=request_id)
+        except TimeoutError as e:
+            logger.error(f"Screenshot command timed out: {e}")
+            raise command_timeout("take_screenshot", request_id=request_id)
         except Exception as e:
             logger.error(f"Screenshot execution failed: {e}")
-            return build_error_response(
-                f"Screenshot execution failed: {str(e)}",
-                "execution_error",
-                request_id,
-                start_time
+            raise screenshot_failed(
+                reason=str(e),
+                resolution=f"{params.get('resolution_multiplier', 1.0)}x",
+                request_id=request_id
             )
 
     def _find_newest_screenshot(self) -> Optional[Path]:

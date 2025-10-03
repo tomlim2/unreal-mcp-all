@@ -12,7 +12,7 @@ from pathlib import Path
 
 from ..main import BaseCommandHandler
 from ...nlp_schema_validator import ValidatedCommand
-from .roblox_errors import RobloxError, RobloxErrorHandler, RobloxErrorCodes
+from core.errors import (RobloxError, RobloxErrorCodes, user_not_found, storage_error, avatar_3d_unavailable, download_failed, AppError)
 from .roblox_handler import RobloxCommandHandler
 from .roblox_fbx_converter import RobloxFBXConverterHandler
 from .roblox_job import get_job_status
