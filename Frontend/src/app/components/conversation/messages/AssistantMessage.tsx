@@ -32,6 +32,8 @@ interface AssistantMessageProps {
   sessionName?: string;
   keyPrefix: string | number;
   sessionId?: string;
+  allMessages?: ChatMessage[];
+  currentIndex?: number;
 }
 
 // Token Analysis Panel Component
@@ -450,6 +452,8 @@ export default function AssistantMessage({
   sessionName,
   keyPrefix,
   sessionId,
+  allMessages,
+  currentIndex,
 }: AssistantMessageProps) {
   // Set default expansion based on message role
   const getDefaultExpanded = useCallback(() => {
@@ -458,6 +462,17 @@ export default function AssistantMessage({
 
   const [isExpanded, setIsExpanded] = useState(getDefaultExpanded());
   const [activeTab, setActiveTab] = useState<"response" | "debug">("response");
+
+  // Find the actual user input from the previous message
+  const getUserInput = () => {
+    if (allMessages && currentIndex !== undefined && currentIndex > 0) {
+      const previousMessage = allMessages[currentIndex - 1];
+      if (previousMessage && previousMessage.role === 'user') {
+        return previousMessage.content;
+      }
+    }
+    return message.content || "No user input captured";
+  };
 
   // Reset expanded state when sessionId changes
   useEffect(() => {
@@ -516,14 +531,6 @@ export default function AssistantMessage({
                   </div>
                 )}
 
-                {/* Only show top-level error if there are no execution results with errors */}
-                {message.error && (!message.execution_results || !message.execution_results.some(r => r.error)) && (
-                  <div className={styles.aiSection}>
-                    <strong>ERROR:</strong>
-                    <p>{message.error}</p>
-                  </div>
-                )}
-
                 {message.fallback && (
                   <div className={styles.aiSection}>
                     <strong>FALLBACK RESPONSE</strong>
@@ -543,42 +550,26 @@ export default function AssistantMessage({
 
             {activeTab === "debug" && (
               <div className={styles.debugTab}>
-                {/* Execution time at the top */}
-                <div className={styles.debugExecutionTime}>
-                  {new Date(message.timestamp).toLocaleString()}
-                </div>
                 <div className={styles.debugHeader}>
-                  <strong>DEBUG FORMAT</strong>
+                  <strong>DEBUG LOG</strong>
                   <button
                     onClick={() => {
                       const debugData = {
-                        conversation_context: {
-                          user_input:
-                            message.content || "No user input captured",
-                          timestamp:
-                            message.timestamp || new Date().toISOString(),
-                        },
-                        ai_processing: {
-                          explanation: message.explanation || "",
-                          generated_commands: message.commands || [],
-                          expected_result: message.expectedResult || "",
-                          processing_error: message.error || null,
-                          fallback_used: message.fallback || false,
-                        },
-                        execution_results: (
-                          message.execution_results || []
-                        ).map((result) => ({
-                          command_type: result.command,
+                        timestamp: message.timestamp || new Date().toISOString(),
+                        user_input: getUserInput(),
+                        ai_explanation: message.explanation || "",
+                        generated_commands: message.commands || [],
+                        expected_result: message.expectedResult || "",
+                        processing_error: message.error || null,
+                        fallback_used: message.fallback || false,
+                        execution_results: (message.execution_results || []).map((result) => ({
+                          command: result.command,
                           success: result.success,
-                          result_data: result.result || null,
-                          error_message: result.error || null,
+                          error: result.error || null,
+                          result: result.result || null,
                         })),
-                        debug_notes: {
-                          message_role: message.role,
-                          session_context: sessionId
-                            ? `Session: ${sessionId}`
-                            : "No session context",
-                        },
+                        session_id: sessionId || "no_session",
+                        model_used: message.model_used || "unknown",
                       };
                       navigator.clipboard.writeText(
                         JSON.stringify(debugData, null, 2)
@@ -586,141 +577,32 @@ export default function AssistantMessage({
                     }}
                     className={styles.copyButton}
                   >
-                    Copy JSON
+                    Copy Debug Log
                   </button>
                 </div>
 
                 <pre className={styles.debugContent}>
-                  <div className={styles.debugBlock}>
-                    <div className={styles.debugLabel}>
-                      CONVERSATION CONTEXT:
-                    </div>
-                    <div className={styles.debugJson}>
-                      {JSON.stringify(
-                        {
-                          user_input:
-                            message.content || "No user input captured",
-                          timestamp:
-                            message.timestamp || new Date().toISOString(),
-                        },
-                        null,
-                        2
-                      )}
-                    </div>
-                  </div>
-                  <div className={styles.debugBlock}>
-                    <div className={styles.debugLabel}>AI PROCESSING:</div>
-                    <div className={styles.debugJson}>
-                      {JSON.stringify(
-                        {
-                          explanation: message.explanation || "",
-                          generated_commands: message.commands || [],
-                          expected_result: message.expectedResult || "",
-                          processing_error: message.error || null,
-                          fallback_used: message.fallback || false,
-                        },
-                        null,
-                        2
-                      )}
-                    </div>
-                  </div>
-
-                  {message.execution_results &&
-                    message.execution_results.length > 0 && (
-                      <div className={styles.debugBlock}>
-                        <div className={styles.debugLabel}>
-                          EXECUTION RESULTS:
-                        </div>
-                        <div className={styles.debugJson}>
-                          {JSON.stringify(
-                            message.execution_results.map((result) => {
-                              const baseResult = {
-                                command_type: result.command,
-                                success: result.success,
-                                error_message: result.error || null,
-                              };
-
-                              // Enhanced display for image-related commands
-                              if (
-                                result.result &&
-                                typeof result.result === "object"
-                              ) {
-                                const resultData = result.result as any;
-
-                                // Handle hierarchical schema (v1.0.0) - now the only supported format
-                                if (resultData.uids || resultData.processing) {
-                                  const displayData: any = {
-                                    message: resultData.message,
-                                    status_code: resultData.status_code,
-                                    processing_model:
-                                      resultData.processing?.model,
-                                    origin: resultData.processing?.origin,
-                                  };
-
-                                  // Add UIDs and filename only
-                                  if (resultData.uids) {
-                                    displayData.image_uid =
-                                      resultData.uids.image;
-                                    if (resultData.uids.parent) {
-                                      displayData.parent_uid =
-                                        resultData.uids.parent;
-                                    }
-                                  }
-
-                                  // Add image filename only
-                                  if (resultData.image) {
-                                    displayData.image_filename =
-                                      resultData.image.metadata?.filename;
-                                  }
-
-                                  // Add video UIDs and filename only
-                                  if (resultData.video) {
-                                    displayData.video_uid =
-                                      resultData.uids?.video;
-                                    displayData.video_filename =
-                                      resultData.video.metadata?.filename;
-                                  }
-
-                                  return {
-                                    ...baseResult,
-                                    result_data: displayData,
-                                  };
-                                }
-
-                                // Default for other commands
-                                return {
-                                  ...baseResult,
-                                  result_data: resultData,
-                                };
-                              }
-
-                              return {
-                                ...baseResult,
-                                result_data: result.result || null,
-                              };
-                            }),
-                            null,
-                            2
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                  <div className={styles.debugBlock}>
-                    <div className={styles.debugLabel}>DEBUG NOTES:</div>
-                    <div className={styles.debugJson}>
-                      {JSON.stringify(
-                        {
-                          message_role: message.role,
-                          session_context: sessionId
-                            ? `Session: ${sessionId}`
-                            : "No session context",
-                        },
-                        null,
-                        2
-                      )}
-                    </div>
-                  </div>
+                  {JSON.stringify(
+                    {
+                      timestamp: message.timestamp || new Date().toISOString(),
+                      user_input: getUserInput(),
+                      ai_explanation: message.explanation || "",
+                      generated_commands: message.commands || [],
+                      expected_result: message.expectedResult || "",
+                      processing_error: message.error || null,
+                      fallback_used: message.fallback || false,
+                      execution_results: (message.execution_results || []).map((result) => ({
+                        command: result.command,
+                        success: result.success,
+                        error: result.error || null,
+                        result: result.result || null,
+                      })),
+                      session_id: sessionId || "no_session",
+                      model_used: message.model_used || "unknown",
+                    },
+                    null,
+                    2
+                  )}
                 </pre>
 				<br />
 				<TokenAnalysisPanel message={message} />

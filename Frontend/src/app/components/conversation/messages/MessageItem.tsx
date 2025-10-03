@@ -2,7 +2,6 @@
 
 import React from 'react';
 import styles from './MessageItem.module.css';
-import MessageItemImageResult from './MessageItemImageResult';
 import AssistantMessage from './AssistantMessage';
 
 interface ExecutionResultData {
@@ -32,9 +31,10 @@ interface MessageItemProps {
   sessionName?: string;
   index: number;
   sessionId?: string;
+  allMessages?: ChatMessage[];
 }
 
-export default function MessageItem({ message, sessionName, index, sessionId }: MessageItemProps) {
+export default function MessageItem({ message, sessionName, index, sessionId, allMessages }: MessageItemProps) {
   const keyPrefix = sessionId ? `${sessionId}-${index}` : index;
 
   // User message rendering
@@ -56,11 +56,13 @@ export default function MessageItem({ message, sessionName, index, sessionId }: 
   // Assistant message rendering
   if (message.role === 'assistant') {
     return (
-      <AssistantMessage 
+      <AssistantMessage
         message={message}
         sessionName={sessionName}
         keyPrefix={keyPrefix}
         sessionId={sessionId}
+        allMessages={allMessages}
+        currentIndex={index}
       />
     );
   }

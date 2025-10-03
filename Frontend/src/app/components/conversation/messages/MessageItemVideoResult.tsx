@@ -145,11 +145,7 @@ export default function MessageItemVideoResult({
       </div>
     );
   } else {
-    // Only show error message for video-related commands
-    const videoRelatedCommands = ['generate_video_from_image', 'generate_video', 'edit_video'];
-    if (videoRelatedCommands.includes(result.command)) {
-      return <div className={styles.errorMessage}>{result.error}</div>;
-    }
-    return null; // Let ExecutionResults handle non-video errors
+    // Error messages are handled by ExecutionResults component
+    return null;
   }
 }

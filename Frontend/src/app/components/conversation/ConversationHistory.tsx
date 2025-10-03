@@ -97,12 +97,13 @@ const ConversationHistory = ({
             {context.conversation_history
               .slice()
               .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-              .map((message, index) => (
+              .map((message, index, allMessages) => (
                 <MessageItem
                   key={`${context.session_id}-${index}`}
                   message={message}
                   index={index}
                   sessionId={context.session_id}
+                  allMessages={allMessages}
                 />
               ))
             }

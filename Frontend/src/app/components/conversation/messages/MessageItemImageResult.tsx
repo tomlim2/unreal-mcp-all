@@ -111,11 +111,7 @@ export default function MessageItemImageResult({
       </div>
     );
   } else {
-    // Only show error message for image-related commands
-    const imageRelatedCommands = ['transform_image_style', 'generate_image', 'edit_image'];
-    if (imageRelatedCommands.includes(result.command)) {
-      return <div className={styles.errorMessage}>{result.error}</div>;
-    }
-    return null; // Let ExecutionResults handle non-image errors
+    // Error messages are handled by ExecutionResults component
+    return null;
   }
 }
