@@ -288,36 +288,36 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .toastContainer {
     left: 0 !important;
     right: 0 !important;
     transform: none !important;
     padding: 0.75rem;
   }
-  
+
   .toast {
     min-width: 0;
     width: 100%;
     max-width: none;
   }
-  
+
   .toastContent {
     padding: 0.875rem;
     gap: 0.625rem;
   }
-  
+
   .toastIcon {
     width: 18px;
     height: 18px;
     font-size: 0.8125rem;
   }
-  
+
   .toastTitle,
   .toastMessage {
     font-size: 0.8125rem;
   }
-  
+
   .toastClose {
     width: 20px;
     height: 20px;

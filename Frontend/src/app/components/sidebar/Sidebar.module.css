@@ -13,8 +13,8 @@
   flex-direction: column;
 }
 
-/* Hide sidebar on mobile devices */
-@media (max-width: 768px) {
+/* Hide sidebar on mobile and tablet devices */
+@media (max-width: 1200px) {
   .container {
     display: none;
   }

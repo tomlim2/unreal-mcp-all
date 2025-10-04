@@ -77,6 +77,27 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
         const errorMessage = result.error || (resultData?.error as string | undefined);
         const errorSuggestion = resultData?.suggestion as string | undefined;
 
+        // Check if result has image or video
+        const hasNewImageUrl = resultData?.image?.url;
+        const hasLegacyImageUrl = resultData?.image_url;
+        const hasImageUrl = hasNewImageUrl || hasLegacyImageUrl;
+
+        const hasNewVideoUrl = resultData?.video?.url;
+        const hasLegacyVideoUrl = resultData?.video_url;
+        const hasVideoUrl = hasNewVideoUrl || hasLegacyVideoUrl;
+
+        const hasMedia = hasImageUrl || hasVideoUrl;
+
+        // For successful commands with media, only show the media
+        if (result.success && hasMedia) {
+          return (
+            <div key={resultIndex}>
+              <MessageItemImageResult result={result} resultIndex={resultIndex} />
+              <MessageItemVideoResult result={result} resultIndex={resultIndex} />
+            </div>
+          );
+        }
+
         return (
           <div key={resultIndex} className={`${styles.result} ${result.success ? styles.success : styles.failure}`}>
             <div className={styles.resultHeader}>

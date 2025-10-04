@@ -20,7 +20,7 @@ export default function ErrorDisplay({
   return (
     <div className={styles.resultContent}>
       <div className={styles.errorMessage}>
-        <strong>Error:</strong> {errorMessage}
+        {errorMessage}
       </div>
 
       {errorCode && (

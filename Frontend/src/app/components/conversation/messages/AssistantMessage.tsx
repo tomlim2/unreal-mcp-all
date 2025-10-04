@@ -257,9 +257,9 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
 
   return (
     <div className={styles.debugBlock}>
-      <div className={styles.debugHeader}>
-        <strong>TOKEN ANALYSIS</strong>
-        <div className={styles.buttonGroup}>
+      <div className={styles.debugCodeBlock}>
+        <div className={styles.debugHeader}>
+          <span className={styles.codeBlockTitle}>Token Analysis</span>
           <button
             onClick={() => {
               if (!tokenInfo || tokenInfo.error) return;
@@ -335,114 +335,115 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
             }}
             className={styles.copyButton}
             disabled={!tokenInfo || tokenInfo.error}
+            title="Copy Analysis"
           >
-            Copy Analysis
+            📋
           </button>
         </div>
-      </div>
 
-      {tokenInfo?.error ? (
-        <div className={styles.debugError}>Error: {tokenInfo.error}</div>
-      ) : tokenInfo ? (
-        <div className={styles.debugJson}>
-          {/* Usage Summary */}
-          <div className={styles.debugMetric}>
-            <span className={styles.debugLabel}>Total Tokens:</span>
-            <span>{tokenInfo.totalEstimate.toLocaleString()}</span>
-          </div>
-          <div className={styles.debugMetric}>
-            <span className={styles.debugLabel}>Total Cost:</span>
-            <span className={styles.totalCost}>
-              ${tokenInfo.costs?.total.toFixed(6) || "0.000000"}
-            </span>
-          </div>
-
-          {/* Breakdown by Category */}
-          <div className={styles.debugMetric}>
-            <span className={styles.debugLabel}>1. NLP (Text Processing):</span>
-            <span>
-              {tokenInfo.userInput.estimatedTokens} tokens •{" "}
-              {tokenInfo.costs?.modelName || "Unknown"} • $
-              {tokenInfo.costs?.nlp.toFixed(6) || "0.000000"}
-            </span>
-          </div>
-
-          {tokenInfo.imageProcessing.commandCount > 0 && (
+        {tokenInfo?.error ? (
+          <div className={styles.debugError}>Error: {tokenInfo.error}</div>
+        ) : tokenInfo ? (
+          <div className={styles.debugJson}>
+            {/* Usage Summary */}
             <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>
-                2. Image (Visual Processing):
-              </span>
-              <div>
-                <div>
-                  {tokenInfo.imageProcessing.estimatedTokens.toLocaleString()}{" "}
-                  tokens • Nano Banana • $
-                  {tokenInfo.costs?.image.toFixed(6) || "0.000000"}
-                </div>
-              </div>
+              <span className={styles.debugLabel}>Total Tokens:</span>
+              <span>{tokenInfo.totalEstimate.toLocaleString()}</span>
             </div>
-          )}
-
-          {tokenInfo.videoProcessing.commandCount > 0 && (
             <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>
-                3. Video (Veo-3 Generation):
+              <span className={styles.debugLabel}>Total Cost:</span>
+              <span className={styles.totalCost}>
+                ${tokenInfo.costs?.total.toFixed(6) || "0.000000"}
               </span>
-              <div>
+            </div>
+
+            {/* Breakdown by Category */}
+            <div className={styles.debugMetric}>
+              <span className={styles.debugLabel}>1. NLP (Text Processing):</span>
+              <span>
+                {tokenInfo.userInput.estimatedTokens} tokens •{" "}
+                {tokenInfo.costs?.modelName || "Unknown"} • $
+                {tokenInfo.costs?.nlp.toFixed(6) || "0.000000"}
+              </span>
+            </div>
+
+            {tokenInfo.imageProcessing.commandCount > 0 && (
+              <div className={styles.debugMetric}>
+                <span className={styles.debugLabel}>
+                  2. Image (Visual Processing):
+                </span>
                 <div>
-                  Google Veo-3 • $
-                  {tokenInfo.costs?.video.toFixed(6) || "0.000000"}
-                </div>
-                {tokenInfo.videoProcessing.metadata && (
                   <div>
-                    <small>
-                      {tokenInfo.videoProcessing.metadata.generation
-                        ?.resolution || "720p"}{" "}
-                      •
-                      {tokenInfo.videoProcessing.metadata.duration?.display ||
-                        "8s"}{" "}
-                      •
-                      {tokenInfo.videoProcessing.metadata.generation
-                        ?.aspect_ratio || "16:9"}
-                    </small>
+                    {tokenInfo.imageProcessing.estimatedTokens.toLocaleString()}{" "}
+                    tokens • Nano Banana • $
+                    {tokenInfo.costs?.image.toFixed(6) || "0.000000"}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {tokenInfo.nanoBanana && (
-            <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>Nano Banana:</span>
-              <span
-                className={
-                  tokenInfo.nanoBanana.available
-                    ? styles.statusGreen
-                    : styles.statusRed
-                }
-              >
-                {tokenInfo.nanoBanana.available ? "Available" : "Not Available"}
-                {tokenInfo.nanoBanana.error &&
-                  ` (${tokenInfo.nanoBanana.error})`}
-              </span>
-            </div>
-          )}
+            {tokenInfo.videoProcessing.commandCount > 0 && (
+              <div className={styles.debugMetric}>
+                <span className={styles.debugLabel}>
+                  3. Video (Veo-3 Generation):
+                </span>
+                <div>
+                  <div>
+                    Google Veo-3 • $
+                    {tokenInfo.costs?.video.toFixed(6) || "0.000000"}
+                  </div>
+                  {tokenInfo.videoProcessing.metadata && (
+                    <div>
+                      <small>
+                        {tokenInfo.videoProcessing.metadata.generation
+                          ?.resolution || "720p"}{" "}
+                        •
+                        {tokenInfo.videoProcessing.metadata.duration?.display ||
+                          "8s"}{" "}
+                        •
+                        {tokenInfo.videoProcessing.metadata.generation
+                          ?.aspect_ratio || "16:9"}
+                      </small>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-          {tokenInfo.totalEstimate > 800 && (
-            <div className={styles.debugTip}>
-              High token usage - may quickly consume daily quota on free tier
-            </div>
-          )}
+            {tokenInfo.nanoBanana && (
+              <div className={styles.debugMetric}>
+                <span className={styles.debugLabel}>Nano Banana:</span>
+                <span
+                  className={
+                    tokenInfo.nanoBanana.available
+                      ? styles.statusGreen
+                      : styles.statusRed
+                  }
+                >
+                  {tokenInfo.nanoBanana.available ? "Available" : "Not Available"}
+                  {tokenInfo.nanoBanana.error &&
+                    ` (${tokenInfo.nanoBanana.error})`}
+                </span>
+              </div>
+            )}
 
-          {tokenInfo.costs && tokenInfo.costs.total > 0.001 && (
-            <div className={styles.debugTip}>
-              Cost per interaction: ${tokenInfo.costs.total.toFixed(6)} (~$
-              {(tokenInfo.costs.total * 1000).toFixed(3)} per 1000 interactions)
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className={styles.debugLoading}>Analyzing tokens...</div>
-      )}
+            {tokenInfo.totalEstimate > 800 && (
+              <div className={styles.debugTip}>
+                High token usage - may quickly consume daily quota on free tier
+              </div>
+            )}
+
+            {tokenInfo.costs && tokenInfo.costs.total > 0.001 && (
+              <div className={styles.debugTip}>
+                Cost per interaction: ${tokenInfo.costs.total.toFixed(6)} (~$
+                {(tokenInfo.costs.total * 1000).toFixed(3)} per 1000 interactions)
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={styles.debugLoading}>Analyzing tokens...</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -508,7 +509,7 @@ export default function AssistantMessage({
                 }`}
                 onClick={() => setActiveTab("response")}
               >
-                Response
+                Answer
               </button>
               <button
                 className={`${styles.tabButton} ${
@@ -516,7 +517,7 @@ export default function AssistantMessage({
                 }`}
                 onClick={() => setActiveTab("debug")}
               >
-                Debug
+                Detail
               </button>
             </div>
           </div>
@@ -550,11 +551,46 @@ export default function AssistantMessage({
 
             {activeTab === "debug" && (
               <div className={styles.debugTab}>
-                <div className={styles.debugHeader}>
-                  <strong>DEBUG LOG</strong>
-                  <button
-                    onClick={() => {
-                      const debugData = {
+                <div className={styles.debugCodeBlock}>
+                  <div className={styles.debugHeader}>
+                    <span className={styles.codeBlockTitle}>Debug Log</span>
+                    <button
+                      onClick={() => {
+                        const debugData = {
+                          timestamp: message.timestamp || new Date().toISOString(),
+                          user_input: getUserInput(),
+                          ai_explanation: message.explanation || "",
+                          generated_commands: message.commands || [],
+                          expected_result: message.expectedResult || "",
+                          processing_error: message.error || null,
+                          fallback_used: message.fallback || false,
+                          execution_results: (message.execution_results || []).map((result) => ({
+                            command: result.command,
+                            success: result.success,
+                            error: result.error || null,
+                            error_code: result.error_code || null,
+                            category: result.category || null,
+                            error_details: result.error_details || null,
+                            suggestion: result.suggestion || null,
+                            result: result.result || null,
+                          })),
+                          session_id: sessionId || "no_session",
+                          model_used: message.model_used || "unknown",
+                        };
+                        navigator.clipboard.writeText(
+                          JSON.stringify(debugData, null, 2)
+                        );
+                      }}
+                      className={styles.copyButton}
+                      title="Copy Debug Log"
+                    >
+                      📋
+                    </button>
+                  </div>
+
+                  <pre className={styles.debugContent}>
+                    {JSON.stringify(
+                      {
                         timestamp: message.timestamp || new Date().toISOString(),
                         user_input: getUserInput(),
                         ai_explanation: message.explanation || "",
@@ -574,45 +610,13 @@ export default function AssistantMessage({
                         })),
                         session_id: sessionId || "no_session",
                         model_used: message.model_used || "unknown",
-                      };
-                      navigator.clipboard.writeText(
-                        JSON.stringify(debugData, null, 2)
-                      );
-                    }}
-                    className={styles.copyButton}
-                  >
-                    Copy Debug Log
-                  </button>
+                      },
+                      null,
+                      2
+                    )}
+                  </pre>
                 </div>
 
-                <pre className={styles.debugContent}>
-                  {JSON.stringify(
-                    {
-                      timestamp: message.timestamp || new Date().toISOString(),
-                      user_input: getUserInput(),
-                      ai_explanation: message.explanation || "",
-                      generated_commands: message.commands || [],
-                      expected_result: message.expectedResult || "",
-                      processing_error: message.error || null,
-                      fallback_used: message.fallback || false,
-                      execution_results: (message.execution_results || []).map((result) => ({
-                        command: result.command,
-                        success: result.success,
-                        error: result.error || null,
-                        error_code: result.error_code || null,
-                        category: result.category || null,
-                        error_details: result.error_details || null,
-                        suggestion: result.suggestion || null,
-                        result: result.result || null,
-                      })),
-                      session_id: sessionId || "no_session",
-                      model_used: message.model_used || "unknown",
-                    },
-                    null,
-                    2
-                  )}
-                </pre>
-				<br />
 				<TokenAnalysisPanel message={message} />
               </div>
             )}

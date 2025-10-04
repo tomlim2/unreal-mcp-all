@@ -423,35 +423,35 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .overlay {
     padding: 0.5rem;
   }
-  
+
   .modal {
     border-radius: 8px;
   }
-  
+
   .modalContent {
     padding: 1rem;
   }
-  
+
   .fullscreen {
     width: 100vw;
     height: 100vh;
     border-radius: 0;
   }
-  
+
   .modalFooter {
     flex-direction: column-reverse;
     gap: 0.5rem;
   }
-  
+
   .footerActions {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .button {
     width: 100%;
   }
