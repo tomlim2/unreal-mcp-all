@@ -186,5 +186,3 @@ next-env.d.ts
 # UID and reference image runtime data
 Python/data_storage
 data_storage/*
-
-.claude
