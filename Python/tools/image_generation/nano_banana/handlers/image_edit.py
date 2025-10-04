@@ -554,6 +554,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
             # Generate styled image using Gemini multi-image API
             logger.info(f"Sending multi-image transformation request to Gemini with {len(image_parts)} images...")
+            logger.info(f"📋 PROMPT TO GEMINI:\n{transformation_prompt}")
             response = self._model.generate_content([*image_parts, transformation_prompt])
 
             if not response or not response.candidates:
@@ -572,29 +573,110 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             raise transformation_failed(str(e), "gemini_multi_image")
 
     def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], intensity: float, main_image_dimensions: Dict[str, int] = None) -> str:
-        """Build the multi-image generation prompt for Gemini using organized prompts."""
+        """Build the multi-image generation prompt for Gemini using Google's recommended format.
+
+        CRITICAL: Image order in Gemini API call is [main_image, ref1, ref2, ref3]
+        So "image 1" = main, "image 2" = ref1, "image 3" = ref2, "image 4" = ref3
+
+        When user says "first reference's hair", that's ref1 = image 2 in Gemini
+        """
         intensity_description = "subtle" if intensity < 0.4 else "moderate" if intensity < 0.7 else "strong"
 
-        # The style_prompt is already organized by _translate_and_organize_prompts function
-        # So we just need to create the final transformation instruction
+        # Parse style_prompt to extract features from each reference
+        # Expected format from LLM: "first reference's hair color, second reference's facial expression"
+        # Need to convert to Gemini format: "Take image 2's hair color. Add image 3's facial expression."
+        # Because: image 1 = main, image 2 = first ref, image 3 = second ref, etc.
 
         # Add dimension constraint if available
         dimension_instruction = ""
         if main_image_dimensions and main_image_dimensions.get('width') and main_image_dimensions.get('height'):
-            dimension_instruction = f"\n6. IMPORTANT: Generate output with exact dimensions {main_image_dimensions['width']}x{main_image_dimensions['height']} pixels to match the main image aspect ratio"
+            dimension_instruction = f" The output must be {main_image_dimensions['width']}x{main_image_dimensions['height']} pixels."
 
-        return f"""Transform the first image using the following instructions with a {intensity_description} intensity:
+        ref_count = len(reference_images)
 
-{style_prompt}
+        # Build Google-recommended format with correct image numbering
+        instructions = []
 
-INSTRUCTIONS:
-1. Apply the transformation described above
-2. Use the reference images to guide the transformation
-3. Maintain the original subject and composition while applying changes
-4. Create a harmonious result that preserves the main subject
-5. Incorporate elements from reference images as specified{dimension_instruction}
+        # Parse the style_prompt to extract individual features
+        import re
 
-Generate the transformed image."""
+        # Try multiple patterns in order of strictness
+        matches = []
+
+        # Pattern 1 (strictest): "1st reference's", "2nd reference's", "3rd reference's"
+        # Use [^,]+ to allow periods (for "2.5D" etc), split on commas only
+        pattern1 = r'(1st|2nd|3rd)\s+reference(?:\'s)?\s+([^,]+?)(?=\s*(?:,|\s+\d(?:st|nd|rd)\s+reference|$))'
+        matches1 = re.findall(pattern1, style_prompt, re.IGNORECASE)
+
+        # Pattern 2: "first reference's", "second reference's" (fallback)
+        pattern2 = r'(first|second|third)\s+reference(?:\'s)?\s+([^,]+?)(?=\s*(?:,|\s+(?:first|second|third)\s+reference|$))'
+        matches2 = re.findall(pattern2, style_prompt, re.IGNORECASE)
+
+        # Pattern 3: "Reference 1's", "Reference 2's" (fallback)
+        pattern3 = r'Reference\s+([123])(?:\'s)?\s+([^,]+?)(?=\s*(?:,|\s+Reference\s+[123]|$))'
+        matches3 = re.findall(pattern3, style_prompt, re.IGNORECASE)
+
+        # Use whichever pattern found matches (prefer strictest)
+        if matches1:
+            matches = matches1
+            logger.info(f"✓ Using 1st/2nd/3rd format: {matches}")
+        elif matches2:
+            matches = matches2
+            logger.info(f"Using first/second/third format: {matches}")
+        elif matches3:
+            matches = matches3
+            logger.info(f"Using Reference N format: {matches}")
+
+        if matches:
+            # Map reference identifiers to image numbers and features
+            # 1st/first/1 = image 2, 2nd/second/2 = image 3, 3rd/third/3 = image 4
+            ordinal_to_image_num = {
+                '1st': 'second', 'first': 'second', '1': 'second',
+                '2nd': 'third', 'second': 'third', '2': 'third',
+                '3rd': 'fourth', 'third': 'fourth', '3': 'fourth'
+            }
+
+            features_by_image = {}
+            for ordinal, feature in matches:
+                # Normalize ordinal and get image ordinal word
+                ordinal_lower = ordinal.lower()
+
+                # Direct numeric reference
+                if ordinal.isdigit():
+                    image_ordinal = ['second', 'third', 'fourth'][int(ordinal) - 1]
+                # Ordinal string
+                else:
+                    image_ordinal = ordinal_to_image_num.get(ordinal_lower, 'second')
+
+                # Collect features per image
+                if image_ordinal not in features_by_image:
+                    features_by_image[image_ordinal] = []
+                features_by_image[image_ordinal].append(feature.strip())
+
+            # Build natural language prompt following Google's best practices
+            # Format: "Edit the first image to have [feature] from the second image and [feature] from the third image"
+            feature_parts = []
+            for image_ordinal in ['second', 'third', 'fourth']:
+                if image_ordinal in features_by_image:
+                    features = features_by_image[image_ordinal]
+                    if len(features) == 1:
+                        feature_parts.append(f"the {features[0]} from the {image_ordinal} image")
+                    else:
+                        # Multiple features from same image
+                        features_text = " and ".join(features)
+                        feature_parts.append(f"the {features_text} from the {image_ordinal} image")
+
+            if feature_parts:
+                instruction_text = f"Edit the first image to change only {', '.join(feature_parts)}. Keep everything else in the first image exactly the same, preserving the original subject, pose, composition, style, and lighting."
+            else:
+                instruction_text = style_prompt
+        else:
+            # Fallback: use original style_prompt with base preservation
+            instruction_text = f"Edit the first image to {style_prompt}. Keep the first image's subject, pose, composition, and all other elements exactly the same."
+
+        return f"""{instruction_text}
+
+Apply a {intensity_description} transformation that affects ONLY the elements mentioned. Do not change the aspect ratio.{dimension_instruction}"""
     
     def _build_gemini_image_prompt(self, style_prompt: str, intensity: float) -> str:
         """Build the image generation prompt for Gemini."""
@@ -875,21 +957,32 @@ Only return the English translation, nothing else:
             # Create organization prompt for Gemini
             prompts_text = "\n".join(f"- {prompt}" for prompt in all_prompts)
 
-            organization_request = f"""Combine these image transformation instructions into a single, coherent prompt:
+            organization_request = f"""Combine and translate these image transformation instructions into a single, coherent English prompt:
 
 {prompts_text}
 
-Requirements:
-1. Create ONE clear, concise transformation prompt
-2. Maintain the intent of all instructions
-3. Resolve any conflicts by prioritizing main transformation over references
-4. Keep the result under 800 characters
-5. Use clear, specific visual descriptions
-6. Return ONLY the combined prompt, no explanations
+CRITICAL Requirements - YOU MUST FOLLOW EXACTLY:
+1. Use ONLY this format: "[ordinal] reference's [feature]"
+2. REQUIRED ordinals: "1st", "2nd", "3rd" (NOT "first", NOT "Reference 1")
+3. Feature MUST come immediately after "reference's"
+4. Examples of CORRECT format:
+   ✓ "1st reference's facial expression, 2nd reference's pink hair, 3rd reference's background"
+   ✓ "1st reference's makeup style, 2nd reference's hairstyle"
+5. Examples of WRONG format:
+   ✗ "background like 3rd reference" (feature before reference)
+   ✗ "Reference 1's expression" (capital R)
+   ✗ "first reference's hair" (use 1st not first)
+6. Translate Korean:
+   - "이 표정" → "facial expression"
+   - "이 머리색" → "hair color"
+   - "이 배경" → "background"
+7. Keep under 800 characters
+8. Return ONLY the prompt, no explanations
 
 Combined prompt:"""
 
             logger.info(f"Organizing {len(all_prompts)} prompts using Gemini LLM")
+            print(f"🔍 DEBUG: Organization request to Gemini:\n{organization_request}", flush=True)
             response = self._model.generate_content(organization_request)
 
             if response and response.text:
@@ -901,6 +994,7 @@ Combined prompt:"""
                     organized_prompt = organized_prompt[:800].rsplit(' ', 1)[0] + "..."
 
                 logger.info(f"LLM organized prompt: '{organized_prompt[:100]}...' ({len(organized_prompt)} chars)")
+                print(f"✅ DEBUG: Gemini organized prompt: {organized_prompt}", flush=True)
                 return organized_prompt
             else:
                 logger.warning("LLM organization failed, using fallback")

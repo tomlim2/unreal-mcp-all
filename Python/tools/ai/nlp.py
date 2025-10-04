@@ -152,8 +152,19 @@ def _extract_from_partial_response(partial_response: str) -> dict:
     """Extract meaningful information from a partial/malformed AI response."""
     try:
         import re
-        
-        # Default response structure
+
+        # Check if this is a conversational response (no command structure)
+        # Conversational responses don't have JSON structure and should be passed through as-is
+        if not re.search(r'\{|\[|"type":|"command":', partial_response):
+            # This is a pure conversational response
+            return {
+                "explanation": partial_response.strip(),
+                "commands": [],
+                "expectedResult": "",
+                "conversational": True
+            }
+
+        # Default response structure for partial JSON
         result = {
             "explanation": "Processing your request based on partial AI response",
             "commands": [],
@@ -348,7 +359,7 @@ Style:"""
         return user_input  # Fallback to original
 
 
-def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None) -> None:
+def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> None:
     """
     Inject image data into commands that support image processing.
 
@@ -356,8 +367,9 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
         commands: List of AI-generated commands to process
         target_image_uid: Optional UID for main target image (existing screenshot)
         main_image_data: Optional user-uploaded main image (in-memory only, no UID)
+        reference_images: Optional list of reference images (in-memory only, no UID)
     """
-    if not target_image_uid and not main_image_data:
+    if not target_image_uid and not main_image_data and not reference_images:
         return
 
     # Commands that support image processing
@@ -384,8 +396,13 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
                 command['params']['target_image_uid'] = target_image_uid
                 logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
 
+            # Add reference images if provided (in-memory only, no UID)
+            if reference_images and len(reference_images) > 0:
+                command['params']['reference_images'] = reference_images
+                logger.info(f"Added {len(reference_images)} reference images to command {command_type}")
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
+
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     try:
         # Get session manager and session context if session_id provided
         session_manager = None
@@ -504,8 +521,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     parsed_response = _extract_from_partial_response(ai_response)
 
         # Process images for commands if images are provided
-        if (target_image_uid or main_image_data) and parsed_response.get("commands"):
-            _process_images_for_commands(parsed_response["commands"], target_image_uid, main_image_data)
+        if (target_image_uid or main_image_data or reference_images) and parsed_response.get("commands"):
+            _process_images_for_commands(parsed_response["commands"], target_image_uid, main_image_data, reference_images)
 
         # Execute commands using direct connection with schema validation
         execution_results = []
@@ -631,10 +648,10 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         }
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id, llm_model, target_image_uid, main_image_data, main_prompt, reference_prompts)
+        return _process_natural_language_impl(user_input, context, session_id, llm_model, target_image_uid, main_image_data, main_prompt, reference_prompts, reference_images)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {
@@ -659,7 +676,7 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
 
 **Commands:**
 - transform_image_style: Apply style to latest image
-**Reference Images:** WHEN reference_image_uids available, ALWAYS use transform_image_style
+**Reference Images:** WHEN reference images available, ALWAYS use transform_image_style
 - Korean prompts: "이 포즈를 취해주세요" = take pose from reference, "이 색깔로" = use reference color
 **Format:** {{"explanation": "desc", "commands": [{{"type": "command", "params": {{"style_prompt": "style desc", "intensity": 0.8}}}}], "expectedResult": "result"}}
 
@@ -697,7 +714,7 @@ Your role is to provide intuitive creative control by translating natural langua
   * Supports reference images for style/composition guidance
 
 **REFERENCE IMAGES PROCESSING:**
-- WHEN reference images are provided (reference_image_uids available):
+- WHEN reference images are provided:
   * ALWAYS use transform_image_style command
   * Reference images + prompts = POWERFUL transformation capability
   * Korean prompts like "이 포즈를 취해주세요" = "take this pose from reference"
@@ -789,7 +806,7 @@ Your role is to provide intuitive creative control by translating natural langua
 
 **Image/Video Source:**
 - target_image_uid: Automatically provided (latest screenshot)
-- reference_image_uids: Automatically provided when available
+- reference_images: Automatically provided when available (in-memory data, not UIDs)
 - DO NOT specify image_url or UIDs manually
 
 ## DECISION FLOWCHART
@@ -938,7 +955,7 @@ Response:
         elif latest_filename:
             base_prompt += f"\nLatest image: {latest_filename} (no UID available)"
     
-    base_prompt += f"\n\nContext: {context}\n\nJSON FORMAT:\n{{\n  \"explanation\": \"Brief description\",\n  \"commands\": [{{\"type\": \"command_name\", \"params\": {{...}}}}],\n  \"expectedResult\": \"What happens\"\n}}"
+    base_prompt += f"\n\nContext: {context}\n\n## CONVERSATIONAL RESPONSES\n\n**For greetings and casual conversation (hi, hello, thanks, etc.):**\n- DO NOT generate commands\n- Respond with plain text (not JSON)\n- Be friendly and helpful\n- Example: User says \"hi\" → Respond: \"Hello! How can I help you with your Unreal Engine project?\"\n\n**For creative requests:**\n- Generate JSON with commands\n\nJSON FORMAT:\n{{\n  \"explanation\": \"Brief description\",\n  \"commands\": [{{\"type\": \"command_name\", \"params\": {{...}}}}],\n  \"expectedResult\": \"What happens\"\n}}"
     
     return base_prompt
 

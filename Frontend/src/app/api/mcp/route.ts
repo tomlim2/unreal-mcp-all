@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
       session_id,
       llm_model,
       target_image_uid,
-      reference_image_uids,
       main_prompt,
       reference_prompts,
       mainImageData,
@@ -40,22 +39,22 @@ export async function POST(request: NextRequest) {
       requestBody.reference_prompts = reference_prompts;
     }
 
-    // UID-based system for existing screenshots
+    // UID-based system for existing screenshots (target image only)
     if (target_image_uid) {
       requestBody.target_image_uid = target_image_uid;
-    }
-
-    if (reference_image_uids && Array.isArray(reference_image_uids) && reference_image_uids.length > 0) {
-      requestBody.reference_image_uids = reference_image_uids;
     }
 
     // User-uploaded images (in-memory processing, not stored)
     if (mainImageData) {
       requestBody.mainImageData = mainImageData;
+      console.log('API Route: mainImageData present');
     }
 
     if (referenceImageData && Array.isArray(referenceImageData) && referenceImageData.length > 0) {
       requestBody.referenceImageData = referenceImageData;
+      console.log('API Route: referenceImageData count:', referenceImageData.length);
+    } else {
+      console.log('API Route: NO referenceImageData', { referenceImageData });
     }
 
     // Forward request to Python MCP server with natural language processing
