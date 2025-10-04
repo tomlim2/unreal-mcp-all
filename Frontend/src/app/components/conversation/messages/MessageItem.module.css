@@ -815,3 +815,105 @@
 .normalUsage {
   color: #4CAF50 !important;
 }
+
+/* 3D Object Styles */
+.object3DContainer {
+  margin-top: 1rem;
+}
+
+.object3DCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.object3DCard:hover {
+  background: #333333;
+  border-color: #555555;
+}
+
+.object3DIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.object3DInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.object3DTitle {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.object3DFormat {
+  font-size: 0.75rem;
+  color: #888888;
+  font-weight: 400;
+  padding: 0.125rem 0.5rem;
+  background: #404040;
+  border-radius: 4px;
+}
+
+.object3DDetails {
+  font-size: 0.75rem;
+  color: #999999;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.object3DActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.downloadButton,
+.previewButton {
+  padding: 0.5rem 1rem;
+  background: #404040;
+  border: 1px solid #555555;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.downloadButton:hover,
+.previewButton:hover {
+  background: #4a4a4a;
+  border-color: #666666;
+}
+
+.object3DPreview {
+  margin-top: 1rem;
+  padding: 2rem;
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.previewPlaceholder {
+  color: #888888;
+  font-size: 0.95rem;
+}
+
+.previewPlaceholder p {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #666666;
+}

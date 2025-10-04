@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
+import { useRouter } from "next/navigation";
 import { createApiService, SessionContext, TransformRequest } from "../../services";
 import { useSessionContext } from "../layout";
 import styles from "../../components/SessionManagerPanel.module.css";
@@ -35,13 +36,14 @@ export const useConversationContext = () => {
 };
 
 // Conversation Provider Component
-function ConversationProvider({ 
-  children, 
-  sectionId 
-}: { 
+function ConversationProvider({
+  children,
+  sectionId
+}: {
   children: ReactNode;
   sectionId: string;
 }) {
+  const router = useRouter();
   const {
     sessionInfo,
     sessionsLoaded,
@@ -59,10 +61,10 @@ function ConversationProvider({
   const [messageInfo, setMessageInfo] = useState<SessionContext | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
-  
+
   // Chat state
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);  
+  const [chatError, setChatError] = useState<string | null>(null);
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
 
   const apiService = useMemo(() => createApiService(), []);
@@ -96,6 +98,8 @@ function ConversationProvider({
     } catch (error) {
       console.error('Failed to fetch session context:', error);
       setContextError('Failed to load conversation history');
+      // Redirect to /app if session doesn't exist
+      router.replace('/app');
     } finally {
       setContextLoading(false);
     }

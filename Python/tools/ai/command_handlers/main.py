@@ -129,41 +129,82 @@ class CommandRegistry:
         self._initialize_default_handlers()
     
     def _initialize_default_handlers(self):
-        """Register default command handlers."""
+        """Register default command handlers.
+
+        NOTE: Most handlers have been migrated to plugin system:
+        - Actor handlers (UDS, Cesium, Light, etc.) → unreal_engine plugin
+        - Nano Banana handler → nano_banana plugin (image_generation/nano_banana)
+        - Screenshot handler → unreal_engine plugin
+        - Video generation → video_generation plugin
+
+        Remaining handlers are for features not yet migrated to plugins.
+        """
         # Import handlers here to avoid circular imports
-        from .actor.uds import UDSCommandHandler
-        from .actor.udw import UDWCommandHandler
-        from .actor.cesium import CesiumCommandHandler
-        from .actor.light import LightCommandHandler
-        from .actor.actor import ActorCommandHandler
-        from .rendering.screenshot import ScreenshotCommandHandler
-        from .nano_banana.image_edit import NanoBananaImageEditHandler
-        from .video_generation.video_handler import VideoGenerationHandler
         from .roblox.roblox_handler import RobloxCommandHandler
         from .roblox.roblox_fbx_converter import RobloxFBXConverterHandler
         from .roblox.roblox_pipeline import RobloxPipelineHandler
-        from .asset.import_object3d import Object3DImportHandler
 
         handlers = [
-            UDSCommandHandler(),
-            UDWCommandHandler(),
-            CesiumCommandHandler(),
-            LightCommandHandler(),
-            ActorCommandHandler(),
-            ScreenshotCommandHandler(),
-            NanoBananaImageEditHandler(),
-            VideoGenerationHandler(),
             RobloxCommandHandler(),
             RobloxFBXConverterHandler(),
-            RobloxPipelineHandler(),
-            Object3DImportHandler()
+            RobloxPipelineHandler()
         ]
-        
+
         for handler in handlers:
             for command_type in handler.get_supported_commands():
                 self._handlers[command_type] = handler
                 logger.info(f"Registered handler for command: {command_type}")
-    
+
+        # Load plugin handlers if plugin system is enabled
+        self._load_plugin_handlers()
+
+    def _load_plugin_handlers(self):
+        """Load command handlers from enabled plugins."""
+        try:
+            from core.config import get_config
+            from core.registry.tool_registry import get_registry
+
+            config = get_config()
+
+            # Check if plugin system is enabled
+            if not config._feature_flags.enable_plugin_system:
+                logger.info("Plugin system disabled, skipping plugin handler registration")
+                return
+
+            # Get plugin registry
+            registry = get_registry()
+            enabled_tools = config.get_enabled_tools()
+
+            logger.info(f"Loading plugin handlers for: {enabled_tools}")
+
+            # Load each enabled plugin
+            for tool_id in enabled_tools:
+                try:
+                    # Get the plugin (this triggers lazy loading)
+                    plugin = registry.get_tool(tool_id)
+                    if not plugin:
+                        logger.warning(f"Plugin {tool_id} not found in registry")
+                        continue
+
+                    # Get handlers from plugin (support both _handlers list and _handler single)
+                    handlers = []
+                    if hasattr(plugin, '_handlers'):
+                        handlers = plugin._handlers
+                    elif hasattr(plugin, '_handler') and plugin._handler is not None:
+                        handlers = [plugin._handler]
+
+                    # Register each handler's commands
+                    for handler in handlers:
+                        for command_type in handler.get_supported_commands():
+                            self._handlers[command_type] = handler
+                            logger.info(f"Registered plugin command: {command_type} (from {tool_id})")
+
+                except Exception as e:
+                    logger.error(f"Error loading plugin {tool_id}: {e}")
+
+        except Exception as e:
+            logger.error(f"Error in _load_plugin_handlers: {e}")
+
     def register_handler(self, command_type: str, handler: BaseCommandHandler):
         """Register a custom handler for a command type."""
         self._handlers[command_type] = handler
@@ -252,6 +293,7 @@ def get_command_registry() -> CommandRegistry:
     Handlers are registered once during module import.
     
     Returns:
-        CommandRegistry: Global registry instance with UDS, Cesium, Light, and Actor handlers
+        CommandRegistry: Global registry instance with remaining legacy handlers
+        (Screenshot, Video Generation, Roblox, Asset Import)
     """
     return _command_registry

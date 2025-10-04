@@ -18,8 +18,8 @@ from enum import Enum
 from core.errors import RobloxError, RobloxErrorCodes
 from .roblox_errors import RobloxErrorHandler, log_roblox_error
 from .scripts.roblox_obj_downloader import RobloxAvatar3DDownloader
-from ...uid_manager import get_uid_manager, generate_object_uid
-from ...session_management.utils.path_manager import get_path_manager
+from core.resources.uid_manager import get_uid_manager, generate_object_uid
+from core.utils.path_manager import get_path_manager
 
 logger = logging.getLogger("UnrealMCP.Roblox.Job")
 
