@@ -348,18 +348,16 @@ Style:"""
         return user_input  # Fallback to original
 
 
-def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optional[List[Dict[str, Any]]], reference_images: Optional[List[Dict[str, Any]]], target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None) -> None:
+def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None) -> None:
     """
     Inject image data into commands that support image processing.
 
     Args:
         commands: List of AI-generated commands to process
-        images: List of target images with 'mime_type', 'data', optional 'purpose'
-        reference_images: List of reference images with 'mime_type', 'data', optional 'purpose'
-        target_image_uid: Optional UID for main target image
+        target_image_uid: Optional UID for main target image (existing screenshot)
         main_image_data: Optional user-uploaded main image (in-memory only, no UID)
     """
-    if not images and not reference_images and not target_image_uid and not main_image_data:
+    if not target_image_uid and not main_image_data:
         return
 
     # Commands that support image processing
@@ -385,43 +383,9 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optiona
             elif target_image_uid:
                 command['params']['target_image_uid'] = target_image_uid
                 logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
-            # Priority 3: Add target image data (legacy method)
-            elif images:
-                target_image = images[0]
-                command['params']['target_image'] = {
-                    'data': target_image['data'],
-                    'mime_type': target_image['mime_type']
-                }
-                # Remove base64 for logging
-                logger.info(f"Added target image ({target_image['mime_type']}, {len(target_image['data'])//1024}KB) to command {command_type}")
-
-            # Add reference images (up to 3 for Gemini API limit)
-            if reference_images:
-                processed_refs = []
-                for ref_img in reference_images[:3]:  # Gemini supports max 3 images
-                    processed_ref = {}
-
-                    # Data-based reference images
-                    if 'data' in ref_img:
-                        processed_ref['data'] = ref_img['data']
-                        processed_ref['mime_type'] = ref_img.get('mime_type', 'image/png')
-
-                    if 'purpose' in ref_img:
-                        processed_ref['purpose'] = ref_img['purpose']
-                    if 'mime_type' in ref_img:
-                        processed_ref['mime_type'] = ref_img['mime_type']
-
-                    processed_refs.append(processed_ref)
-
-                command['params']['reference_images'] = processed_refs
-                logger.info(f"Added {len(processed_refs)} reference images to command {command_type}")
-
-            # For backward compatibility, also set image_url to None (no UID needed)
-            if 'image_url' in command.get('params', {}):
-                command['params']['image_url'] = None
 
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
     try:
         # Get session manager and session context if session_id provided
         session_manager = None
@@ -540,8 +504,8 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                     parsed_response = _extract_from_partial_response(ai_response)
 
         # Process images for commands if images are provided
-        if (images or reference_images or target_image_uid or main_image_data) and parsed_response.get("commands"):
-            _process_images_for_commands(parsed_response["commands"], images, reference_images, target_image_uid, main_image_data)
+        if (target_image_uid or main_image_data) and parsed_response.get("commands"):
+            _process_images_for_commands(parsed_response["commands"], target_image_uid, main_image_data)
 
         # Execute commands using direct connection with schema validation
         execution_results = []
@@ -667,10 +631,10 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         }
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None, reference_images: Optional[List[Dict[str, Any]]] = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
     try:
-        return _process_natural_language_impl(user_input, context, session_id, llm_model, images, reference_images, target_image_uid, main_image_data, main_prompt, reference_prompts)
+        return _process_natural_language_impl(user_input, context, session_id, llm_model, target_image_uid, main_image_data, main_prompt, reference_prompts)
     except Exception as e:
         logger.error(f"Error in process_natural_language: {e}")
         return {

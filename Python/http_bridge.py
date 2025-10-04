@@ -940,8 +940,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
 
                         result = process_natural_language(
                             user_input, context, session_id, llm_model,
-                            images=images if images else None,
-                            reference_images=nlp_reference_images,
                             target_image_uid=target_image_uid,
                             main_image_data=main_image_data,
                             main_prompt=main_prompt,
