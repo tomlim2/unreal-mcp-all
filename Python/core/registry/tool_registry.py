@@ -37,6 +37,7 @@ class ToolRegistry:
         """
         self._tools: Dict[str, BasePlugin] = {}  # tool_id -> plugin instance
         self._metadata: Dict[str, ToolMetadata] = {}  # tool_id -> metadata
+        self._plugin_paths: Dict[str, Path] = {}  # tool_id -> plugin directory path
         self._command_map: Dict[str, str] = {}  # command_type -> tool_id
         self._tools_directory = tools_directory or self._get_default_tools_dir()
         self._initialized = False
@@ -51,6 +52,10 @@ class ToolRegistry:
         """
         Discover available tools by scanning for metadata.json files.
 
+        Supports both flat and nested structures:
+        - tools/nano_banana/metadata.json
+        - tools/image_generation/nano_banana/metadata.json
+
         Returns:
             List of discovered tool IDs
         """
@@ -61,38 +66,44 @@ class ToolRegistry:
             logger.warning(f"Tools directory not found: {self._tools_directory}")
             return discovered
 
-        # Scan for tool directories with metadata.json
-        for item in tools_path.iterdir():
-            if item.is_dir():
-                metadata_path = item / "metadata.json"
-                if metadata_path.exists():
-                    try:
-                        with open(metadata_path, 'r') as f:
-                            metadata_dict = json.load(f)
-                            tool_id = metadata_dict.get('tool_id')
-                            if tool_id:
-                                # Parse capabilities from strings to enum
-                                capabilities = [
-                                    ToolCapability(cap) for cap in metadata_dict.get('capabilities', [])
-                                ]
-                                metadata = ToolMetadata(
-                                    tool_id=tool_id,
-                                    display_name=metadata_dict.get('display_name', tool_id),
-                                    version=metadata_dict.get('version', '0.0.0'),
-                                    capabilities=capabilities,
-                                    description=metadata_dict.get('description', ''),
-                                    author=metadata_dict.get('author', 'Unknown'),
-                                    requires_connection=metadata_dict.get('requires_connection', False),
-                                    icon=metadata_dict.get('icon'),
-                                    pricing_tier=metadata_dict.get('pricing_tier')
-                                )
-                                self._metadata[tool_id] = metadata
-                                discovered.append(tool_id)
-                                logger.info(f"Discovered tool: {tool_id} ({metadata.display_name})")
-                    except Exception as e:
-                        logger.error(f"Error loading metadata from {metadata_path}: {e}")
+        # Recursively scan for metadata.json files (max 2 levels deep)
+        for metadata_path in tools_path.glob("*/metadata.json"):
+            self._load_tool_metadata(metadata_path, discovered)
+
+        for metadata_path in tools_path.glob("*/*/metadata.json"):
+            self._load_tool_metadata(metadata_path, discovered)
 
         return discovered
+
+    def _load_tool_metadata(self, metadata_path: Path, discovered: List[str]) -> None:
+        """Helper to load metadata from a metadata.json file."""
+        try:
+            with open(metadata_path, 'r') as f:
+                metadata_dict = json.load(f)
+                tool_id = metadata_dict.get('tool_id')
+                if tool_id:
+                    # Parse capabilities from strings to enum
+                    capabilities = [
+                        ToolCapability(cap) for cap in metadata_dict.get('capabilities', [])
+                    ]
+                    metadata = ToolMetadata(
+                        tool_id=tool_id,
+                        display_name=metadata_dict.get('display_name', tool_id),
+                        version=metadata_dict.get('version', '0.0.0'),
+                        capabilities=capabilities,
+                        description=metadata_dict.get('description', ''),
+                        author=metadata_dict.get('author', 'Unknown'),
+                        requires_connection=metadata_dict.get('requires_connection', False),
+                        icon=metadata_dict.get('icon'),
+                        pricing_tier=metadata_dict.get('pricing_tier')
+                    )
+                    self._metadata[tool_id] = metadata
+                    # Store the plugin directory path for later loading
+                    self._plugin_paths[tool_id] = metadata_path.parent
+                    discovered.append(tool_id)
+                    logger.info(f"Discovered tool: {tool_id} ({metadata.display_name})")
+        except Exception as e:
+            logger.error(f"Error loading metadata from {metadata_path}: {e}")
 
     def load_tool(self, tool_id: str) -> bool:
         """
@@ -112,9 +123,17 @@ class ToolRegistry:
             return False
 
         try:
-            # Import tool's plugin module
-            # Expected: tools/{tool_id}/plugin.py with Plugin class
-            module_path = f"tools.{tool_id}.plugin"
+            # Get the plugin directory path (supports nested structures)
+            plugin_dir = self._plugin_paths.get(tool_id)
+            if not plugin_dir:
+                logger.error(f"Plugin path not found for tool: {tool_id}")
+                return False
+
+            # Build import path from plugin directory relative to tools/
+            tools_path = Path(self._tools_directory)
+            relative_path = plugin_dir.relative_to(tools_path)
+            module_path = f"tools.{'.'.join(relative_path.parts)}.plugin"
+
             module = importlib.import_module(module_path)
 
             if not hasattr(module, 'Plugin'):

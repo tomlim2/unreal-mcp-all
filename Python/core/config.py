@@ -126,7 +126,7 @@ class Config:
         if self._feature_flags.enable_blender:
             enabled.append('blender')
         if self._feature_flags.enable_video_gen:
-            enabled.append('video_gen')
+            enabled.append('video_generation')
         return enabled
 
     def log_status(self) -> None:

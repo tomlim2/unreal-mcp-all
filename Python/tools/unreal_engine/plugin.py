@@ -15,6 +15,7 @@ from .handlers.light import LightCommandHandler
 from .handlers.uds import UDSCommandHandler
 from .handlers.cesium import CesiumCommandHandler
 from .handlers.screenshot import ScreenshotCommandHandler
+from .handlers.import_object3d import Object3DImportHandler
 
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,8 @@ class Plugin(BasePlugin):
                 LightCommandHandler(),
                 UDSCommandHandler(),
                 CesiumCommandHandler(),
-                ScreenshotCommandHandler()
+                ScreenshotCommandHandler(),
+                Object3DImportHandler()
             ]
 
             self.set_status(ToolStatus.AVAILABLE)

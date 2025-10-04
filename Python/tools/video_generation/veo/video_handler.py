@@ -11,11 +11,11 @@ import time
 import math
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from ..main import BaseCommandHandler
-from ..validation import ValidatedCommand
+from tools.ai.command_handlers.main import BaseCommandHandler
+from tools.ai.command_handlers.validation import ValidatedCommand
 from core.session.utils.path_manager import get_path_manager
-from ...pricing_manager import get_pricing_manager
-from ...video_schema_utils import (
+from tools.ai.pricing_manager import get_pricing_manager
+from tools.ai.video_schema_utils import (
     build_video_transform_response,
     generate_request_id,
     extract_parent_filename,

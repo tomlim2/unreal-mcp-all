@@ -139,18 +139,14 @@ class CommandRegistry:
         Remaining handlers are for features not yet migrated to plugins.
         """
         # Import handlers here to avoid circular imports
-        from .video_generation.video_handler import VideoGenerationHandler
         from .roblox.roblox_handler import RobloxCommandHandler
         from .roblox.roblox_fbx_converter import RobloxFBXConverterHandler
         from .roblox.roblox_pipeline import RobloxPipelineHandler
-        from .asset.import_object3d import Object3DImportHandler
 
         handlers = [
-            VideoGenerationHandler(),
             RobloxCommandHandler(),
             RobloxFBXConverterHandler(),
-            RobloxPipelineHandler(),
-            Object3DImportHandler()
+            RobloxPipelineHandler()
         ]
         
         for handler in handlers:
