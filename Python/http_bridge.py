@@ -321,9 +321,33 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             # Parse URL path first
             parsed_url = urlparse(self.path)
             path = parsed_url.path
-            
-            # Handle Roblox status endpoints first
-            if path.startswith('/api/roblox-status/'):
+
+            # Handle Creative Hub tool registry
+            if path == '/tools' or path == '/api/tools':
+                self._handle_get_tools()
+                return
+
+            # Handle tool health check
+            elif path.startswith('/tools/') or path.startswith('/api/tools/'):
+                path_parts = path.split('/')
+                if len(path_parts) >= 3:
+                    tool_id = path_parts[2] if path_parts[1] == 'tools' else path_parts[3]
+                    if tool_id == 'health':
+                        self._handle_tools_health()
+                    else:
+                        self._handle_get_tool_info(tool_id)
+                    return
+
+            # Handle 3D object serving
+            elif path.startswith('/3d-object/') or path.startswith('/api/3d-object/'):
+                path_parts = path.split('/')
+                if len(path_parts) >= 3:
+                    uid = path_parts[2] if path_parts[1] == '3d-object' else path_parts[3]
+                    self._handle_3d_object_file(uid)
+                    return
+
+            # Handle Roblox status endpoints
+            elif path.startswith('/api/roblox-status/'):
                 # Handle Roblox download status check
                 path_parts = path.split('/')
                 if len(path_parts) >= 4 and path_parts[2] == 'roblox-status':
@@ -1257,6 +1281,206 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.wfile.write(response_json.encode('utf-8'))
         except Exception as e:
             logger.error(f"Error sending image error response: {e}")
+
+    def _handle_get_tools(self):
+        """Handle GET /tools request - return all available tools"""
+        try:
+            from core import get_registry, get_config
+
+            config = get_config()
+
+            # Check if plugin system is enabled
+            if not config.features.enable_plugin_system:
+                # Return legacy fallback
+                tools = [
+                    {
+                        'tool_id': 'unreal_engine',
+                        'display_name': 'Unreal Engine',
+                        'version': '5.5.4',
+                        'description': 'Real-time 3D creation',
+                        'icon': '🎮',
+                        'status': 'available',
+                        'capabilities': ['rendering', 'lighting', 'camera']
+                    },
+                    {
+                        'tool_id': 'nano_banana',
+                        'display_name': 'Nano Banana',
+                        'version': '1.0.0',
+                        'description': 'AI image generation & editing',
+                        'icon': '🍌',
+                        'status': 'available',
+                        'capabilities': ['image_editing', 'style_transfer']
+                    }
+                ]
+                response = {
+                    'tools': tools,
+                    'source': 'legacy',
+                    'plugin_system_enabled': False
+                }
+            else:
+                # Use plugin registry
+                registry = get_registry()
+                metadata_dict = registry.get_all_metadata()
+                health_status = registry.get_health_status()
+
+                tools = []
+                for tool_id, metadata in metadata_dict.items():
+                    tool_data = {
+                        'tool_id': metadata.tool_id,
+                        'display_name': metadata.display_name,
+                        'version': metadata.version,
+                        'description': metadata.description,
+                        'icon': metadata.icon,
+                        'status': health_status.get(tool_id, 'unavailable').value if tool_id in health_status else 'unavailable',
+                        'capabilities': [cap.value for cap in metadata.capabilities],
+                        'requires_connection': metadata.requires_connection,
+                        'pricing_tier': metadata.pricing_tier
+                    }
+                    tools.append(tool_data)
+
+                response = {
+                    'tools': tools,
+                    'source': 'plugin_registry',
+                    'plugin_system_enabled': True
+                }
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error handling /tools request: {e}")
+            self._send_error(f"Failed to get tools: {str(e)}", status_code=500)
+
+    def _handle_get_tool_info(self, tool_id: str):
+        """Handle GET /tools/{tool_id} request - return specific tool info"""
+        try:
+            from core import get_registry, get_config
+
+            config = get_config()
+
+            if not config.features.enable_plugin_system:
+                self._send_error("Plugin system not enabled", status_code=501)
+                return
+
+            registry = get_registry()
+            metadata = registry.get_all_metadata().get(tool_id)
+
+            if not metadata:
+                self._send_error(f"Tool not found: {tool_id}", status_code=404)
+                return
+
+            # Get tool instance for detailed info
+            tool = registry.get_tool(tool_id)
+            health = tool.health_check() if tool else 'unavailable'
+
+            response = {
+                'tool_id': metadata.tool_id,
+                'display_name': metadata.display_name,
+                'version': metadata.version,
+                'description': metadata.description,
+                'icon': metadata.icon,
+                'status': health.value if hasattr(health, 'value') else str(health),
+                'capabilities': [cap.value for cap in metadata.capabilities],
+                'requires_connection': metadata.requires_connection,
+                'pricing_tier': metadata.pricing_tier,
+                'supported_commands': tool.get_supported_commands() if tool else []
+            }
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error handling /tools/{tool_id} request: {e}")
+            self._send_error(f"Failed to get tool info: {str(e)}", status_code=500)
+
+    def _handle_tools_health(self):
+        """Handle GET /tools/health request - return health status of all tools"""
+        try:
+            from core import get_registry, get_config
+
+            config = get_config()
+
+            if not config.features.enable_plugin_system:
+                response = {
+                    'plugin_system_enabled': False,
+                    'message': 'Plugin system not enabled, using legacy handlers'
+                }
+            else:
+                registry = get_registry()
+                health_status = registry.get_health_status()
+
+                response = {
+                    'plugin_system_enabled': True,
+                    'tools': {
+                        tool_id: status.value
+                        for tool_id, status in health_status.items()
+                    }
+                }
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error handling /tools/health request: {e}")
+            self._send_error(f"Failed to get health status: {str(e)}", status_code=500)
+
+    def _handle_3d_object_file(self, uid: str):
+        """Handle GET /3d-object/{uid} request - serve 3D object files"""
+        try:
+            from tools.ai.uid_manager import get_uid_mapping
+            from pathlib import Path
+
+            # Get file path from UID mapping
+            mapping = get_uid_mapping(uid)
+
+            if not mapping:
+                self._send_error(f"3D object not found: {uid}", status_code=404)
+                return
+
+            file_path = Path(mapping.get('file_path', ''))
+
+            if not file_path.exists():
+                self._send_error(f"3D object file not found: {file_path}", status_code=404)
+                return
+
+            # Determine content type based on UID prefix or file extension
+            content_type = 'application/octet-stream'
+            if uid.startswith('fbx_') or file_path.suffix.lower() == '.fbx':
+                content_type = 'application/octet-stream'
+            elif uid.startswith('obj_') or file_path.suffix.lower() == '.obj':
+                content_type = 'text/plain'
+            elif file_path.suffix.lower() in ['.gltf', '.gltf']:
+                content_type = 'model/gltf+json'
+            elif file_path.suffix.lower() == '.glb':
+                content_type = 'model/gltf-binary'
+
+            # Read and serve file
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
+
+            self.send_response(200)
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Disposition', f'attachment; filename="{file_path.name}"')
+            self.send_header('Content-Length', str(len(file_data)))
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=31536000')
+            self.end_headers()
+            self.wfile.write(file_data)
+
+            logger.info(f"Served 3D object: {uid} ({file_path.name})")
+
+        except Exception as e:
+            logger.error(f"Error serving 3D object {uid}: {e}")
+            self._send_error(f"Failed to serve 3D object: {str(e)}", status_code=500)
 
 
 class MCPHttpBridge:
