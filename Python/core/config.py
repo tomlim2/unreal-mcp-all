@@ -8,6 +8,16 @@ import os
 import logging
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from pathlib import Path
+
+# Load .env file before reading environment variables
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass
 
 logger = logging.getLogger("UnrealMCP.Config")
 
