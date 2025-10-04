@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
-from ...uid_manager import get_uid_manager, get_uid_mapping
-from ...session_management.utils.path_manager import get_path_manager
+from ..validation import ValidatedCommand
+from core.resources.uid_manager import get_uid_manager, get_uid_mapping
+from core.session.utils.path_manager import get_path_manager
 from core.errors import (
     command_failed, asset_not_found, connection_failed,
     command_timeout, AppError, ErrorCategory

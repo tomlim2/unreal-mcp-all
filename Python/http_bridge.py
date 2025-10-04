@@ -17,7 +17,7 @@ from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 import threading
 from typing import Dict, Any, Optional, List
-from tools.ai.session_management.utils.path_manager import get_path_manager
+from core.session.utils.path_manager import get_path_manager
 
 # Load environment variables from .env file
 try:
@@ -27,8 +27,8 @@ except ImportError:
     pass
 
 # Import session management
-from tools.ai.session_management import SessionManager, SessionContext, get_session_manager
-from tools.ai.session_management.utils.session_helpers import extract_session_id_from_request, generate_session_id
+from core.session import SessionManager, SessionContext, get_session_manager
+from core.session.utils.session_helpers import extract_session_id_from_request, generate_session_id
 
 # Import error handling system
 from core.errors import AppError, ErrorCategory, CATEGORY_STATUS_MAP
@@ -763,8 +763,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                     
                     try:
                         # Create session using session manager
-                        from tools.ai.session_management.session_context import SessionContext
-                        from tools.ai.session_management.utils.session_helpers import generate_session_id
+                        from core.session.session_context import SessionContext
+                        from core.session.utils.session_helpers import generate_session_id
                         import datetime
                         
                         session_manager = get_session_manager()
@@ -1436,7 +1436,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     def _handle_3d_object_file(self, uid: str):
         """Handle GET /3d-object/{uid} request - serve 3D object files"""
         try:
-            from tools.ai.uid_manager import get_uid_mapping
+            from core.resources.uid_manager import get_uid_mapping
             from pathlib import Path
 
             # Get file path from UID mapping

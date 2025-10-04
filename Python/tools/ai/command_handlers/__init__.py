@@ -12,13 +12,6 @@ Usage:
 """
 
 from .main import BaseCommandHandler, CommandRegistry, get_command_registry
-from .actor.uds import UDSCommandHandler
-from .actor.udw import UDWCommandHandler
-from .actor.cesium import CesiumCommandHandler
-from .actor.light import LightCommandHandler
-from .actor.actor import ActorCommandHandler
-from .rendering.screenshot import ScreenshotCommandHandler
-from .nano_banana.image_edit import NanoBananaImageEditHandler
 from .video_generation.video_handler import VideoGenerationHandler
 from .roblox.roblox_handler import RobloxCommandHandler
 from .roblox.roblox_fbx_converter import RobloxFBXConverterHandler
@@ -29,13 +22,6 @@ __all__ = [
     'BaseCommandHandler',
     'CommandRegistry',
     'get_command_registry',
-    'UDSCommandHandler',
-    'UDWCommandHandler',
-    'CesiumCommandHandler',
-    'LightCommandHandler',
-    'ActorCommandHandler',
-    'ScreenshotCommandHandler',
-    'NanoBananaImageEditHandler',
     'VideoGenerationHandler',
     'RobloxCommandHandler',
     'RobloxFBXConverterHandler',

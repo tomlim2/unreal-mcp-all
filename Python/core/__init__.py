@@ -33,6 +33,19 @@ from .config import (
     reset_config
 )
 
+# Session Management
+from .session import (
+    SessionManager,
+    get_session_manager,
+    SessionContext,
+    ChatMessage,
+    SceneState,
+    StorageFactory,
+    PathManager,
+    PathConfig,
+    get_path_manager
+)
+
 __all__ = [
     'SuccessResponse',
     'success_response',
@@ -51,5 +64,14 @@ __all__ = [
     'Config',
     'FeatureFlags',
     'get_config',
-    'reset_config'
+    'reset_config',
+    'SessionManager',
+    'get_session_manager',
+    'SessionContext',
+    'ChatMessage',
+    'SceneState',
+    'StorageFactory',
+    'PathManager',
+    'PathConfig',
+    'get_path_manager'
 ]

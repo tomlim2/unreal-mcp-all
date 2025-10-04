@@ -7,8 +7,8 @@ transformation, and property queries for any actor type.
 
 import logging
 from typing import Dict, Any, List
-from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
+from tools.ai.command_handlers.main import BaseCommandHandler
+from tools.ai.command_handlers.validation import ValidatedCommand
 from core.errors import (
     command_failed, actor_not_found, connection_failed,
     command_timeout, invalid_transform

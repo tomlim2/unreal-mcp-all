@@ -5,16 +5,16 @@ import time
 import math
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
-from ...session_management.utils.path_manager import get_path_manager
-from ...pricing_manager import get_pricing_manager
-from ...image_schema_utils import (
+from tools.ai.command_handlers.main import BaseCommandHandler
+from tools.ai.command_handlers.validation import ValidatedCommand
+from core.session.utils.path_manager import get_path_manager
+from tools.ai.pricing_manager import get_pricing_manager
+from tools.ai.image_schema_utils import (
     build_transform_response,
     generate_request_id,
     extract_style_name
 )
-from ...uid_manager import generate_image_uid, add_uid_mapping, get_uid_mapping
+from core.resources.uid_manager import generate_image_uid, add_uid_mapping, get_uid_mapping
 from core.errors import (
     image_not_found, image_size_exceeded, transformation_failed,
     api_unavailable, AppError, ErrorCategory
@@ -272,7 +272,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         # If no image source provided, try to auto-fetch from session
         if not target_image_uid and not main_image_data and session_id:
             try:
-                from ...session_management.session_manager import get_session_manager
+                from core.session.session_manager import get_session_manager
                 sess_manager = get_session_manager()
                 session_context = sess_manager.get_session(session_id)
                 if session_context:
@@ -291,7 +291,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
         if target_image_uid:
             # Load from UID (existing screenshot)
-            from ...uid_manager import get_uid_mapping
+            from core.resources.uid_manager import get_uid_mapping
             logger.info(f"Loading target image from UID: {target_image_uid}")
             mapping = get_uid_mapping(target_image_uid)
             if not mapping:

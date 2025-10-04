@@ -133,7 +133,7 @@ def load_3d_object_from_uid(uid: str) -> Optional[Path]:
     Returns:
         Path to object file or None if not found
     """
-    from tools.ai.uid_manager import get_uid_mapping
+    from core.resources.uid_manager import get_uid_mapping
 
     mapping = get_uid_mapping(uid)
     if not mapping:

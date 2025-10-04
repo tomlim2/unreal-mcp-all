@@ -9,7 +9,7 @@ from pathlib import Path
 # Add Python tools to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from tools.ai.uid_manager import get_uid_manager
+from core.resources.uid_manager import get_uid_manager
 
 def register_fbx_uid():
     """Register fbx_001 as a manual FBX test UID"""
@@ -39,7 +39,7 @@ def register_fbx_uid():
     print(f"   User: TestFBXUser (ID: 999999)")
 
     # Verify registration
-    from tools.ai.uid_manager import get_uid_mapping
+    from core.resources.uid_manager import get_uid_mapping
     mapping = get_uid_mapping("fbx_001")
 
     if mapping:

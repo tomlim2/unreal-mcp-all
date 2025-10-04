@@ -1,8 +1,21 @@
 """
 Core Resources Module
 
-Resource processing modules (images, videos, 3D objects, etc.)
+Resource processing modules (images, videos, 3D objects, UIDs, etc.)
 """
+
+# UID Management
+from .uid_manager import (
+    generate_image_uid,
+    generate_video_uid,
+    generate_object_uid as generate_object3d_uid,
+    add_uid_mapping,
+    get_uid_mapping,
+    get_children_by_parent_uid,
+    get_mappings_by_session_id,
+    delete_mappings_by_session_id,
+    get_latest_image_uid
+)
 
 # Image resources
 from .images import (
@@ -27,6 +40,16 @@ from .objects_3d import (
 )
 
 __all__ = [
+    # UID Management
+    'generate_image_uid',
+    'generate_video_uid',
+    'generate_object3d_uid',
+    'add_uid_mapping',
+    'get_uid_mapping',
+    'get_children_by_parent_uid',
+    'get_mappings_by_session_id',
+    'delete_mappings_by_session_id',
+    'get_latest_image_uid',
     # Images
     'ImageProcessor',
     'process_main_image',

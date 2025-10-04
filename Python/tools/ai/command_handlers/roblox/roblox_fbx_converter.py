@@ -14,9 +14,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
-from ...uid_manager import get_uid_manager, generate_object_uid
-from ...session_management.utils.path_manager import get_path_manager
+from ..validation import ValidatedCommand
+from core.resources.uid_manager import get_uid_manager, generate_object_uid
+from core.session.utils.path_manager import get_path_manager
 from core.errors import RobloxError, RobloxErrorCodes
 from core.response import conversion_success
 from .roblox_errors import RobloxErrorHandler, log_roblox_error

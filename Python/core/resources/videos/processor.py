@@ -149,7 +149,7 @@ def load_video_from_uid(uid: str) -> Optional[Path]:
     Returns:
         Path to video file or None if not found
     """
-    from tools.ai.uid_manager import get_uid_mapping
+    from core.resources.uid_manager import get_uid_mapping
 
     mapping = get_uid_mapping(uid)
     if not mapping:

@@ -12,8 +12,8 @@ import math
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
-from ...session_management.utils.path_manager import get_path_manager
+from ..validation import ValidatedCommand
+from core.session.utils.path_manager import get_path_manager
 from ...pricing_manager import get_pricing_manager
 from ...video_schema_utils import (
     build_video_transform_response,
@@ -21,7 +21,7 @@ from ...video_schema_utils import (
     extract_parent_filename,
     generate_video_filename
 )
-from ...uid_manager import generate_image_uid, generate_video_uid, add_uid_mapping
+from core.resources.uid_manager import generate_image_uid, generate_video_uid, add_uid_mapping
 from core.errors import (
     video_not_found, video_generation_failed, video_api_unavailable,
     invalid_video_duration, AppError, ErrorCategory
@@ -162,7 +162,7 @@ class VideoGenerationHandler(BaseCommandHandler):
                 session_id = params.get("session_id")
                 if session_id:
                     try:
-                        from ...session_management import get_session_manager
+                        from core.session import get_session_manager
                         session_manager = get_session_manager()
                         session_context = session_manager.get_session(session_id)
                         if session_context:
@@ -255,7 +255,7 @@ class VideoGenerationHandler(BaseCommandHandler):
                 )
 
             # Resolve the specified image (supports UID only)
-            from ...uid_manager import get_uid_mapping
+            from core.resources.uid_manager import get_uid_mapping
             source_image = self._resolve_image_path(image_url)
             if not source_image:
                 raise video_not_found(image_url, request_id=request_id)
@@ -528,7 +528,7 @@ class VideoGenerationHandler(BaseCommandHandler):
 
     def _resolve_image_path(self, image_path_param: str) -> Optional[str]:
         """Resolve image path - handles UIDs, full paths, and filenames."""
-        from ...uid_manager import get_uid_mapping
+        from core.resources.uid_manager import get_uid_mapping
 
         # Check if it's a UID (format: img_XXX)
         if image_path_param.startswith('img_') and image_path_param[4:].isdigit():

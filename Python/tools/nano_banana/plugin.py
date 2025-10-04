@@ -7,7 +7,7 @@ Wraps the existing NanoBananaImageEditHandler to integrate with the plugin syste
 import logging
 from typing import Dict, Any, List
 from core import BasePlugin, ToolCapability, ToolStatus, ToolMetadata, CommandResult
-from tools.ai.command_handlers.nano_banana.image_edit import NanoBananaImageEditHandler
+from .handlers.image_edit import NanoBananaImageEditHandler
 
 
 logger = logging.getLogger(__name__)

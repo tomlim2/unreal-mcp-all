@@ -9,14 +9,14 @@ import os
 import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
-from ...session_management.utils.path_manager import get_path_manager
-from ...image_schema_utils import (
+from tools.ai.command_handlers.main import BaseCommandHandler
+from tools.ai.command_handlers.validation import ValidatedCommand
+from core.session.utils.path_manager import get_path_manager
+from tools.ai.image_schema_utils import (
     build_screenshot_response,
     generate_request_id
 )
-from ...uid_manager import generate_image_uid, add_uid_mapping
+from core.resources.uid_manager import generate_image_uid, add_uid_mapping
 from core.errors import screenshot_failed, command_timeout, connection_failed
 
 try:

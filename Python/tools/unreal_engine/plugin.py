@@ -9,12 +9,12 @@ import logging
 from typing import Dict, Any, List
 from core import BasePlugin, ToolCapability, ToolStatus, ToolMetadata, CommandResult
 
-# Import existing handlers
-from tools.ai.command_handlers.actor.actor import ActorCommandHandler
-from tools.ai.command_handlers.actor.light import LightCommandHandler
-from tools.ai.command_handlers.actor.uds import UDSCommandHandler
-from tools.ai.command_handlers.actor.cesium import CesiumCommandHandler
-from tools.ai.command_handlers.rendering.screenshot import ScreenshotCommandHandler
+# Import internal handlers (moved from command_handlers to plugin)
+from .handlers.actor import ActorCommandHandler
+from .handlers.light import LightCommandHandler
+from .handlers.uds import UDSCommandHandler
+from .handlers.cesium import CesiumCommandHandler
+from .handlers.screenshot import ScreenshotCommandHandler
 
 
 logger = logging.getLogger(__name__)

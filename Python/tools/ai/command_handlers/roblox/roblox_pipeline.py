@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 from pathlib import Path
 
 from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
+from ..validation import ValidatedCommand
 from core.errors import (
     RobloxError, RobloxErrorCodes, user_not_found, storage_error,
     avatar_3d_unavailable, download_failed, AppError, ErrorCategory,

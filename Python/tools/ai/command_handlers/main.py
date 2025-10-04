@@ -129,15 +129,16 @@ class CommandRegistry:
         self._initialize_default_handlers()
     
     def _initialize_default_handlers(self):
-        """Register default command handlers."""
+        """Register default command handlers.
+
+        NOTE: Most handlers have been migrated to plugin system:
+        - Actor handlers (UDS, Cesium, Light, etc.) → unreal_engine plugin
+        - Nano Banana handler → nano_banana plugin
+        - Screenshot handler → unreal_engine plugin
+
+        Remaining handlers are for features not yet migrated to plugins.
+        """
         # Import handlers here to avoid circular imports
-        from .actor.uds import UDSCommandHandler
-        from .actor.udw import UDWCommandHandler
-        from .actor.cesium import CesiumCommandHandler
-        from .actor.light import LightCommandHandler
-        from .actor.actor import ActorCommandHandler
-        from .rendering.screenshot import ScreenshotCommandHandler
-        from .nano_banana.image_edit import NanoBananaImageEditHandler
         from .video_generation.video_handler import VideoGenerationHandler
         from .roblox.roblox_handler import RobloxCommandHandler
         from .roblox.roblox_fbx_converter import RobloxFBXConverterHandler
@@ -145,13 +146,6 @@ class CommandRegistry:
         from .asset.import_object3d import Object3DImportHandler
 
         handlers = [
-            UDSCommandHandler(),
-            UDWCommandHandler(),
-            CesiumCommandHandler(),
-            LightCommandHandler(),
-            ActorCommandHandler(),
-            ScreenshotCommandHandler(),
-            NanoBananaImageEditHandler(),
             VideoGenerationHandler(),
             RobloxCommandHandler(),
             RobloxFBXConverterHandler(),
@@ -252,6 +246,7 @@ def get_command_registry() -> CommandRegistry:
     Handlers are registered once during module import.
     
     Returns:
-        CommandRegistry: Global registry instance with UDS, Cesium, Light, and Actor handlers
+        CommandRegistry: Global registry instance with remaining legacy handlers
+        (Screenshot, Video Generation, Roblox, Asset Import)
     """
     return _command_registry

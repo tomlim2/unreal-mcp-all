@@ -24,7 +24,7 @@ import os
 import sys
 from typing import Dict, List, Any, Optional
 from .command_handlers import get_command_registry
-from .session_management.utils.path_manager import get_path_manager
+from core.session.utils.path_manager import get_path_manager
 from core.errors import AppError, ErrorCategory
 
 # Load environment variables from .env file
@@ -248,7 +248,7 @@ def _extract_from_partial_response(partial_response: str) -> dict:
         }
 
 # Import session management
-from .session_management import get_session_manager, SessionContext
+from core.session import get_session_manager, SessionContext
 
 # Import model providers
 from .model_providers import get_model_provider, get_default_model, get_available_models
@@ -284,7 +284,7 @@ def _auto_assign_latest_image_if_needed(command, session_context):
 
         # Try 2: Get from UID manager directly (fallback for global latest image)
         if not latest_uid:
-            from tools.ai.uid_manager import get_latest_image_uid as get_global_latest_image_uid
+            from core.resources.uid_manager import get_latest_image_uid as get_global_latest_image_uid
             latest_uid = get_global_latest_image_uid()
             logger.info(f"Retrieved from UID manager: latest_uid={latest_uid}")
 

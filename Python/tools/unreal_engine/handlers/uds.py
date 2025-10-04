@@ -7,8 +7,8 @@ Ultra Dynamic Sky system. Supports both numeric and descriptive color temperatur
 
 import logging
 from typing import Dict, Any, List
-from ..main import BaseCommandHandler
-from ...nlp_schema_validator import (
+from tools.ai.command_handlers.main import BaseCommandHandler
+from tools.ai.command_handlers.validation import (
     validate_command,
     normalize_sky_parameters,
     ValidatedCommand
