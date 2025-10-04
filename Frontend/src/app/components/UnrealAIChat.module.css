@@ -133,7 +133,7 @@
   background: #2a2a2a;
   color: #ffffff;
   font-size: 0.75rem;
-  font-family: inherit;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   resize: vertical;
 }
 
@@ -228,20 +228,20 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .container {
     padding: 1rem;
   }
-  
+
   .inputGroup {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .exampleButtons {
     grid-template-columns: 1fr;
   }
-  
+
   .jobsSection {
     width: calc(100% - 2rem);
     margin: 1.5rem 1rem 0 1rem;

@@ -136,7 +136,7 @@
 }
 
 /* Mobile responsive design */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .messages {
     width: 100%;
     padding: 0 0.75rem;

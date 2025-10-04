@@ -17,7 +17,7 @@
 }
 
 /* Mobile layout: full width when sidebar is hidden */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .mainContent {
     margin-left: 0;
     width: 100vw;
