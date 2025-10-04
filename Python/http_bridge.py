@@ -18,7 +18,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 from typing import Dict, Any, Optional
-from core.session.utils.path_manager import get_path_manager
+from core.utils.path_manager import get_path_manager
 
 # Load environment variables
 try:

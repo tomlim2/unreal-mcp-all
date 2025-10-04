@@ -24,7 +24,7 @@ import os
 import sys
 from typing import Dict, List, Any, Optional
 from .command_handlers import get_command_registry
-from core.session.utils.path_manager import get_path_manager
+from core.utils.path_manager import get_path_manager
 from core.errors import AppError, ErrorCategory
 
 # Load environment variables from .env file

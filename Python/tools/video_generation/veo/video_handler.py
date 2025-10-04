@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from tools.ai.command_handlers.main import BaseCommandHandler
 from tools.ai.command_handlers.validation import ValidatedCommand
-from core.session.utils.path_manager import get_path_manager
+from core.utils.path_manager import get_path_manager
 from tools.ai.pricing_manager import get_pricing_manager
 from tools.ai.video_schema_utils import (
     build_video_transform_response,

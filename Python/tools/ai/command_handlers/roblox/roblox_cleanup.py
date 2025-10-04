@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from core.resources.uid_manager import get_uid_manager
-from core.session.utils.path_manager import get_path_manager
+from core.utils.path_manager import get_path_manager
 
 logger = logging.getLogger("UnrealMCP.Roblox.Cleanup")
 

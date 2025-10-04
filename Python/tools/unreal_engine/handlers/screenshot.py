@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from tools.ai.command_handlers.main import BaseCommandHandler
 from tools.ai.command_handlers.validation import ValidatedCommand
-from core.session.utils.path_manager import get_path_manager
+from core.utils.path_manager import get_path_manager
 from tools.ai.image_schema_utils import (
     build_screenshot_response,
     generate_request_id

@@ -13,7 +13,7 @@ from threading import Lock
 
 from .base_storage import BaseStorage
 from ..session_context import SessionContext
-from ..utils.path_manager import get_path_manager, PathManager, PathConfig
+from core.utils.path_manager import get_path_manager, PathManager, PathConfig
 
 logger = logging.getLogger("SessionManager.FileStorage")
 

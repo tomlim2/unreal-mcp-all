@@ -43,7 +43,7 @@ class HTTPBridgeHandler(BaseHTTPRequestHandler):
     def _serve_asset(self, path: str):
         """Serve screenshot, video, or 3D object files"""
         from pathlib import Path
-        from core.session.utils.path_manager import get_path_manager
+        from core.utils.path_manager import get_path_manager
         import mimetypes
         import os
 

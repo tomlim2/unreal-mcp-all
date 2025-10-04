@@ -15,7 +15,7 @@ import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Any
-from core.session.utils.path_manager import get_path_manager
+from core.utils.path_manager import get_path_manager
 
 logger = logging.getLogger("UnrealMCP")
 

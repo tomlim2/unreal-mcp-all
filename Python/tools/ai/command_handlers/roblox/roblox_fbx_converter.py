@@ -16,7 +16,7 @@ from datetime import datetime
 from ..main import BaseCommandHandler
 from ..validation import ValidatedCommand
 from core.resources.uid_manager import get_uid_manager, generate_object_uid
-from core.session.utils.path_manager import get_path_manager
+from core.utils.path_manager import get_path_manager
 from core.errors import RobloxError, RobloxErrorCodes
 from core.response import conversion_success
 from .roblox_errors import RobloxErrorHandler, log_roblox_error
