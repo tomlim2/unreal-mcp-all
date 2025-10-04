@@ -276,7 +276,7 @@ def _auto_assign_latest_image_if_needed(command, session_context):
     params = command["params"]
     command_type = command.get("type")
 
-    # image_url이 없는 이미지 관련 명령들
+    # Image-related commands without image_url
     image_commands = ["transform_image_style", "generate_video_from_image"]
 
     # Check for both old and new parameter names
@@ -441,7 +441,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                 }
         
         # Determine if this is a style request for preprocessing
-        is_style_request = any(keyword in user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it', 'nano banana', 'nano-banana'])
+        is_style_request = any(keyword in user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it'])
 
         # Determine if this is a video generation request
         is_video_request = any(keyword in user_input.lower() for keyword in ['video', 'animate', 'motion', 'movement', 'fly through', 'camera movement', 'flying camera', 'moving'])
@@ -677,7 +677,7 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
 **Commands:**
 - transform_image_style: Apply style to latest image
 **Reference Images:** WHEN reference images available, ALWAYS use transform_image_style
-- Korean prompts: "이 포즈를 취해주세요" = take pose from reference, "이 색깔로" = use reference color
+- Examples: "take this pose" = copy pose from reference, "use this color" = apply reference color
 **Format:** {{"explanation": "desc", "commands": [{{"type": "command", "params": {{"style_prompt": "style desc", "intensity": 0.8}}}}], "expectedResult": "result"}}
 
 Latest image available. Return valid JSON only."""
@@ -706,27 +706,10 @@ Your role is to provide intuitive creative control by translating natural langua
 **Rendering & Capture:**
 - Screenshots: take_screenshot (take new screenshot, returns image URL)
 
-**AI Image Editing (Nano Banana - Gemini 2.5 Flash Image):**
-- transform_image_style: **ALWAYS USE THIS FOR ANY VISUAL REQUEST**
-  * CAN DO: pose changes, character actions, style transfer, content modifications, object manipulation
-  * Examples: "손 들어" → style_prompt: "character raising hands", "양손 들어" → style_prompt: "both hands up"
-  * Auto-uses latest screenshot (target_image_uid provided automatically)
+**AI Image Editing:**
+- transform_image_style: Apply AI transformations to images (style transfer, content modifications, pose changes, etc.)
   * Supports reference images for style/composition guidance
-
-**REFERENCE IMAGES PROCESSING:**
-- WHEN reference images are provided:
-  * ALWAYS use transform_image_style command
-  * Reference images + prompts = POWERFUL transformation capability
-  * Korean prompts like "이 포즈를 취해주세요" = "take this pose from reference"
-  * Examples: "이 색깔로" → use reference color, "이 포즈로" → copy reference pose
-  * System automatically loads reference images - YOU JUST GENERATE THE COMMAND
-
-**CRITICAL**: transform_image_style uses AI image generation to MODIFY ANY VISUAL ASPECT
-- Pose changes: YES ✅
-- Character actions: YES ✅
-- Add/remove objects: YES ✅
-- Scene modifications: YES ✅
-- Reference image guidance: YES ✅
+  * Auto-uses latest screenshot if no target specified
 
 **AI Video Generation (Veo-3):**
 - generate_video_from_image: Generate 8-second video from image
@@ -738,59 +721,53 @@ Your role is to provide intuitive creative control by translating natural langua
 **STEP-BY-STEP COMMAND SELECTION:**
 
 **STEP 1: Check for Unreal Engine keywords FIRST**
-- IF input contains: "언리얼로", "언리얼에서", "언리얼", "씬에서", "in Unreal", "in scene", "scene"
+- IF input contains: "in Unreal", "in scene", "scene", "Unreal Engine"
 - THEN analyze the request and use appropriate 3D Scene commands:
-  * "색 온도 따뜻하게" → set_color_temperature
-  * "시간 바꿔" → set_time_of_day
-  * "비 내려" → set_current_weather_to_rain
-  * "조명 밝게" → create_mm_control_light or update_mm_control_light
+  * "warmer color temperature" → set_color_temperature
+  * "change time" → set_time_of_day
+  * "make it rain" → set_current_weather_to_rain
+  * "brighter lighting" → create_mm_control_light or update_mm_control_light
 - STOP here, do NOT proceed to STEP 2, 3, or 4
 
 **STEP 1.5: Check for Roblox keywords**
-- IF input contains download + import keywords (e.g., "download AND import", "download and bring in", "다운로드하고 임포트"):
+- IF input contains download + import keywords (e.g., "download AND import", "download and bring in"):
 - THEN use download_and_import_roblox_avatar (RECOMMENDED - handles full pipeline):
   * "download roblox avatar 3131 and import it" → download_and_import_roblox_avatar with user_input: "3131"
-  * "로블록스 아바타 BuildermanOG 다운로드하고 가져와" → download_and_import_roblox_avatar with user_input: "BuildermanOG"
+  * "download roblox avatar BuildermanOG and import" → download_and_import_roblox_avatar with user_input: "BuildermanOG"
   * "get roblox user 12345 and bring it into unreal" → download_and_import_roblox_avatar with user_input: "12345"
-- ELSE IF input contains only download keywords: "roblox", "로블록스", "아바타 다운로드", "download avatar", "download roblox", "get roblox"
+- ELSE IF input contains only download keywords: "roblox", "download avatar", "download roblox", "get roblox"
 - THEN use download_roblox_obj command:
   * "download roblox avatar for BuildermanOG" → download_roblox_obj
-  * "로블록스 아바타 다운로드해줘 user123" → download_roblox_obj
+  * "download roblox avatar user123" → download_roblox_obj
   * "get roblox obj for 12345" → download_roblox_obj
-- ELSE IF input contains convert keywords: "convert", "변환", "fbx로 변환", "to fbx", "obj to fbx"
+- ELSE IF input contains convert keywords: "convert", "to fbx", "obj to fbx"
 - THEN use convert_roblox_obj_to_fbx command:
   * "convert obj_001 to fbx" → convert_roblox_obj_to_fbx
-  * "obj_001을 fbx로 변환해줘" → convert_roblox_obj_to_fbx
+  * "convert obj_001 to fbx format" → convert_roblox_obj_to_fbx
   * "convert roblox avatar to fbx" → convert_roblox_obj_to_fbx (uses most recent obj_XXX UID)
-- ELSE IF input contains import keywords: "import", "임포트", "가져와", "불러와", "bring into unreal"
+- ELSE IF input contains import keywords: "import", "bring into unreal"
 - THEN use import_object3d_by_uid command:
   * "import the roblox avatar" → import_object3d_by_uid (uses most recent obj_XXX UID)
-  * "obj_001을 임포트해줘" → import_object3d_by_uid with uid: obj_001
+  * "import obj_001" → import_object3d_by_uid with uid: obj_001
   * "bring the downloaded avatar into unreal" → import_object3d_by_uid
 - STOP here, do NOT proceed to STEP 2, 3, or 4
 
 **STEP 2: Check for Video keywords**
-- IF "언리얼" NOT found AND input contains: "영상", "비디오", "동영상", "video"
+- IF "Unreal" NOT found AND input contains: "video", "animate", "animation", "motion"
 - THEN use generate_video_from_image
 - STOP here, do NOT proceed to STEP 3
 
 **STEP 3: DEFAULT → transform_image_style**
 - IF STEP 1 and STEP 2 both failed
 - THEN use transform_image_style for ANY visual request:
-  * "색 온도 따뜻하게" (without "언리얼") → transform_image_style
-  * "시간 바꿔" (without "언리얼") → transform_image_style
-  * "비 내려" (without "언리얼") → transform_image_style
-  * "손 들어" → transform_image_style
-  * "사이버펑크로" → transform_image_style
-  * "이 포즈를 취해주세요" → transform_image_style (WITH reference images)
-  * "이 색깔로 바꿔주세요" → transform_image_style (WITH reference images)
+  * "warmer color temperature" (without "Unreal") → transform_image_style
+  * "change time" (without "Unreal") → transform_image_style
+  * "make it rain" (without "Unreal") → transform_image_style
+  * "raise hands" → transform_image_style
+  * "cyberpunk style" → transform_image_style
+  * "take this pose" → transform_image_style (WITH reference images)
+  * "use this color" → transform_image_style (WITH reference images)
   * "Transform using reference images" → transform_image_style (WITH reference images)
-
-**CRITICAL DECISION LOGIC:**
-- "언리얼로 색 온도 따뜻하게" → set_color_temperature ✅
-- "색 온도 따뜻하게" (no "언리얼") → transform_image_style ✅
-- "언리얼에서 시간 바꿔" → set_time_of_day ✅
-- "시간 바꿔" (no "언리얼") → transform_image_style ✅
 
 ## PARAMETER RULES
 **Essential Parameters:**
@@ -808,58 +785,6 @@ Your role is to provide intuitive creative control by translating natural langua
 - target_image_uid: Automatically provided (latest screenshot)
 - reference_images: Automatically provided when available (in-memory data, not UIDs)
 - DO NOT specify image_url or UIDs manually
-
-## DECISION FLOWCHART
-
-```
-User Input: "색 온도 따뜻하게"
-    ↓
-STEP 1: Contains "언리얼"? → NO
-    ↓
-STEP 2: Contains "영상/video"? → NO
-    ↓
-STEP 3: DEFAULT → transform_image_style ✅
-
-User Input: "언리얼로 색 온도 따뜻하게"
-    ↓
-STEP 1: Contains "언리얼"? → YES → set_color_temperature ✅
-```
-
-## EXAMPLES (CRITICAL FOR UNDERSTANDING)
-
-**Same request, different command based on "언리얼" keyword:**
-
-WITHOUT "언리얼" (→ transform_image_style):
-- "색 온도 따뜻하게" → transform_image_style ✅
-- "시간 바꿔" → transform_image_style ✅
-- "비 내려" → transform_image_style ✅
-- "조명 밝게" → transform_image_style ✅
-- "양손 들어" → transform_image_style ✅
-
-WITH "언리얼" (→ 3D Scene Commands):
-- "언리얼로 색 온도 따뜻하게" → set_color_temperature ✅
-- "언리얼에서 시간 바꿔" → set_time_of_day ✅
-- "언리얼 씬에 비 내려" → set_current_weather_to_rain ✅
-- "언리얼로 조명 밝게" → create_mm_control_light ✅
-
-WITH "video" (→ Video Generation):
-- "영상 생성해줘" → generate_video_from_image ✅
-- "Create a video" → generate_video_from_image ✅
-
-WITH "roblox" + "import" (→ Full Pipeline - RECOMMENDED):
-- "download roblox avatar 3131 and import it" → download_and_import_roblox_avatar ✅
-- "로블록스 아바타 BuildermanOG 다운로드하고 가져와" → download_and_import_roblox_avatar ✅
-- "get roblox user 12345 and bring it into unreal" → download_and_import_roblox_avatar ✅
-
-WITH "roblox" only (→ Roblox Download):
-- "download roblox avatar for BuildermanOG" → download_roblox_obj ✅
-- "로블록스 아바타 다운로드해줘 user123" → download_roblox_obj ✅
-- "get roblox obj for 12345" → download_roblox_obj ✅
-
-WITH "convert" (→ FBX Conversion):
-- "convert obj_001 to fbx" → convert_roblox_obj_to_fbx ✅
-- "obj_001을 fbx로 변환해줘" → convert_roblox_obj_to_fbx ✅
-- "convert roblox avatar to fbx" → convert_roblox_obj_to_fbx ✅
 
 **RESPONSE FORMAT (MANDATORY):**
 You MUST return valid JSON in this exact format:
@@ -880,10 +805,10 @@ You MUST return valid JSON in this exact format:
 1. NEVER say "cannot do", "not supported", "tools do not support" - transform_image_style CAN DO EVERYTHING
 2. NEVER return empty commands array - ALWAYS return at least one command
 3. For ANY visual request → use transform_image_style
-4. "손 들어", "raise hand", "change pose" → transform_image_style (NOT "cannot do")
+4. "raise hand", "change pose" → transform_image_style (NOT "cannot do")
 
 **EXAMPLE CORRECT RESPONSES:**
-User: "손을 들게 해줘"
+User: "make the character raise their hands"
 Response:
 {{
   "explanation": "Modifying image to show character raising hands",
@@ -894,7 +819,7 @@ Response:
   "expectedResult": "Character will be shown with hands raised"
 }}
 
-User: "양손 들어"
+User: "both hands up"
 Response:
 {{
   "explanation": "Transforming image to show both hands raised",
@@ -970,7 +895,7 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     registry = get_command_registry()
     
     # Check if this is a command that doesn't need Unreal Engine connection
-    # Nano Banana: Image transformation (uses external API)
+    # AI Image Editing: Image transformation (uses external API)
     # Roblox: Avatar downloads (uses Roblox API + local file storage)
     no_unreal_required_commands = [
         'transform_image_style',
