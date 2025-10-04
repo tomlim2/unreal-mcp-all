@@ -235,7 +235,10 @@ export function createApiService(): ApiService {
 
         // Add reference images directly (no UID storage)
         if (data.referenceImageData && data.referenceImageData.length > 0) {
-          requestBody.reference_images = data.referenceImageData;
+          requestBody.referenceImageData = data.referenceImageData;
+          console.log('API Service: Added referenceImageData to requestBody, count:', data.referenceImageData.length);
+        } else {
+          console.log('API Service: NO referenceImageData to add', { hasData: !!data.referenceImageData, length: data.referenceImageData?.length });
         }
 
         const response = await fetch('/api/mcp', {

@@ -18,9 +18,9 @@ class PricingManager:
     def __init__(self, config_path: Optional[str] = None):
         """Initialize with pricing configuration file."""
         if config_path is None:
-            # Default to pricing_config.json in Python root directory
-            config_path = Path(__file__).parent.parent.parent / "pricing_config.json"
-        
+            # Default to pricing_config.json in tools/ai/ directory
+            config_path = Path(__file__).parent / "pricing_config.json"
+
         self.config_path = Path(config_path)
         self.pricing_config = self._load_pricing_config()
     

@@ -3,6 +3,7 @@
 import styles from './MessageItem.module.css';
 import MessageItemImageResult from './MessageItemImageResult';
 import MessageItemVideoResult from './MessageItemVideoResult';
+import MessageItem3DResult from './MessageItem3DResult';
 import ErrorDisplay from './ErrorDisplay';
 import FbxResultDisplay from './FbxResultDisplay';
 
@@ -94,6 +95,7 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
             <div key={resultIndex}>
               <MessageItemImageResult result={result} resultIndex={resultIndex} />
               <MessageItemVideoResult result={result} resultIndex={resultIndex} />
+              <MessageItem3DResult result={result} resultIndex={resultIndex} />
             </div>
           );
         }
@@ -145,6 +147,7 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
 
             <MessageItemImageResult result={result} resultIndex={resultIndex} />
             <MessageItemVideoResult result={result} resultIndex={resultIndex} />
+            <MessageItem3DResult result={result} resultIndex={resultIndex} />
           </div>
         );
       })}

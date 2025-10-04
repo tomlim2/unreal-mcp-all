@@ -1,0 +1,14 @@
+{
+  "tool_id": "video_generation",
+  "display_name": "Video Generation (Veo-3)",
+  "version": "1.0.0",
+  "description": "AI-powered video generation using Google Veo-3",
+  "author": "Google / MegaMelange Integration",
+  "capabilities": [
+    "video_generation",
+    "video_editing"
+  ],
+  "requires_connection": false,
+  "icon": "🎬",
+  "pricing_tier": "premium"
+}

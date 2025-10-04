@@ -192,7 +192,7 @@ class ImageProcessor:
         if str(python_dir) not in sys.path:
             sys.path.insert(0, str(python_dir))
 
-        from tools.ai.uid_manager import get_uid_mapping
+        from core.resources.uid_manager import get_uid_mapping
 
         mapping = get_uid_mapping(uid)
         if not mapping:

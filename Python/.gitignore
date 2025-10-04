@@ -98,3 +98,6 @@ Desktop.ini
 *.swp
 *.bak
 *.tmp
+# Log files
+*.log
+*.log.*

@@ -1,223 +1,169 @@
-[2025-09-25T16:23:53.173105] Calling NLP with 0 reference images
-[2025-09-25T16:24:02.957170] Calling NLP with 0 reference images
-[2025-09-25T16:25:02.234511] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-25T19:36:10.587349] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=composition
-[2025-09-25T19:37:11.958541] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=composition
-[2025-09-26T07:59:11.647311] Calling NLP with 0 reference images
-[2025-09-26T08:07:12.428304] Calling NLP with 0 reference images
-[2025-09-26T08:56:37.400398] Calling NLP with 0 reference images
-[2025-09-26T08:58:30.091205] Calling NLP with 2 reference images
-  Ref 0: 0 chars, type=image/png, purpose=composition
-  Ref 1: 0 chars, type=image/png, purpose=color
-[2025-09-26T10:32:58.452923] Calling NLP with 0 reference images
-[2025-09-26T11:41:12.770825] Calling NLP with 3 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-  Ref 1: 0 chars, type=image/png, purpose=style
-  Ref 2: 0 chars, type=image/png, purpose=style
-[2025-09-26T11:50:30.715475] Calling NLP with 3 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-  Ref 1: 0 chars, type=image/png, purpose=style
-  Ref 2: 0 chars, type=image/png, purpose=style
-[2025-09-26T13:27:33.372470] Calling NLP with 0 reference images
-[2025-09-26T13:27:40.638416] Calling NLP with 0 reference images
-[2025-09-26T13:28:00.473663] Calling NLP with 0 reference images
-[2025-09-26T13:28:08.695441] Calling NLP with 0 reference images
-[2025-09-26T13:40:42.310598] Calling NLP with 0 reference images
-[2025-09-26T13:41:53.398358] Calling NLP with 0 reference images
-[2025-09-26T13:42:55.601600] Calling NLP with 0 reference images
-[2025-09-26T13:44:59.277530] Calling NLP with 0 reference images
-[2025-09-26T13:50:00.652085] Calling NLP with 0 reference images
-[2025-09-26T13:50:21.898736] Calling NLP with 0 reference images
-[2025-09-26T14:04:23.415282] Calling NLP with 0 reference images
-[2025-09-26T14:09:30.406430] Calling NLP with 0 reference images
-[2025-09-26T14:10:59.744803] Calling NLP with 0 reference images
-[2025-09-26T14:48:51.057682] Calling NLP with 0 reference images
-[2025-09-26T14:49:31.519639] Calling NLP with 0 reference images
-[2025-09-26T14:52:58.981150] Calling NLP with 0 reference images
-[2025-09-26T14:53:29.382644] Calling NLP with 0 reference images
-[2025-09-26T14:57:47.487986] Calling NLP with 0 reference images
-[2025-09-26T15:01:03.355346] Calling NLP with 0 reference images
-[2025-09-26T15:01:42.770624] Calling NLP with 0 reference images
-[2025-09-26T15:02:08.901923] Calling NLP with 0 reference images
-[2025-09-29T09:22:34.450924] Calling NLP with 0 reference images
-[2025-09-29T09:25:10.401179] Calling NLP with 0 reference images
-[2025-09-29T10:23:46.379176] Calling NLP with 0 reference images
-[2025-09-29T14:39:42.446721] Calling NLP with 0 reference images
-[2025-09-29T14:41:54.913689] Calling NLP with 0 reference images
-[2025-09-29T19:50:20.719826] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-29T20:18:27.380724] Calling NLP with 0 reference images
-[2025-09-29T20:19:23.852025] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-29T20:32:01.074470] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-29T20:35:07.363598] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-29T21:12:00.335320] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-29T21:59:07.746479] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-29T22:23:21.621767] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-29T22:23:56] ✅ Reference image path structure fixed - UID-based system working
-[2025-09-30T08:26:44.478538] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:27:50.198386] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:35:26.388643] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:35:32.208284] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:35:36.643362] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:37:19.506502] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:37:24.256561] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:37:29.224944] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:38:27.762989] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:38:32.562039] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:38:37.745949] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:40:03.357593] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:40:08.568365] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:40:14.737821] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:48:36.579119] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:48:42.068644] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:49:11.171416] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:50:16.926617] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:50:22.798164] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:50:31.299946] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:50:47.985888] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:50:53.569231] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:55:37.645052] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:56:25.963809] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:58:05.722481] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:58:53.158854] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T08:59:35.980153] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T09:04:20.659214] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T09:05:30.561714] Calling NLP with 0 reference images
-[2025-09-30T09:13:13.070272] Calling NLP with 0 reference images
-[2025-09-30T09:14:14.218381] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T09:22:40.228258] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T09:25:36.700785] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=style
-[2025-09-30T09:31:31.368562] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=None
-[2025-09-30T09:36:42.770140] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=None
-[2025-09-30T09:40:31.219927] Calling NLP with 0 reference images
-[2025-09-30T09:41:41.936093] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=None
-[2025-09-30T09:46:44.455955] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=None
-[2025-09-30T09:50:54.956108] Calling NLP with 1 reference images
-  Ref 0: 0 chars, type=image/png, purpose=None
-[2025-09-30T09:54:09.433345] Calling NLP with 0 reference images
-[2025-09-30T13:58:54.280598] Calling NLP with 0 reference images
-[2025-09-30T15:46:17.779360] Calling NLP with 0 reference images
-[2025-09-30T15:50:23.998942] Calling NLP with 0 reference images
-[2025-09-30T18:02:24.360949] Calling NLP with 0 reference images
-[2025-09-30T18:03:00.468457] Calling NLP with 0 reference images
-[2025-09-30T18:03:27.918520] Calling NLP with 0 reference images
-[2025-09-30T20:26:04.946623] Calling NLP with 0 reference images
-[2025-09-30T20:33:22.383549] Calling NLP with 0 reference images
-[2025-09-30T20:38:45.238469] Calling NLP with 0 reference images
-[2025-09-30T20:43:48.120045] Calling NLP with 0 reference images
-[2025-09-30T20:48:40.212235] Calling NLP with 0 reference images
-[2025-09-30T21:00:44.228451] Calling NLP with 0 reference images
-[2025-09-30T21:04:50.917884] Calling NLP with 0 reference images
-[2025-09-30T21:08:51.953360] Calling NLP with 0 reference images
-[2025-09-30T21:17:23.872396] Calling NLP with 0 reference images
-[2025-09-30T23:33:36.137414] Calling NLP with 0 reference images
-[2025-09-30T23:35:21.311390] Calling NLP with 0 reference images
-[2025-09-30T23:43:25.450183] Calling NLP with 0 reference images
-[2025-09-30T23:47:22.459892] Calling NLP with 0 reference images
-[2025-09-30T23:53:24.828197] Calling NLP with 0 reference images
-[2025-10-01T08:25:34.391831] Calling NLP with 0 reference images
-[2025-10-01T08:37:12.020130] Calling NLP with 1 reference images
-  Ref 0: 1031848 chars, type=image/png, purpose=None
-[2025-10-01T08:41:06.592490] Calling NLP with 0 reference images
-[2025-10-01T15:57:20.193980] Calling NLP with 0 reference images
-[2025-10-01T16:03:56.599693] Calling NLP with 0 reference images
-[2025-10-01T16:05:22.664731] Calling NLP with 0 reference images
-[2025-10-01T16:07:10.551404] Calling NLP with 0 reference images
-[2025-10-01T16:13:19.765448] Calling NLP with 0 reference images
-[2025-10-01T16:16:23.596591] Calling NLP with 0 reference images
-[2025-10-01T16:17:27.888980] Calling NLP with 0 reference images
-[2025-10-01T16:20:37.032387] Calling NLP with 0 reference images
-[2025-10-01T16:24:07.180458] Calling NLP with 0 reference images
-[2025-10-01T16:25:50.485126] Calling NLP with 0 reference images
-[2025-10-01T16:30:25.061707] Calling NLP with 0 reference images
-[2025-10-01T16:31:52.665636] Calling NLP with 0 reference images
-[2025-10-01T16:32:18.171123] Calling NLP with 0 reference images
-[2025-10-01T16:32:38.578769] Calling NLP with 0 reference images
-[2025-10-01T16:42:17.477443] Calling NLP with 0 reference images
-[2025-10-01T16:42:41.741392] Calling NLP with 0 reference images
-[2025-10-01T16:42:55.050072] Calling NLP with 0 reference images
-[2025-10-01T16:43:10.466631] Calling NLP with 0 reference images
-[2025-10-01T16:44:52.336912] Calling NLP with 0 reference images
-[2025-10-01T16:45:13.344146] Calling NLP with 0 reference images
-[2025-10-01T16:45:28.665946] Calling NLP with 0 reference images
-[2025-10-01T16:47:18.054549] Calling NLP with 0 reference images
-[2025-10-01T16:47:42.069729] Calling NLP with 0 reference images
-[2025-10-01T16:47:55.152638] Calling NLP with 0 reference images
-[2025-10-01T16:48:23.672234] Calling NLP with 0 reference images
-[2025-10-01T16:50:48.539236] Calling NLP with 0 reference images
-[2025-10-01T16:51:14.415692] Calling NLP with 0 reference images
-[2025-10-01T16:51:29.362904] Calling NLP with 0 reference images
-[2025-10-01T20:25:16.662997] Calling NLP with 0 reference images
-[2025-10-01T20:44:04.333571] Calling NLP with 0 reference images
-[2025-10-01T23:38:06.898458] Calling NLP with 0 reference images
-[2025-10-01T23:39:59.222039] Calling NLP with 0 reference images
-[2025-10-01T23:45:06.141477] Calling NLP with 0 reference images
-[2025-10-01T23:52:44.816669] Calling NLP with 0 reference images
-[2025-10-02T00:00:56.444680] Calling NLP with 0 reference images
-[2025-10-02T00:04:12.545595] Calling NLP with 0 reference images
-[2025-10-02T00:06:21.140292] Calling NLP with 0 reference images
-[2025-10-02T00:09:22.493238] Calling NLP with 0 reference images
-[2025-10-02T00:11:36.198780] Calling NLP with 0 reference images
-[2025-10-02T00:13:49.165781] Calling NLP with 0 reference images
-[2025-10-02T00:21:41.343533] Calling NLP with 0 reference images
-[2025-10-02T00:30:39.829910] Calling NLP with 0 reference images
-[2025-10-02T08:20:04.882741] Calling NLP with 1 reference images
-  Ref 0: 1031848 chars, type=image/png, purpose=None
-[2025-10-02T15:05:47.709809] Calling NLP with 0 reference images
-[2025-10-02T15:42:23.841197] Calling NLP with 1 reference images
-  Ref 0: 197252 chars, type=image/png, purpose=None
-[2025-10-02T16:16:57.605008] Calling NLP with 0 reference images
-[2025-10-02T16:53:45.500415] Calling NLP with 0 reference images
-[2025-10-02T20:09:31.797641] Calling NLP with 0 reference images
-[2025-10-02T20:18:14.251346] Calling NLP with 0 reference images
-[2025-10-02T20:20:33.466032] Calling NLP with 0 reference images
-[2025-10-02T20:27:58.098178] Calling NLP with 0 reference images
-[2025-10-03T09:39:10.369099] Calling NLP with 1 reference images
-  Ref 0: 29263 chars, type=image/jpeg, purpose=None
-[2025-10-03T10:18:35.131396] Calling NLP with 0 reference images
-[2025-10-03T13:19:19.558292] Calling NLP with 0 reference images
-[2025-10-03T18:57:45.792877] Calling NLP with 0 reference images
+[2025-10-04T19:04:33.633448] Calling NLP with 0 reference images
+[2025-10-04T19:04:54.179940] Calling NLP with 0 reference images
+[2025-10-04T19:08:55.812226] Calling NLP with 0 reference images
+[2025-10-04T19:25:01.048243] Calling NLP with 0 reference images
+[2025-10-04T19:29:37.436794] Calling NLP with 0 reference images
+[2025-10-04T19:35:59.591344] Calling NLP with 0 reference images
+[2025-10-04T19:36:44.259216] Calling NLP with 0 reference images
+[2025-10-04T19:39:40.956068] Calling NLP with 0 reference images
+[2025-10-04T19:41:58.705759] Calling NLP with 0 reference images
+[2025-10-04T19:48:42.347061] Calling NLP with 0 reference images
+[2025-10-04T19:51:06.325559] Calling NLP with 0 reference images
+[2025-10-04T19:52:07.213652] Calling NLP with 0 reference images
+[2025-10-04T19:54:20.662590] Calling NLP with 0 reference images
+[2025-10-04T19:57:17.601862] Calling NLP with 3 reference images
+  Ref 0: 70 chars, type=image/png, purpose=None
+  Ref 1: 70 chars, type=image/png, purpose=None
+  Ref 2: 70 chars, type=image/png, purpose=None
+[2025-10-04T20:00:40.469371] Calling NLP with 3 reference images
+  Ref 0: 322058 chars, type=image/jpeg, purpose=None
+  Ref 1: 18409 chars, type=image/png, purpose=None
+  Ref 2: 219143 chars, type=image/jpeg, purpose=None
+[2025-10-04T20:11:27.808345] Calling NLP with 3 reference images
+  Ref 0: 219143 chars, type=image/jpeg, purpose=None
+  Ref 1: 29263 chars, type=image/jpeg, purpose=None
+  Ref 2: 322058 chars, type=image/jpeg, purpose=None
+[2025-10-04T20:14:59.879649] Calling NLP with 3 reference images
+  Ref 0: 70 chars, type=image/png, purpose=None
+  Ref 1: 70 chars, type=image/png, purpose=None
+  Ref 2: 70 chars, type=image/png, purpose=None
+[2025-10-04T20:15:56.889156] Calling NLP with 3 reference images
+  Ref 0: 70 chars, type=image/png, purpose=None
+  Ref 1: 70 chars, type=image/png, purpose=None
+  Ref 2: 70 chars, type=image/png, purpose=None
+[2025-10-04T20:18:31.231179] Calling NLP with 3 reference images
+  Ref 0: 13605 chars, type=image/png, purpose=None
+  Ref 1: 322058 chars, type=image/jpeg, purpose=None
+  Ref 2: 38200 chars, type=image/png, purpose=None
+[2025-10-04T20:23:13.005472] Calling NLP with 3 reference images
+  Ref 0: 70 chars, type=image/png, purpose=None
+  Ref 1: 70 chars, type=image/png, purpose=None
+  Ref 2: 70 chars, type=image/png, purpose=None
+[2025-10-04T20:25:06.681899] Calling NLP with 3 reference images
+  Ref 0: 322058 chars, type=image/jpeg, purpose=None
+  Ref 1: 153491 chars, type=image/jpeg, purpose=None
+  Ref 2: 13605 chars, type=image/png, purpose=None
+[2025-10-04T23:44:30.979685] Calling NLP with 3 reference images
+  Ref 0: 322058 chars, type=image/jpeg, purpose=None
+  Ref 1: 783528 chars, type=image/png, purpose=None
+  Ref 2: 153491 chars, type=image/jpeg, purpose=None
+[2025-10-04T23:46:32.810664] Calling NLP with 3 reference images
+  Ref 0: 70 chars, type=image/png, purpose=None
+  Ref 1: 70 chars, type=image/png, purpose=None
+  Ref 2: 70 chars, type=image/png, purpose=None
+[2025-10-04T23:47:32.977383] Calling NLP with 2 reference images
+  Ref 0: 1557096 chars, type=image/png, purpose=None
+  Ref 1: 1033731 chars, type=image/png, purpose=None
+[2025-10-04T23:49:07.880219] Calling NLP with 3 reference images
+  Ref 0: 1557096 chars, type=image/png, purpose=None
+  Ref 1: 1033731 chars, type=image/png, purpose=None
+  Ref 2: 2415789 chars, type=image/png, purpose=None
+[2025-10-04T23:51:01.258451] Calling NLP with 2 reference images
+  Ref 0: 1557096 chars, type=image/png, purpose=None
+  Ref 1: 1033731 chars, type=image/png, purpose=None
+[2025-10-04T23:51:21.871195] Calling NLP with 1 reference images
+  Ref 0: 1557096 chars, type=image/png, purpose=None
+[2025-10-04T23:53:10.361559] Calling NLP with 2 reference images
+  Ref 0: 1557096 chars, type=image/png, purpose=None
+  Ref 1: 1033731 chars, type=image/png, purpose=None
+[2025-10-04T23:53:32.042200] Calling NLP with 1 reference images
+  Ref 0: 1557096 chars, type=image/png, purpose=None
+[2025-10-04T23:54:23.664386] Calling NLP with 3 reference images
+  Ref 0: 70 chars, type=image/png, purpose=None
+  Ref 1: 70 chars, type=image/png, purpose=None
+  Ref 2: 70 chars, type=image/png, purpose=None
+[2025-10-04T23:56:50.093099] Calling NLP with 3 reference images
+  Ref 0: 322058 chars, type=image/jpeg, purpose=None
+  Ref 1: 18409 chars, type=image/png, purpose=None
+  Ref 2: 153491 chars, type=image/jpeg, purpose=None
+[2025-10-05T00:29:28.322173] [1b04f963] Calling NLP with 0 reference images
+[2025-10-05T00:39:26.978737] [53bafb2b] Calling NLP with 0 reference images
+[2025-10-05T00:42:59.964285] [37e34375] Calling NLP with 0 reference images
+[2025-10-05T00:45:55.498321] [d01b9e46] Calling NLP with 0 reference images
+[2025-10-05T00:46:49.006428] [e424e687] Calling NLP with 0 reference images
+[2025-10-05T00:48:28.567311] [d7920435] Calling NLP with 0 reference images
+[2025-10-05T00:49:13.037391] [ee3b68e7] Calling NLP with 0 reference images
+[2025-10-05T00:49:19.930158] [419be711] Calling NLP with 0 reference images
+[2025-10-05T00:53:42.095095] [f76c2ce2] Calling NLP with 3 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+  Ref 1: 322058 chars, type=image/jpeg
+  Ref 2: 527059 chars, type=image/png
+[2025-10-05T06:52:52.342284] [70917dd1] Calling NLP with 1 reference images
+  Ref 0: 322058 chars, type=image/jpeg
+[2025-10-05T07:02:14.264705] [3bed6282] Calling NLP with 3 reference images
+  Ref 0: 75017 chars, type=image/png
+  Ref 1: 153491 chars, type=image/jpeg
+  Ref 2: 322058 chars, type=image/jpeg
+[2025-10-05T07:03:09.501599] [4d997cda] Calling NLP with 1 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+[2025-10-05T07:04:03.293394] [6d6f6e41] Calling NLP with 2 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 36945 chars, type=image/jpeg
+[2025-10-05T07:05:10.614172] [295405b8] Calling NLP with 1 reference images
+  Ref 0: 36945 chars, type=image/jpeg
+[2025-10-05T07:06:28.135233] [211eb598] Calling NLP with 2 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+[2025-10-05T07:13:13.923304] [74a68e30] Calling NLP with 2 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+[2025-10-05T07:15:30.616298] [361d2e92] Calling NLP with 2 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+[2025-10-05T07:16:16.652276] [c48e3595] Calling NLP with 1 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+[2025-10-05T07:26:36.075594] [89ea4a7d] Calling NLP with 3 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 36945 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T07:28:40.032623] [0b7b500c] Calling NLP with 3 reference images
+  Ref 0: 19398 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T07:30:01.331237] [1f2dafdb] Calling NLP with 3 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+  Ref 1: 34394 chars, type=image/jpeg
+  Ref 2: 322058 chars, type=image/jpeg
+[2025-10-05T07:34:15.185831] [543d4c9e] Calling NLP with 3 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T07:40:42.504648] [3df51b05] Calling NLP with 3 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T07:45:39.560059] [47cd1ace] Calling NLP with 3 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T07:52:31.537921] [ab299e64] Calling NLP with 3 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T07:56:41.199809] [aa08ff76] Calling NLP with 3 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+  Ref 1: 35215 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T07:57:40.165140] [53f50d72] Calling NLP with 3 reference images
+  Ref 0: 36945 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T08:00:40.504041] [fa959acc] Calling NLP with 3 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+  Ref 1: 35215 chars, type=image/jpeg
+  Ref 2: 153491 chars, type=image/jpeg
+[2025-10-05T08:01:48.719387] [50be0589] Calling NLP with 2 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+  Ref 1: 153491 chars, type=image/jpeg
+[2025-10-05T08:02:52.930548] [99640252] Calling NLP with 3 reference images
+  Ref 0: 29263 chars, type=image/jpeg
+  Ref 1: 153491 chars, type=image/jpeg
+  Ref 2: 34394 chars, type=image/jpeg
+[2025-10-05T08:09:12.613175] [6aafad8b] Calling NLP with 3 reference images
+  Ref 0: 35215 chars, type=image/jpeg
+  Ref 1: 36945 chars, type=image/jpeg
+  Ref 2: 34394 chars, type=image/jpeg
+[2025-10-05T08:10:55.216671] [0e52a08b] Calling NLP with 3 reference images
+  Ref 0: 34394 chars, type=image/jpeg
+  Ref 1: 29263 chars, type=image/jpeg
+  Ref 2: 36945 chars, type=image/jpeg

@@ -9,8 +9,8 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from ..main import BaseCommandHandler
-from ...nlp_schema_validator import ValidatedCommand
-from ...uid_manager import generate_object_uid
+from ..validation import ValidatedCommand
+from core.resources.uid_manager import generate_object_uid
 from core.errors import RobloxError, RobloxErrorCodes
 from core.response import job_success, success_response
 from .roblox_errors import RobloxErrorHandler, log_roblox_error

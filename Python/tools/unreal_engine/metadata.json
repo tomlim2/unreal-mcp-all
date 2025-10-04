@@ -1,0 +1,41 @@
+{
+  "tool_id": "unreal_engine",
+  "display_name": "Unreal Engine",
+  "version": "5.5.4",
+  "description": "Real-time 3D creation tool for games, film, and virtual production",
+  "author": "Epic Games / MegaMelange Integration",
+  "requires_connection": true,
+  "icon": "🎮",
+  "pricing_tier": "free",
+  "capabilities": [
+    "mesh_3d_creation",
+    "mesh_3d_editing",
+    "scene_management",
+    "rendering",
+    "lighting_control",
+    "camera_control",
+    "animation",
+    "geospatial"
+  ],
+  "connection_type": "tcp",
+  "default_port": 55557,
+  "supported_commands": [
+    "create_actor",
+    "delete_actor",
+    "get_actors_in_level",
+    "set_actor_transform",
+    "create_mm_control_light",
+    "update_mm_control_light",
+    "delete_mm_control_light",
+    "set_cesium_latitude_longitude",
+    "get_cesium_properties",
+    "set_time_of_day",
+    "set_color_temperature",
+    "get_ultra_dynamic_sky",
+    "take_highresshot",
+    "set_material_parameter",
+    "apply_material_to_actor",
+    "set_camera_position",
+    "focus_camera_on_actor"
+  ]
+}

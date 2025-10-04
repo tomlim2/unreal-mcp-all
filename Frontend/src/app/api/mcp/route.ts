@@ -6,7 +6,17 @@ const MCP_HTTP_BRIDGE_URL = `http://127.0.0.1:${MCP_HTTP_BRIDGE_PORT}`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, context, session_id, llm_model, images, reference_images, reference_image_uids, target_image_uid, main_prompt, reference_prompts, mainImageData, referenceImageData } = await request.json();
+    const {
+      prompt,
+      context,
+      session_id,
+      llm_model,
+      target_image_uid,
+      main_prompt,
+      reference_prompts,
+      mainImageData,
+      referenceImageData
+    } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -20,7 +30,7 @@ export async function POST(request: NextRequest) {
       session_id
     };
 
-    // Add new enhanced prompt fields
+    // Add enhanced prompt fields
     if (main_prompt) {
       requestBody.main_prompt = main_prompt;
     }
@@ -29,33 +39,22 @@ export async function POST(request: NextRequest) {
       requestBody.reference_prompts = reference_prompts;
     }
 
-    // Add target_image_uid if provided (new UID-based system for main target image)
+    // UID-based system for existing screenshots (target image only)
     if (target_image_uid) {
       requestBody.target_image_uid = target_image_uid;
     }
 
-    // Add images and reference_images if provided
-    if (images && Array.isArray(images)) {
-      requestBody.images = images;
-    }
-
-    if (reference_images && Array.isArray(reference_images)) {
-      requestBody.reference_images = reference_images;
-    }
-
-    // Add reference_image_uids if provided (new UID-based system)
-    if (reference_image_uids && Array.isArray(reference_image_uids)) {
-      requestBody.reference_image_uids = reference_image_uids;
-    }
-
-    // Add mainImageData if provided (user-uploaded main image)
+    // User-uploaded images (in-memory processing, not stored)
     if (mainImageData) {
       requestBody.mainImageData = mainImageData;
+      console.log('API Route: mainImageData present');
     }
 
-    // Add referenceImageData if provided (user-uploaded reference images)
-    if (referenceImageData && Array.isArray(referenceImageData)) {
+    if (referenceImageData && Array.isArray(referenceImageData) && referenceImageData.length > 0) {
       requestBody.referenceImageData = referenceImageData;
+      console.log('API Route: referenceImageData count:', referenceImageData.length);
+    } else {
+      console.log('API Route: NO referenceImageData', { referenceImageData });
     }
 
     // Forward request to Python MCP server with natural language processing
