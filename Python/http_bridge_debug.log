@@ -167,3 +167,6 @@
   Ref 0: 34394 chars, type=image/jpeg
   Ref 1: 29263 chars, type=image/jpeg
   Ref 2: 36945 chars, type=image/jpeg
+[2025-10-05T12:57:37.288012] [9eb89e24] Calling NLP with 0 reference images
+[2025-10-05T13:15:24.530989] [6d519bdd] Calling NLP with 1 reference images
+  Ref 0: 29263 chars, type=image/jpeg

@@ -294,6 +294,26 @@ class PathManager:
         self._cached_paths['generated_images'] = gen_path
         return gen_path
 
+    def get_videos_path(self) -> str:
+        """
+        Get the videos storage path.
+
+        Returns:
+            str: Videos path (assets/videos)
+        """
+        if 'videos' in self._cached_paths:
+            return self._cached_paths['videos']
+
+        # Default to assets/videos
+        videos_path = os.path.join(self.get_data_storage_path(), 'assets', 'videos')
+        logger.debug(f"Using videos path: {videos_path}")
+
+        if self.config.create_directories:
+            Path(videos_path).mkdir(parents=True, exist_ok=True)
+
+        self._cached_paths['videos'] = videos_path
+        return videos_path
+
     def get_3d_objects_path(self) -> str:
         """
         Get the 3D objects storage base path.
