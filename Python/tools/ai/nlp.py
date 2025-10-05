@@ -20,34 +20,10 @@ and scene composition through conversational interfaces.
 
 import logging
 import json
-import os
-import sys
 from typing import Dict, List, Any, Optional
 from .command_handlers import get_command_registry
 from core.utils.path_manager import get_path_manager
-from core.errors import AppError, ErrorCategory
-
-# Load environment variables from .env file
-try:
-    from dotenv import load_dotenv
-    # Load .env file from the Python directory
-    dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
-    load_dotenv(dotenv_path)
-    print(f"✅ Loaded .env file from: {dotenv_path}")
-except ImportError:
-    print("⚠️ python-dotenv not installed, .env file will not be loaded")
-except Exception as e:
-    print(f"⚠️ Failed to load .env file: {e}")
-
-# Try to import anthropic at module level to debug the issue
-try:
-    import anthropic
-    ANTHROPIC_AVAILABLE = True
-    print(f"✅ Anthropic SDK imported successfully in {__name__}")
-except ImportError as e:
-    ANTHROPIC_AVAILABLE = False
-    print(f"❌ Failed to import Anthropic SDK in {__name__}: {e}")
-    print(f"Python path: {sys.path[:3]}")
+from core.errors import AppError
 
 # Get logger
 logger = logging.getLogger("UnrealMCP")
@@ -198,18 +174,14 @@ def _extract_from_partial_response(partial_response: str) -> dict:
                     if "Japan" in partial_response or "punk" in partial_response:
                         command["params"]["style_prompt"] = "Japan punk style"
                 
-                # Extract image_path (or image_url which should be converted to image_path)
+                # Extract image_path or image_url from partial response
                 image_path_match = re.search(r'"image_path":\s*"([^"]*)', partial_response)
                 image_url_match = re.search(r'"image_url":\s*"([^"]*)', partial_response)
-                
+
                 if image_path_match:
                     command["params"]["image_path"] = _resolve_image_path(image_path_match.group(1))
                 elif image_url_match:
-                    # Convert image_url parameter to image_path (the handler expects image_path)
                     command["params"]["image_path"] = _resolve_image_path(image_url_match.group(1))
-                else:
-                    # This will be handled by the handler using session context for latest image
-                    pass
                 
                 # Add default parameters
                 command["params"]["intensity"] = 0.8
@@ -264,6 +236,11 @@ from core.session import get_session_manager, SessionContext
 # Import model providers
 from .model_providers import get_model_provider, get_default_model, get_available_models
 
+# Import data models and prompts
+from .models import ProcessingRequest, ProcessingResponse
+from .prompts import get_minimal_prompt, get_full_prompt
+from .prompts.system_prompt import get_conversational_suffix
+
 
 def _auto_assign_latest_image_if_needed(command, session_context):
     """이미지 관련 명령에 최신 이미지 UID 자동 할당
@@ -276,10 +253,10 @@ def _auto_assign_latest_image_if_needed(command, session_context):
     params = command["params"]
     command_type = command.get("type")
 
-    # Image-related commands without image_url
+    # Image-related commands
     image_commands = ["transform_image_style", "generate_video_from_image"]
 
-    # Check for both old and new parameter names
+    # Check if image parameter already provided
     has_image = ("image_url" in params or "image_uid" in params or
                  "target_image_uid" in params or "main_image_data" in params)
 
@@ -301,11 +278,10 @@ def _auto_assign_latest_image_if_needed(command, session_context):
 
         # Double-check: ensure we only use image UIDs, never video UIDs
         if latest_uid and latest_uid.startswith('img_'):
-            # For transform_image_style, use target_image_uid (new system)
+            # Assign latest image UID to appropriate parameter
             if command_type == "transform_image_style":
                 params["target_image_uid"] = latest_uid
                 logger.info(f"✅ Auto-assigned latest image UID for {command_type}: {latest_uid}")
-            # For generate_video_from_image, use image_url
             elif command_type == "generate_video_from_image":
                 params["image_url"] = latest_uid
                 logger.info(f"✅ Auto-assigned latest image UID for {command_type}: {latest_uid}")
@@ -359,6 +335,28 @@ Style:"""
         return user_input  # Fallback to original
 
 
+def _sanitize_commands_for_response(commands: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Remove large binary data from commands before sending response."""
+    sanitized = []
+    for cmd in commands:
+        cmd_copy = cmd.copy()
+        if "params" in cmd_copy:
+            params_copy = cmd_copy["params"].copy()
+            # Replace large binary data with summary
+            if "main_image_data" in params_copy and isinstance(params_copy["main_image_data"], dict):
+                img_data = params_copy["main_image_data"]
+                data_size = len(img_data.get('data', b'')) if isinstance(img_data.get('data'), bytes) else len(str(img_data.get('data', '')))
+                params_copy["main_image_data"] = {
+                    "mime_type": img_data.get("mime_type"),
+                    "data": f"<bytes:{data_size} bytes>"
+                }
+            if "reference_images" in params_copy and isinstance(params_copy["reference_images"], list):
+                params_copy["reference_images"] = f"<{len(params_copy['reference_images'])} reference images>"
+            cmd_copy["params"] = params_copy
+        sanitized.append(cmd_copy)
+    return sanitized
+
+
 def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> None:
     """
     Inject image data into commands that support image processing.
@@ -402,236 +400,260 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
                 logger.info(f"Added {len(reference_images)} reference images to command {command_type}")
 
 
+def _setup_session_and_model(request: ProcessingRequest):
+    """Setup session context and model provider."""
+    session_manager = None
+    session_context = None
+
+    if request.session_id:
+        session_manager = get_session_manager()
+        session_context = session_manager.get_or_create_session(request.session_id)
+        logger.info(f"Using session context: {request.session_id}")
+    else:
+        logger.info("No session ID provided, processing without session context")
+
+    # Determine which model to use
+    selected_model = request.llm_model or get_default_model()
+    logger.info(f"Using model: {selected_model}")
+
+    # Get the model provider
+    provider = get_model_provider(selected_model)
+    if not provider:
+        # If user explicitly requested a specific model, return error (no fallback)
+        if request.llm_model:
+            error_msg = f"Requested model '{request.llm_model}' is not available or not configured"
+            return None, None, None, selected_model, error_msg
+        else:
+            # If using default model and it's not available, return configuration error
+            error_msg = f"Default model '{selected_model}' is not available. Configure GOOGLE_API_KEY or ANTHROPIC_API_KEY"
+            return None, None, None, selected_model, error_msg
+
+    return session_manager, session_context, provider, selected_model, None
+
+
+def _prepare_messages(request: ProcessingRequest, session_context, is_style_request: bool) -> List[Dict[str, Any]]:
+    """Build messages list including conversation history."""
+    messages = []
+
+    # Add conversation history as proper messages
+    if session_context and session_context.conversation_history:
+        # For style requests, use minimal history
+        max_history = 2 if is_style_request else 4
+        recent_messages = session_context.conversation_history[-max_history:]
+        for msg in recent_messages:
+            if msg.role in ['user', 'assistant']:
+                messages.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+
+    # Add current user input as the final message
+    messages.append({
+        "role": "user",
+        "content": f"User request: {request.user_input}"
+    })
+
+    return messages
+
+
+def _parse_ai_response(ai_response: str) -> Dict[str, Any]:
+    """Parse AI response with JSON error recovery."""
+    try:
+        return json.loads(ai_response)
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse AI response as JSON: {e}")
+        logger.warning(f"Raw AI response: {repr(ai_response)}")
+
+        # Try to fix common JSON issues first
+        fixed_response = ai_response.strip()
+
+        # Implement comprehensive JSON completion
+        fixed_response = _attempt_json_completion(fixed_response)
+
+        # Try parsing the fixed response
+        try:
+            parsed_response = json.loads(fixed_response)
+            logger.info("Successfully fixed and parsed JSON response")
+            return parsed_response
+        except json.JSONDecodeError:
+            # Try to extract JSON from response (which often includes explanatory text)
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', ai_response)
+            if json_match:
+                try:
+                    json_text = json_match.group()
+                    parsed_response = json.loads(json_text)
+                    logger.info("Successfully extracted JSON from AI response")
+                    return parsed_response
+                except json.JSONDecodeError:
+                    logger.warning("Extracted text is also not valid JSON")
+                    # Fall back to content extraction
+                    return _extract_from_partial_response(ai_response)
+            else:
+                # No JSON structure found, fall back to content extraction
+                return _extract_from_partial_response(ai_response)
+
+
+def _execute_commands(request: ProcessingRequest, commands: List[Dict[str, Any]], session_context) -> List[Dict[str, Any]]:
+    """Execute commands and return execution results."""
+    execution_results = []
+
+    for command in commands:
+        try:
+            logger.info(f"Executing command from NLP: {command}")
+
+            # Add session_id to command params if session_id is provided
+            if request.session_id:
+                if "params" not in command:
+                    command["params"] = {}
+                command["params"]["session_id"] = request.session_id
+                logger.debug(f"Added session_id {request.session_id} to command {command.get('type')}")
+
+            # Add new prompt fields for enhanced reference images flow
+            if request.main_prompt is not None or request.reference_prompts is not None:
+                if "params" not in command:
+                    command["params"] = {}
+
+                if request.main_prompt is not None:
+                    command["params"]["main_prompt"] = request.main_prompt
+                    logger.info(f"🎯 Added main_prompt to {command.get('type')}: '{request.main_prompt}'")
+
+                if request.reference_prompts is not None and len(request.reference_prompts) > 0:
+                    # Filter out empty prompts
+                    non_empty_prompts = [p for p in request.reference_prompts if p and p.strip()]
+                    if non_empty_prompts:
+                        command["params"]["reference_prompts"] = non_empty_prompts
+                        logger.info(f"🎯 Added {len(non_empty_prompts)} reference_prompts to {command.get('type')}: {non_empty_prompts}")
+
+            # Auto-assign latest image for image-related commands if needed
+            _auto_assign_latest_image_if_needed(command, session_context)
+
+            result = execute_command_direct(command)
+            execution_results.append({
+                "command": command.get("type", "unknown"),
+                "success": True,
+                "result": result,
+                "validation": "passed"
+            })
+            logger.info(f"Successfully executed validated command: {command.get('type')}")
+        except AppError as e:
+            # Handle structured errors from command handlers
+            e.log()
+            error_response = e.to_response()["error"]  # Get structured error format
+            execution_results.append({
+                "command": command.get("type", "unknown"),
+                "success": False,
+                "error": error_response["message"],
+                "error_code": error_response["code"],
+                "category": error_response["category"],
+                "error_details": error_response.get("details"),
+                "suggestion": error_response.get("suggestion"),
+                "validation": "passed"  # AppError means validation passed but execution failed
+            })
+        except Exception as e:
+            # Handle unexpected errors
+            logger.error(f"Failed to execute command {command.get('type')}: {e}")
+            execution_results.append({
+                "command": command.get("type", "unknown"),
+                "success": False,
+                "error": str(e),
+                "validation": "failed" if "validation failed" in str(e).lower() else "passed"
+            })
+
+    return execution_results
+
+
 def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     try:
-        # Get session manager and session context if session_id provided
-        session_manager = None
-        session_context = None
-        if session_id:
-            session_manager = get_session_manager()
-            session_context = session_manager.get_or_create_session(session_id)
-            logger.info(f"Using session context: {session_id}")
-        else:
-            logger.info("No session ID provided, processing without session context")
-        
-        # Determine which model to use
-        selected_model = llm_model or get_default_model()
-        logger.info(f"Using model: {selected_model}")
+        # Create request object
+        request = ProcessingRequest(
+            user_input=user_input,
+            context=context or "Assume as you are a creative cinematic director",
+            session_id=session_id,
+            llm_model=llm_model,
+            target_image_uid=target_image_uid,
+            main_image_data=main_image_data,
+            main_prompt=main_prompt,
+            reference_prompts=reference_prompts or [],
+            reference_images=reference_images or []
+        )
 
-        # Get the model provider
-        provider = get_model_provider(selected_model)
-        if not provider:
-            # If user explicitly requested a specific model, return error (no fallback)
-            if llm_model:
-                return {
-                    "error": f"Requested model '{llm_model}' is not available or not configured",
-                    "explanation": f"The '{llm_model}' model is not available. Please check your API key configuration.",
-                    "commands": [],
-                    "executionResults": [],
-                    "modelUsed": llm_model
-                }
-            else:
-                # If using default model and it's not available, return configuration error
-                return {
-                    "error": f"Default model '{selected_model}' is not available. Configure GOOGLE_API_KEY or ANTHROPIC_API_KEY",
-                    "explanation": "Natural language processing unavailable - no AI models configured",
-                    "commands": [],
-                    "executionResults": [],
-                    "modelUsed": "none"
-                }
-        
-        # Determine if this is a style request for preprocessing
-        is_style_request = any(keyword in user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it'])
+        # Setup session and model
+        session_manager, session_context, provider, selected_model, error_msg = _setup_session_and_model(request)
+        if error_msg:
+            return {
+                "error": error_msg,
+                "explanation": f"The '{selected_model}' model is not available. Please check your API key configuration.",
+                "commands": [],
+                "executionResults": [],
+                "modelUsed": selected_model
+            }
 
-        # Determine if this is a video generation request
-        is_video_request = any(keyword in user_input.lower() for keyword in ['video', 'animate', 'motion', 'movement', 'fly through', 'camera movement', 'flying camera', 'moving'])
-        
-        # Build system prompt with session context
-        system_prompt = build_system_prompt_with_session(context or "Assume as you are a creative cinematic director", session_context, is_style_request or is_video_request)
-        logger.info(f"Processing natural language input with {provider.get_model_name()}: {user_input}")
-        processed_input = user_input
-        
+        # Determine if this is a style or video request for preprocessing
+        is_style_request = any(keyword in request.user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it'])
+        is_video_request = any(keyword in request.user_input.lower() for keyword in ['video', 'animate', 'motion', 'movement', 'fly through', 'camera movement', 'flying camera', 'moving'])
+
         # For style requests, extract only the style essence to reduce tokens
+        processed_input = request.user_input
         if is_style_request and session_context and session_context.get_latest_image_path():
-            processed_input = _extract_style_essence(user_input, provider)
-            logger.info(f"Style preprocessing: '{user_input}' → '{processed_input}'")
-        
-        # Build messages list including conversation history
-        messages = []
-        
-        # Add conversation history as proper messages
-        if session_context and session_context.conversation_history:
-            # For style requests, use minimal history
-            max_history = 2 if is_style_request else 4
-            recent_messages = session_context.conversation_history[-max_history:]
-            for msg in recent_messages:
-                if msg.role in ['user', 'assistant']:
-                    messages.append({
-                        "role": msg.role,
-                        "content": msg.content
-                    })
-        
-        # Add current user input as the final message
-        messages.append({
-            "role": "user", 
-            "content": f"User request: {processed_input}"
-        })
-        
-        # Generate AI response using the selected provider
+            processed_input = _extract_style_essence(request.user_input, provider)
+            logger.info(f"Style preprocessing: '{request.user_input}' → '{processed_input}'")
+
+        # Build system prompt with session context
+        system_prompt = build_system_prompt_with_session(request.context, session_context, is_style_request or is_video_request)
+        logger.info(f"Processing natural language input with {provider.get_model_name()}: {request.user_input}")
+
+        # Prepare messages with conversation history
+        messages = _prepare_messages(
+            ProcessingRequest(
+                user_input=processed_input,
+                context=request.context,
+                session_id=request.session_id
+            ),
+            session_context,
+            is_style_request
+        )
+
+        # Generate AI response
         ai_response = provider.generate_response(
             messages=messages,
             system_prompt=system_prompt,
-            max_tokens=4096,  # Increased to handle longer responses
+            max_tokens=4096,
             temperature=0.1
         )
-        logger.info(f"AI response from {provider.get_model_name()} for '{user_input}': {ai_response}")
+        logger.info(f"AI response from {provider.get_model_name()} for '{request.user_input}': {ai_response}")
 
-        # Parse AI response
-        try:
-            parsed_response = json.loads(ai_response)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse AI response as JSON: {e}")
-            logger.warning(f"Raw AI response: {repr(ai_response)}")
-            
-            # Try to fix common JSON issues first
-            fixed_response = ai_response.strip()
-            
-            # Implement comprehensive JSON completion
-            fixed_response = _attempt_json_completion(fixed_response)
-            
-            # Try parsing the fixed response
-            try:
-                parsed_response = json.loads(fixed_response)
-                logger.info("Successfully fixed and parsed JSON response")
-            except json.JSONDecodeError:
-                # Try to extract JSON from response (which often includes explanatory text)
-                import re
-                json_match = re.search(r'\{[\s\S]*\}', ai_response)
-                if json_match:
-                    try:
-                        json_text = json_match.group()
-                        parsed_response = json.loads(json_text)
-                        logger.info("Successfully extracted JSON from AI response")
-                    except json.JSONDecodeError:
-                        logger.warning("Extracted text is also not valid JSON")
-                        # Fall back to content extraction
-                        parsed_response = _extract_from_partial_response(ai_response)
-                else:
-                    # No JSON structure found, fall back to content extraction
-                    parsed_response = _extract_from_partial_response(ai_response)
+        # Parse AI response with error recovery
+        parsed_response = _parse_ai_response(ai_response)
 
         # Process images for commands if images are provided
-        if (target_image_uid or main_image_data or reference_images) and parsed_response.get("commands"):
-            _process_images_for_commands(parsed_response["commands"], target_image_uid, main_image_data, reference_images)
+        if (request.target_image_uid or request.main_image_data or request.reference_images) and parsed_response.get("commands"):
+            _process_images_for_commands(
+                parsed_response["commands"],
+                request.target_image_uid,
+                request.main_image_data,
+                request.reference_images
+            )
 
-        # Execute commands using direct connection with schema validation
+        # Execute commands
         execution_results = []
         if parsed_response.get("commands") and isinstance(parsed_response["commands"], list):
-            for command in parsed_response["commands"]:
-                try:
-                    logger.info(f"Executing command from NLP: {command}")
-
-                    # Add session_id to command params if session_id is provided
-                    if session_id:
-                        if "params" not in command:
-                            command["params"] = {}
-                        command["params"]["session_id"] = session_id
-                        logger.debug(f"Added session_id {session_id} to command {command.get('type')}")
-
-                    # Add new prompt fields for enhanced reference images flow
-                    if main_prompt is not None or reference_prompts is not None:
-                        if "params" not in command:
-                            command["params"] = {}
-
-                        if main_prompt is not None:
-                            command["params"]["main_prompt"] = main_prompt
-                            logger.info(f"🎯 Added main_prompt to {command.get('type')}: '{main_prompt}'")
-
-                        if reference_prompts is not None and len(reference_prompts) > 0:
-                            # Filter out empty prompts
-                            non_empty_prompts = [p for p in reference_prompts if p and p.strip()]
-                            if non_empty_prompts:
-                                command["params"]["reference_prompts"] = non_empty_prompts
-                                logger.info(f"🎯 Added {len(non_empty_prompts)} reference_prompts to {command.get('type')}: {non_empty_prompts}")
-
-                    # Auto-assign latest image for image-related commands if needed
-                    _auto_assign_latest_image_if_needed(command, session_context)
-                    
-                    # Session tracking is now handled by the simple command handlers
-                    
-                    # Commands are now validated by handler system in execute_command_direct
-                    # No need for pre-validation here as handlers manage their own validation
-                    
-                    result = execute_command_direct(command)
-                    execution_results.append({
-                        "command": command.get("type", "unknown"),
-                        "success": True,
-                        "result": result,
-                        "validation": "passed"
-                    })
-                    logger.info(f"Successfully executed validated command: {command.get('type')}")
-                except AppError as e:
-                    # Handle structured errors from command handlers
-                    e.log()
-                    error_response = e.to_response()["error"]  # Get structured error format
-                    execution_results.append({
-                        "command": command.get("type", "unknown"),
-                        "success": False,
-                        "error": error_response["message"],
-                        "error_code": error_response["code"],
-                        "category": error_response["category"],
-                        "error_details": error_response.get("details"),
-                        "suggestion": error_response.get("suggestion"),
-                        "validation": "passed"  # AppError means validation passed but execution failed
-                    })
-                except Exception as e:
-                    # Handle unexpected errors
-                    logger.error(f"Failed to execute command {command.get('type')}: {e}")
-                    execution_results.append({
-                        "command": command.get("type", "unknown"),
-                        "success": False,
-                        "error": str(e),
-                        "validation": "failed" if "validation failed" in str(e).lower() else "passed"
-                    })
-        # Sanitize commands for response (remove large binary data)
-        def sanitize_commands_for_response(commands):
-            """Remove large binary data from commands before sending response."""
-            sanitized = []
-            for cmd in commands:
-                cmd_copy = cmd.copy()
-                if "params" in cmd_copy:
-                    params_copy = cmd_copy["params"].copy()
-                    # Replace large binary data with summary
-                    if "main_image_data" in params_copy and isinstance(params_copy["main_image_data"], dict):
-                        img_data = params_copy["main_image_data"]
-                        data_size = len(img_data.get('data', b'')) if isinstance(img_data.get('data'), bytes) else len(str(img_data.get('data', '')))
-                        params_copy["main_image_data"] = {
-                            "mime_type": img_data.get("mime_type"),
-                            "data": f"<bytes:{data_size} bytes>"
-                        }
-                    if "reference_images" in params_copy and isinstance(params_copy["reference_images"], list):
-                        params_copy["reference_images"] = f"<{len(params_copy['reference_images'])} reference images>"
-                    cmd_copy["params"] = params_copy
-                sanitized.append(cmd_copy)
-            return sanitized
+            execution_results = _execute_commands(request, parsed_response["commands"], session_context)
 
         # Prepare final response
         result = {
             "explanation": parsed_response.get("explanation", "Processed your request"),
-            "commands": sanitize_commands_for_response(parsed_response.get("commands", [])),
+            "commands": _sanitize_commands_for_response(parsed_response.get("commands", [])),
             "expectedResult": parsed_response.get("expectedResult", "Commands executed"),
             "executionResults": execution_results,
-            "modelUsed": selected_model  # Include which model was used for cost tracking
+            "modelUsed": selected_model
         }
-        
-        # Update session with this interaction and model preference if session_id provided
+
+        # Update session with this interaction if session_id provided
         if session_manager and session_context:
-            # First add the interaction
-            session_manager.add_interaction(session_id, user_input, result)
-            logger.debug(f"Updated session {session_id} with interaction")
-            
-            # Note: Removed session-locked LLM model restriction - models can now be switched per request
-        
+            session_manager.add_interaction(request.session_id, request.user_input, result)
+            logger.debug(f"Updated session {request.session_id} with interaction")
+
         return result
     except AppError as e:
         # Re-raise AppError to be handled by HTTP layer
@@ -650,202 +672,17 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
 # Main function for external use with session support
 def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Process natural language input and return structured commands with optional session support."""
-    try:
-        return _process_natural_language_impl(user_input, context, session_id, llm_model, target_image_uid, main_image_data, main_prompt, reference_prompts, reference_images)
-    except Exception as e:
-        logger.error(f"Error in process_natural_language: {e}")
-        return {
-            "error": str(e),
-            "explanation": "An error occurred while processing your request",
-            "commands": [],
-            "executionResults": [],
-            "modelUsed": selected_model if 'selected_model' in locals() else "unknown"
-        }
+    return _process_natural_language_impl(user_input, context, session_id, llm_model, target_image_uid, main_image_data, main_prompt, reference_prompts, reference_images)
 
 def build_system_prompt_with_session(context: str, session_context: SessionContext = None, is_style_request: bool = False) -> str:
     """Build system prompt with session context information."""
-    import time
-    import random
-    timestamp = int(time.time() * 1000)
-    random_suffix = random.randint(1000, 9999)
-    
     # Check if we should use minimal prompt for style requests
     if is_style_request and session_context and session_context.get_latest_image_path():
         # Minimal prompt for style transformations - reduces ~75% token usage
-        base_prompt = f"""Transform image styles for creative professionals.
-
-**Commands:**
-- transform_image_style: Apply style to latest image
-**Reference Images:** WHEN reference images available, ALWAYS use transform_image_style
-- Examples: "take this pose" = copy pose from reference, "use this color" = apply reference color
-**Format:** {{"explanation": "desc", "commands": [{{"type": "command", "params": {{"style_prompt": "style desc", "intensity": 0.8}}}}], "expectedResult": "result"}}
-
-Latest image available. Return valid JSON only."""
+        base_prompt = get_minimal_prompt()
     else:
-        # Get supported commands from registry for full prompt
-        registry = get_command_registry()
-        supported_commands = registry.get_supported_commands()
-        
-        base_prompt = f"""You are an AI assistant for creative professionals in their 20's (directors, cinematographers, technical artists) working with Unreal Engine for film, game development, and virtual production.
-
-Your role is to provide intuitive creative control by translating natural language requests into precise Unreal Engine commands that support professional workflows and enable real-time creative iteration.
-
-## SUPPORTED COMMANDS
-**Scene Environment:**
-- Ultra Dynamic Sky: get_ultra_dynamic_sky, set_time_of_day, set_color_temperature
-- Ultra Dynamic Weather: get_ultra_dynamic_weather, set_current_weather_to_rain
-- Geospatial: set_cesium_latitude_longitude, get_cesium_properties
-
-**Scene Objects & Lighting:**
-- Cinematic Lighting: create_mm_control_light, get_mm_control_lights, update_mm_control_light, delete_mm_control_light
-
-**3D Content & Assets:**
-- Roblox Avatars: download_and_import_roblox_avatar (RECOMMENDED: full pipeline - download, convert, import in one command), download_roblox_obj (download only), convert_roblox_obj_to_fbx (convert only), import_object3d_by_uid (import only)
-- Asset Import: import_object3d_by_uid (import downloaded 3D objects as Unreal Editor assets)
-
-**Rendering & Capture:**
-- Screenshots: take_screenshot (take new screenshot, returns image URL)
-
-**AI Image Editing:**
-- transform_image_style: Apply AI transformations to images (style transfer, content modifications, pose changes, etc.)
-  * Supports reference images for style/composition guidance
-  * Auto-uses latest screenshot if no target specified
-
-**AI Video Generation (Veo-3):**
-- generate_video_from_image: Generate 8-second video from image
-  * Auto-uses latest screenshot (target_image_uid provided automatically)
-  * Requires explicit video request keywords
-
-**COMMAND SELECTION RULES:**
-
-**STEP-BY-STEP COMMAND SELECTION:**
-
-**STEP 1: Check for Unreal Engine keywords FIRST**
-- IF input contains: "in Unreal", "in scene", "scene", "Unreal Engine"
-- THEN analyze the request and use appropriate 3D Scene commands:
-  * "warmer color temperature" → set_color_temperature
-  * "change time" → set_time_of_day
-  * "make it rain" → set_current_weather_to_rain
-  * "brighter lighting" → create_mm_control_light or update_mm_control_light
-- STOP here, do NOT proceed to STEP 2, 3, or 4
-
-**STEP 1.5: Check for Roblox keywords**
-- IF input contains download + import keywords (e.g., "download AND import", "download and bring in"):
-- THEN use download_and_import_roblox_avatar (RECOMMENDED - handles full pipeline):
-  * "download roblox avatar 3131 and import it" → download_and_import_roblox_avatar with user_input: "3131"
-  * "download roblox avatar BuildermanOG and import" → download_and_import_roblox_avatar with user_input: "BuildermanOG"
-  * "get roblox user 12345 and bring it into unreal" → download_and_import_roblox_avatar with user_input: "12345"
-- ELSE IF input contains only download keywords: "roblox", "download avatar", "download roblox", "get roblox"
-- THEN use download_roblox_obj command:
-  * "download roblox avatar for BuildermanOG" → download_roblox_obj
-  * "download roblox avatar user123" → download_roblox_obj
-  * "get roblox obj for 12345" → download_roblox_obj
-- ELSE IF input contains convert keywords: "convert", "to fbx", "obj to fbx"
-- THEN use convert_roblox_obj_to_fbx command:
-  * "convert obj_001 to fbx" → convert_roblox_obj_to_fbx
-  * "convert obj_001 to fbx format" → convert_roblox_obj_to_fbx
-  * "convert roblox avatar to fbx" → convert_roblox_obj_to_fbx (uses most recent obj_XXX UID)
-- ELSE IF input contains import keywords: "import", "bring into unreal"
-- THEN use import_object3d_by_uid command:
-  * "import the roblox avatar" → import_object3d_by_uid (uses most recent obj_XXX UID)
-  * "import obj_001" → import_object3d_by_uid with uid: obj_001
-  * "bring the downloaded avatar into unreal" → import_object3d_by_uid
-- STOP here, do NOT proceed to STEP 2, 3, or 4
-
-**STEP 2: Check for Video keywords**
-- IF "Unreal" NOT found AND input contains: "video", "animate", "animation", "motion"
-- THEN use generate_video_from_image
-- STOP here, do NOT proceed to STEP 3
-
-**STEP 3: DEFAULT → transform_image_style**
-- IF STEP 1 and STEP 2 both failed
-- THEN use transform_image_style for ANY visual request:
-  * "warmer color temperature" (without "Unreal") → transform_image_style
-  * "change time" (without "Unreal") → transform_image_style
-  * "make it rain" (without "Unreal") → transform_image_style
-  * "raise hands" → transform_image_style
-  * "cyberpunk style" → transform_image_style
-  * "take this pose" → transform_image_style (WITH reference images)
-  * "use this color" → transform_image_style (WITH reference images)
-  * "Transform using reference images" → transform_image_style (WITH reference images)
-
-## PARAMETER RULES
-**Essential Parameters:**
-- time_of_day: HHMM format (600=6AM, 1200=noon, 1800=6PM)
-- color_temperature: Kelvin (1500-15000) OR "warmer"/"cooler"
-- style_prompt: Description for image transformations
-- prompt: Description for video animation
-- aspect_ratio: "16:9" or "9:16" (video only)
-- resolution: "720p" or "1080p" (video only)
-- user_input: Roblox username or user ID (required for download_roblox_obj and download_and_import_roblox_avatar)
-- obj_uid: OBJ UID to convert (required for convert_roblox_obj_to_fbx, format: obj_XXX)
-- uid: Object UID (required for import_object3d_by_uid, format: obj_XXX or fbx_XXX)
-
-**Image/Video Source:**
-- target_image_uid: Automatically provided (latest screenshot)
-- reference_images: Automatically provided when available (in-memory data, not UIDs)
-- DO NOT specify image_url or UIDs manually
-
-**RESPONSE FORMAT (MANDATORY):**
-You MUST return valid JSON in this exact format:
-{{
-  "explanation": "Brief description of what you're doing",
-  "commands": [
-    {{
-      "type": "command_name",
-      "params": {{
-        "style_prompt": "description here"
-      }}
-    }}
-  ],
-  "expectedResult": "What will happen"
-}}
-
-**CRITICAL RULES - READ CAREFULLY:**
-1. NEVER say "cannot do", "not supported", "tools do not support" - transform_image_style CAN DO EVERYTHING
-2. NEVER return empty commands array - ALWAYS return at least one command
-3. For ANY visual request → use transform_image_style
-4. "raise hand", "change pose" → transform_image_style (NOT "cannot do")
-
-**EXAMPLE CORRECT RESPONSES:**
-User: "make the character raise their hands"
-Response:
-{{
-  "explanation": "Modifying image to show character raising hands",
-  "commands": [{{
-    "type": "transform_image_style",
-    "params": {{"style_prompt": "character raising both hands up"}}
-  }}],
-  "expectedResult": "Character will be shown with hands raised"
-}}
-
-User: "both hands up"
-Response:
-{{
-  "explanation": "Transforming image to show both hands raised",
-  "commands": [{{
-    "type": "transform_image_style",
-    "params": {{"style_prompt": "both hands up in the air"}}
-  }}],
-  "expectedResult": "Image transformed with both hands raised"
-}}
-
-User: "download roblox avatar for BuildermanOG"
-Response:
-{{
-  "explanation": "Downloading 3D Roblox avatar for user BuildermanOG",
-  "commands": [{{
-    "type": "download_roblox_obj",
-    "params": {{"user_input": "BuildermanOG"}}
-  }}],
-  "expectedResult": "Roblox avatar 3D model downloaded with OBJ, MTL, and texture files"
-}}
-
-**ABSOLUTELY FORBIDDEN RESPONSES:**
-❌ "The current set of tools does not support..."
-❌ "My capabilities are focused on..."
-❌ "I cannot directly manipulate..."
-✅ INSTEAD: Always use transform_image_style with appropriate style_prompt"""
+        # Use full prompt with all command documentation
+        base_prompt = get_full_prompt()
 
     # For style requests, skip complex session context to save tokens
     if not is_style_request and session_context:
@@ -879,9 +716,11 @@ Response:
             base_prompt += f"\nLatest image: {latest_image_uid} ({latest_filename}) - auto-used if image_url not specified"
         elif latest_filename:
             base_prompt += f"\nLatest image: {latest_filename} (no UID available)"
-    
-    base_prompt += f"\n\nContext: {context}\n\n## CONVERSATIONAL RESPONSES\n\n**For greetings and casual conversation (hi, hello, thanks, etc.):**\n- DO NOT generate commands\n- Respond with plain text (not JSON)\n- Be friendly and helpful\n- Example: User says \"hi\" → Respond: \"Hello! How can I help you with your Unreal Engine project?\"\n\n**For creative requests:**\n- Generate JSON with commands\n\nJSON FORMAT:\n{{\n  \"explanation\": \"Brief description\",\n  \"commands\": [{{\"type\": \"command_name\", \"params\": {{...}}}}],\n  \"expectedResult\": \"What happens\"\n}}"
-    
+
+    # Add context and conversational suffix
+    base_prompt += f"\n\nContext: {context}"
+    base_prompt += get_conversational_suffix()
+
     return base_prompt
 
 

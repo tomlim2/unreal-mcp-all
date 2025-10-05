@@ -21,7 +21,7 @@ logger = logging.getLogger("SessionManager.FileStorage")
 class FileStorage(BaseStorage):
     """
     File-based storage for session management using MegaMelange directory structure.
-    
+
     Directory Structure:
     Python/data_storage/sessions/
     ├── active/                    # Active sessions

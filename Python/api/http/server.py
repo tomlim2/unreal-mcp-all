@@ -49,19 +49,17 @@ class HTTPBridgeHandler(BaseHTTPRequestHandler):
 
         try:
             path_manager = get_path_manager()
-            # __file__ is at /path/to/Python/api/http/server.py
-            # We need to go up 4 levels to reach project root
-            base_path = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-            # Map URL path to filesystem path
+            # Map URL path to filesystem path using PathManager
             if path.startswith('/screenshots/'):
                 filename = path[len('/screenshots/'):]
-                # Check Unreal screenshots
+                # Check Unreal screenshots first
                 unreal_screenshots = path_manager.get_unreal_screenshots_path()
                 if unreal_screenshots:
                     file_path = Path(unreal_screenshots) / filename
                 else:
-                    file_path = base_path / 'data_storage' / 'assets' / 'images' / 'generated' / filename
+                    # Fall back to generated images
+                    file_path = Path(path_manager.get_generated_images_path()) / filename
             elif path.startswith('/api/screenshot/') or path.startswith('/api/screenshot-file/'):
                 if path.startswith('/api/screenshot/'):
                     filename = path[len('/api/screenshot/'):]
@@ -69,7 +67,7 @@ class HTTPBridgeHandler(BaseHTTPRequestHandler):
                     filename = path[len('/api/screenshot-file/'):]
 
                 # Try generated images first (most common for AI-generated images)
-                file_path = base_path / 'data_storage' / 'assets' / 'images' / 'generated' / filename
+                file_path = Path(path_manager.get_generated_images_path()) / filename
                 if not file_path.exists():
                     # Try Unreal screenshots
                     unreal_screenshots = path_manager.get_unreal_screenshots_path()
@@ -77,10 +75,10 @@ class HTTPBridgeHandler(BaseHTTPRequestHandler):
                         file_path = Path(unreal_screenshots) / filename
             elif path.startswith('/videos/'):
                 filename = path[len('/videos/'):]
-                file_path = base_path / 'data_storage' / 'assets' / 'videos' / filename
+                file_path = Path(path_manager.get_videos_path()) / filename
             elif path.startswith('/objects/'):
                 filename = path[len('/objects/'):]
-                file_path = base_path / 'data_storage' / 'assets' / '3d_objects' / filename
+                file_path = Path(path_manager.get_3d_objects_path()) / filename
             else:
                 raise ValueError(f"Unknown asset type: {path}")
 

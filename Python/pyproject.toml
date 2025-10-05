@@ -2,7 +2,6 @@
 name = "unreal-http-bridge"
 version = "0.1.0"
 description = "Unreal HTTP Bridge: A web server for Unreal Engine integration via HTTP API."
-readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
   "uvicorn",
@@ -17,4 +16,7 @@ dependencies = [
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta" 
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["api", "core", "data_storage", "tools"] 
