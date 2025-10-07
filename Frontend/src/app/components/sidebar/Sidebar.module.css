@@ -1,6 +1,6 @@
 .container {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   padding: .5rem;
   width: 320px;
   margin: 0;
@@ -22,14 +22,14 @@
 
 .header {
   padding: 12px;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .title {
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
-  color: #ffffff;
+  color: var(--text-primary);
   text-align: left;
   letter-spacing: -0.025em;
   font-family: var(--font-bodoni-moda), 'Times New Roman', Times, serif;
@@ -37,7 +37,7 @@
 
 .description {
   font-size: 0.8125rem;
-  color: #999999;
+  color: var(--text-secondary);
   margin: 0.5rem 0 0 0;
   line-height: 1.4;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -46,10 +46,10 @@
 
 
 .error {
-  background-color: #2a2a2a;
-  border: 1px solid #666666;
+  background-color: var(--bg-elevated-2);
+  border: 1px solid var(--accent-error);
   padding: 16px;
-  color: #ffffff;
+  color: var(--accent-error-hover);
   text-align: center;
   font-size: 0.95rem;
 }
@@ -57,15 +57,15 @@
 .retryButton {
   margin-left: 10px;
   padding: 4px 12px;
-  background: #666666;
-  color: #ffffff;
+  background: var(--bg-elevated-3);
+  color: var(--text-primary);
   border: none;
   cursor: pointer;
   font-size: 0.95rem;
 }
 
 .retryButton:hover {
-  background: #333333;
+  background: var(--bg-hover);
 }
 
 .sessionList {
@@ -80,14 +80,14 @@
 .noSessions {
   text-align: center;
   padding: 40px;
-  color: #666666;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
 .newSessionButton {
   padding: 8px 12px;
   background: transparent;
-  color: #cccccc;
+  color: var(--text-primary);
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
@@ -99,14 +99,14 @@
 }
 
 .newSessionButton:hover {
-  color: #ffffff;
-  background-color: #2a2a2a;
+  color: var(--text-primary);
+  background-color: var(--bg-elevated-2);
 }
 
 .refreshButton {
   padding: 10px 16px;
-  background: #333333;
-  color: #ffffff;
+  background: var(--bg-elevated-3);
+  color: var(--text-primary);
   border: none;
   cursor: pointer;
   font-size: 0.95rem;
@@ -114,7 +114,7 @@
 }
 
 .refreshButton:hover {
-  background: #666666;
+  background: var(--bg-hover);
 }
 
 .sessionControls {
@@ -135,7 +135,7 @@
   font-size: 0.8rem;
   font-weight: 500;
   margin: 0;
-  color: #999999;
+  color: var(--text-secondary);
 }
 
 .addSessionForm {
@@ -147,8 +147,8 @@
 .sessionNameInput {
   padding: 12px;
   border: none;
-  background: #2a2a2a;
-  color: #ffffff;
+  background: var(--bg-elevated-2);
+  color: var(--text-primary);
   font-size: 0.95rem;
   resize: vertical;
   font-family: inherit;
@@ -156,38 +156,38 @@
 
 .sessionNameInput:focus {
   outline: none;
-  background: #404040;
+  background: var(--bg-elevated-3);
 }
 
 .sessionNameInput:disabled {
-  background-color: #1a1a1a;
-  color: #666666;
+  background-color: var(--bg-elevated);
+  color: var(--text-tertiary);
   cursor: not-allowed;
 }
 
 .refreshButton.loading {
-  background-color: #666666;
+  background-color: var(--bg-hover);
   cursor: wait;
 }
 
 .charCount {
   font-size: 0.95rem;
-  color: #666666;
+  color: var(--text-tertiary);
   text-align: right;
 }
 
 .deleteButton {
-  background-color: #ffffff !important;
+  background-color: var(--text-primary) !important;
   margin-top: 8px;
 }
 
 .deleteButton:hover:not(:disabled) {
-  background-color: #ffffff !important;
+  background-color: var(--flexoki-150) !important;
 }
 
 .deleteButton:disabled {
-  background-color: #1a1a1a !important;
-  color: #666666 !important;
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-tertiary) !important;
 }
 
 .footer {
@@ -197,7 +197,7 @@
 
 .todoTitle {
   font-size: 0.8rem;
-  color: #cccccc;
+  color: var(--text-primary);
   padding: 12px 12px 8px 12px;
   margin: 0;
   font-weight: 500;
@@ -212,7 +212,7 @@
 
 .todoItem {
   font-size: 0.75rem;
-  color: #666666;
+  color: var(--text-tertiary);
   padding: 4px 12px;
   line-height: 1.4;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -222,13 +222,13 @@
 
 .todoItem:before {
   content: "•";
-  color: #999999;
+  color: var(--text-secondary);
   margin-right: 8px;
 }
 
 .copyright {
   font-size: 0.75rem;
-  color: #666666;
+  color: var(--text-tertiary);
   padding: 12px;
   margin: 0;
   line-height: 1.4;

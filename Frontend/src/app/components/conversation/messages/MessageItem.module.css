@@ -7,8 +7,8 @@
 
 .message.user {
   width: fit-content;
-  background-color: #121212;
-  color: #ffffff;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
   border-radius: 8px;
   text-align: left;
   padding: 12px 16px;
@@ -18,7 +18,7 @@
 
 .message.assistant {
   padding: 12px 16px;
-  color: #ffffff;
+  color: var(--text-primary);
   align-self: flex-start;
   margin: 0;
   margin-bottom: 32px;
@@ -26,8 +26,8 @@
 }
 
 .message.system {
-  background-color: #f5f5f5;
-  color: #4a4a4a;
+  background-color: var(--bg-elevated-2);
+  color: var(--text-secondary);
   align-self: center;
   max-width: 70%;
   text-align: center;
@@ -35,15 +35,15 @@
 }
 
 .message.combined {
-  background-color: #2a2a2a;
-  color: #ffffff;
+  background-color: var(--bg-elevated-2);
+  color: var(--text-primary);
   width: 100%;
 }
 
 /* Debug Code Block Wrapper */
 .debugCodeBlock {
-  background-color: #1a1a1a;
-  border: 1px solid #333;
+  background-color: var(--code-bg);
+  border: 1px solid var(--border-default);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -54,20 +54,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background-color: #1a1a1a;
-  border-bottom: 1px solid #333;
+  background-color: var(--code-bg);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .codeBlockTitle {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #888888;
+  color: var(--text-tertiary);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
 .copyButton {
   background-color: transparent;
-  color: #cccccc;
+  color: var(--text-primary);
   border: none;
   padding: 4px 8px;
   border-radius: 4px;
@@ -78,7 +78,7 @@
 }
 
 .copyButton:hover {
-  background-color: #2a2a2a;
+  background-color: var(--bg-elevated-2);
   transform: scale(1.1);
 }
 
@@ -93,7 +93,7 @@
 }
 
 .debugContent {
-  background-color: #1a1a1a;
+  background-color: var(--code-bg);
   border: none;
   border-radius: 0;
   padding: 16px;
@@ -102,7 +102,7 @@
   font-family: 'Courier New', monospace;
   font-size: 12px;
   line-height: 1.4;
-  color: #e6e6e6;
+  color: var(--code-text);
 }
 
 .debugBlock {
@@ -115,7 +115,7 @@
 }
 
 .debugLabel {
-  color: #79c0ff;
+  color: var(--accent-info);
   font-weight: bold;
   font-size: 0.725rem;
   text-transform: uppercase;
@@ -123,11 +123,11 @@
 }
 
 .debugValue {
-  color: #a5d6ff;
-  background-color: #0d1117;
+  color: var(--accent-info-hover);
+  background-color: var(--bg-base);
   padding: 8px;
   border-radius: 4px;
-  border: 1px solid #21262d;
+  border: 1px solid var(--border-default);
   font-style: italic;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -135,8 +135,8 @@
 }
 
 .debugJson {
-  color: #e6e6e6;
-  background-color: #1a1a1a;
+  color: var(--code-text);
+  background-color: var(--code-bg);
   padding: 12px;
   border-radius: 0;
   border: none;
@@ -145,8 +145,8 @@
 }
 
 .debugError {
-  color: #ff7b72;
-  background-color: #1a1a1a;
+  color: var(--accent-error-hover);
+  background-color: var(--code-bg);
   padding: 12px;
   border-radius: 0;
   border: none;
@@ -164,7 +164,7 @@
 
 .tabButton {
   background: transparent;
-  color: #ccc;
+  color: var(--text-secondary);
   border: none;
   padding: 8px 4px;
   cursor: pointer;
@@ -175,12 +175,12 @@
 }
 
 .tabButton:hover {
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .tabButton.activeTab {
-  border-bottom: 2px solid #cccccc;
-  color: #fff;
+  border-bottom: 2px solid var(--text-primary);
+  color: var(--text-primary);
   z-index: 1;
 }
 
@@ -203,11 +203,11 @@
 }
 
 .triggerContent.success {
-  border-left: 12px solid #4caf50;
+  border-left: 12px solid var(--accent-success);
 }
 
 .triggerContent.failure {
-  border-left: 12px solid #f44336;
+  border-left: 12px solid var(--accent-error);
 }
 
 /* Status Circle Styles */
@@ -220,11 +220,11 @@
 }
 
 .successCircle {
-  background-color: #4caf50;
+  background-color: var(--accent-success);
 }
 
 .failureCircle {
-  background-color: #f44336;
+  background-color: var(--accent-error);
 }
 
 .resultHeader {
@@ -245,14 +245,14 @@
 .generatedImagesSection {
   margin-top: 15px;
   padding-top: 15px;
-  border-top: 1px solid #444;
+  border-top: 1px solid var(--border-elevated);
 }
 
 .sessionName {
   font-size: 0.95rem;
-  color: #666666;
+  color: var(--text-tertiary);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  background: #cccccc;
+  background: var(--bg-elevated-2);
   padding: 2px 6px;
   font-weight: normal;
 }
@@ -265,18 +265,18 @@
 }
 
 .message.user .role {
-  background-color: #666666;
-  color: #ffffff;
+  background-color: var(--bg-elevated-3);
+  color: var(--text-primary);
 }
 
 .message.assistant .role {
-  background-color: #cccccc;
-  color: #333333;
+  background-color: var(--bg-elevated-2);
+  color: var(--text-primary);
 }
 
 .message.system .role {
-  background-color: #cccccc;
-  color: #4a4a4a;
+  background-color: var(--bg-elevated-2);
+  color: var(--text-secondary);
 }
 
 .timestamp {
@@ -285,19 +285,19 @@
 }
 
 .message.user .timestamp {
-  color: #cccccc;
+  color: var(--text-primary);
 }
 
 .message.assistant .timestamp {
-  color: #666666;
+  color: var(--text-tertiary);
 }
 
 .message.system .timestamp {
-  color: #4a4a4a;
+  color: var(--text-secondary);
 }
 
 .toggleButton {
-  background: #cccccc;
+  background: var(--bg-elevated-2);
   color: inherit;
   border: none;
   width: 20px;
@@ -312,17 +312,17 @@
 }
 
 .toggleButton:hover {
-  background: #999999;
+  background: var(--bg-hover);
 }
 
 
 .message.user .toggleButton {
-  background: #666666;
-  color: #ffffff;
+  background: var(--bg-elevated-3);
+  color: var(--text-primary);
 }
 
 .message.user .toggleButton:hover {
-  background: #999999;
+  background: var(--bg-hover);
 }
 
 .content {
@@ -346,22 +346,22 @@
 }
 
 .message.user .content {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .message.assistant .content {
-  color: #000000;
+  color: var(--text-primary);
   font-family: 'Times New Roman', Times, serif;
 }
 
 .message.system .content {
-  color: #4a4a4a;
+  color: var(--text-secondary);
 }
 
 .triggerContent {
   padding: 12px;
-  background-color: #2a2a2a;
-  color: #ffffff;
+  background-color: var(--bg-elevated-2);
+  color: var(--text-primary);
   font-size: 0.95rem;
   border: none;
   line-height: 1.5;
@@ -370,14 +370,14 @@
 }
 
 .triggerContent:hover {
-  background-color: #3a3a3a;
+  background-color: var(--bg-elevated-3);
 }
 
 .responseContent {
   margin-top: 8px;
   padding: 12px;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
   font-size: 0.95rem;
   border: none;
   line-height: 1.5;
@@ -392,7 +392,7 @@
   display: block;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #cccccc;
+  color: var(--text-primary);
   margin-bottom: 4px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
@@ -401,7 +401,7 @@
   margin: 0;
   font-size: 1.125rem;
   line-height: 1.4;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .commands {
@@ -414,7 +414,7 @@
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #cccccc;
+  color: var(--text-primary);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -424,10 +424,10 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
   font-size: 0.8rem;
   line-height: 1.5;
-  color: #e6e6e6;
-  background: #1a1a1a;
+  color: var(--code-text);
+  background: var(--code-bg);
   border-radius: 8px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-default);
   overflow: hidden;
   white-space: pre;
   tab-size: 2;
@@ -438,8 +438,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  background: #333;
-  border-bottom: 1px solid #444;
+  background: var(--bg-elevated-3);
+  border-bottom: 1px solid var(--border-elevated);
   margin: 0;
   font-size: 0.95rem;
 }
@@ -447,7 +447,7 @@
 .command strong {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
   font-size: 0.95rem;
-  color: #ffffff;
+  color: var(--text-primary);
   font-weight: 600;
   text-transform: none;
   margin: 0;
@@ -456,7 +456,7 @@
 .languageLabel {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
   font-size: 0.95rem;
-  color: #999;
+  color: var(--text-secondary);
   font-weight: normal;
 }
 
@@ -472,10 +472,10 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Consolas', 'Courier New', monospace !important;
   font-size: 0.8rem;
   line-height: 1.5;
-  color: #e6e6e6;
-  background: #484848;
+  color: var(--code-text);
+  background: var(--bg-elevated-3);
   border-radius: 6px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-default);
   overflow-x: auto;
   white-space: pre;
   tab-size: 2;
@@ -491,7 +491,7 @@
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #cccccc;
+  color: var(--text-primary);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -503,7 +503,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-  color: #ffffff;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
@@ -513,20 +513,20 @@
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 0.95rem;
   line-height: 1.4;
-  color: #ffffff;
-  background: #2a2a2a;
+  color: var(--text-primary);
+  background: var(--bg-elevated-2);
   overflow-x: auto;
 }
 
 .errorMessage {
-  color: #ff6b6b;
+  color: var(--accent-error-hover);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 0.95rem;
   margin: 8px 0;
 }
 
 .successMessage {
-  color: #4ade80;
+  color: var(--accent-success-hover);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-size: 0.95rem;
   margin: 8px 0;
@@ -553,7 +553,7 @@
 
 .screenshotError {
   padding: 8px 16px;
-  color: #cccccc;
+  color: var(--text-primary);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -566,18 +566,18 @@
 }
 
 .errorText strong {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .errorText small {
-  color: #999999;
+  color: var(--text-secondary);
   font-size: 0.95rem;
 }
 
 .retryButton {
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--text-primary);
   padding: 0;
   font-size: 0.95rem;
   cursor: pointer;
@@ -589,7 +589,7 @@
 }
 
 .retryButton:hover {
-  color: #cccccc;
+  color: var(--text-secondary);
 }
 
 .transformationDetails {
@@ -597,14 +597,14 @@
 }
 
 .styleInfo {
-  color: #888888;
+  color: var(--text-tertiary);
   font-size: 0.85rem;
   display: block;
   padding: 8px 0px;
 }
 
 .retryButton:active {
-  color: #999999;
+  color: var(--text-tertiary);
 }
 
 /* Always visible images (outside collapsed content) */
@@ -618,7 +618,7 @@
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #cccccc;
+  color: var(--text-primary);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -630,7 +630,7 @@
 .messagePreview {
   font-size: 0.95rem;
   font-weight: 400;
-  color: #ffffff;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
@@ -638,7 +638,7 @@
 .roleLabel {
   font-size: 0.95rem;
   font-weight: bold;
-  color: #ffffff;
+  color: var(--text-primary);
   margin-right: 8px;
 }
 
@@ -657,19 +657,19 @@
   font-family: monospace;
   font-size: 0.95rem;
   font-weight: bold;
-  color: #cccccc;
+  color: var(--text-primary);
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .expandIcon:hover {
-  color: #ffffff;
+  color: var(--text-secondary);
 }
 
 .progressBar {
   width: 100%;
   height: 4px;
-  background: #444444;
+  background: var(--border-elevated);
   border-radius: 2px;
   margin-top: 12px;
   overflow: hidden;
@@ -683,11 +683,11 @@
 
 /* Debug Execution Time at Top */
 .debugExecutionTime {
-  color: #999999;
+  color: var(--text-secondary);
   font-size: 0.75rem;
   margin-bottom: 1rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid var(--border-default);
   text-align: left;
 }
 
@@ -708,37 +708,37 @@
 }
 
 .debugLabel {
-  color: #cccccc;
+  color: var(--text-primary);
   font-weight: 500;
   min-width: 120px;
 }
 
 .debugMetric span:last-child {
-  color: #ffffff;
+  color: var(--text-primary);
   text-align: right;
 }
 
 .debugTip {
-  background: #2a2a1a;
-  border: 1px solid #4a4a2a;
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border-elevated);
   border-radius: 4px;
   padding: 0.5rem;
-  color: #ffeb3b;
+  color: var(--flexoki-yellow-light);
   font-size: 0.75rem;
   margin-top: 0.5rem;
 }
 
 .debugError {
-  color: #ff9999;
-  background: #2a1a1a;
-  border: 1px solid #663333;
+  color: var(--accent-error-hover);
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent-error);
   border-radius: 4px;
   padding: 0.75rem 1rem;
   font-size: 0.8125rem;
 }
 
 .debugLoading {
-  color: #999999;
+  color: var(--text-secondary);
   text-align: center;
   padding: 1rem;
   font-style: italic;
@@ -752,18 +752,18 @@
 
 .costBreakdown > div {
   margin: 2px 0;
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .totalCost {
   font-weight: bold;
-  color: #fff !important;
+  color: var(--text-primary) !important;
 }
 
 /* Image metadata table styles */
 .imageMetadataTable {
   margin-top: 8px;
-  border-top: 1px solid #444;
+  border-top: 1px solid var(--border-elevated);
   padding-top: 8px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.8em;
@@ -774,7 +774,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 2px 0;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .metadataRow:last-child {
@@ -782,38 +782,38 @@
 }
 
 .metadataLabel {
-  color: #888;
+  color: var(--text-tertiary);
   font-weight: normal;
   min-width: 80px;
   text-align: left;
 }
 
 .metadataValue {
-  color: #fff;
+  color: var(--text-primary);
   font-weight: 500;
   text-align: right;
 }
 
 /* Status Colors */
 .statusGreen {
-  color: #4CAF50 !important;
+  color: var(--accent-success) !important;
 }
 
 .statusRed {
-  color: #f44336 !important;
+  color: var(--accent-error) !important;
 }
 
 .statusOrange {
-  color: #ff9800 !important;
+  color: var(--accent-warning) !important;
 }
 
 .highUsage {
-  color: #f44336 !important;
+  color: var(--accent-error) !important;
   font-weight: 600;
 }
 
 .normalUsage {
-  color: #4CAF50 !important;
+  color: var(--accent-success) !important;
 }
 
 /* 3D Object Styles */
@@ -826,15 +826,15 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #2a2a2a;
-  border: 1px solid #404040;
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border-elevated);
   border-radius: 8px;
   transition: all 0.2s ease;
 }
 
 .object3DCard:hover {
-  background: #333333;
-  border-color: #555555;
+  background: var(--bg-elevated-3);
+  border-color: var(--border-focus);
 }
 
 .object3DIcon {
@@ -852,7 +852,7 @@
 .object3DTitle {
   font-size: 0.95rem;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -860,16 +860,16 @@
 
 .object3DFormat {
   font-size: 0.75rem;
-  color: #888888;
+  color: var(--text-tertiary);
   font-weight: 400;
   padding: 0.125rem 0.5rem;
-  background: #404040;
+  background: var(--bg-elevated-3);
   border-radius: 4px;
 }
 
 .object3DDetails {
   font-size: 0.75rem;
-  color: #999999;
+  color: var(--text-secondary);
   display: flex;
   gap: 0.5rem;
 }
@@ -882,10 +882,10 @@
 .downloadButton,
 .previewButton {
   padding: 0.5rem 1rem;
-  background: #404040;
-  border: 1px solid #555555;
+  background: var(--bg-elevated-3);
+  border: 1px solid var(--border-focus);
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 0.8125rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -894,26 +894,26 @@
 
 .downloadButton:hover,
 .previewButton:hover {
-  background: #4a4a4a;
-  border-color: #666666;
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
 }
 
 .object3DPreview {
   margin-top: 1rem;
   padding: 2rem;
-  background: #1a1a1a;
-  border: 1px solid #333333;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   text-align: center;
 }
 
 .previewPlaceholder {
-  color: #888888;
+  color: var(--text-tertiary);
   font-size: 0.95rem;
 }
 
 .previewPlaceholder p {
   margin-top: 0.5rem;
   font-size: 0.75rem;
-  color: #666666;
+  color: var(--text-tertiary);
 }
