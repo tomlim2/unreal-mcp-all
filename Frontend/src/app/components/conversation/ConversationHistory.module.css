@@ -18,8 +18,8 @@
 }
 
 .refreshButton {
-  background: #333333;
-  color: #ffffff;
+  background: var(--bg-elevated-3);
+  color: var(--text-primary);
   border: none;
   border-radius: 50%;
   width: 32px;
@@ -32,15 +32,15 @@
 }
 
 .refreshButton:hover {
-  background: #666666;
+  background: var(--bg-hover);
 }
 
 
 .error {
-  background-color: #cccccc;
-  border: 1px solid #666666;
+  background-color: var(--bg-elevated-2);
+  border: 1px solid var(--accent-error);
   padding: 20px;
-  color: #000000;
+  color: var(--accent-error-hover);
   text-align: center;
   margin: 20px 0;
 }
@@ -51,15 +51,15 @@
   justify-content: center;
   height: 100%;
   text-align: center;
-  color: #999999;
+  color: var(--text-tertiary);
   font-size: 2rem;
   font-family: var(--font-bodoni-moda), 'Times New Roman', Times, serif;
   font-weight: 700;
 }
 
 .sessionInfo {
-  background: #333333;
-  color: #ffffff;
+  background: var(--bg-elevated-3);
+  color: var(--text-primary);
   padding: 20px;
   margin: 20px 0;
 }
@@ -71,7 +71,7 @@
 
 .sessionMeta {
   font-size: 0.95rem;
-  color: #cccccc;
+  color: var(--text-primary);
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
 }
 
@@ -87,10 +87,10 @@
 }
 
 .section h4 {
-  background-color: #cccccc;
+  background-color: var(--bg-elevated-2);
   margin: 0;
   padding: 16px 20px;
-  color: #000000;
+  color: var(--text-primary);
   border: none;
   font-size: 0.95rem;
   font-weight: 600;
@@ -99,7 +99,7 @@
 .empty {
   padding: 40px;
   text-align: center;
-  color: #666666;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
@@ -107,7 +107,7 @@
   display: flex;
   flex-direction: column;
   scrollbar-width: thin;
-  scrollbar-color: #cccccc transparent;
+  scrollbar-color: var(--border-elevated) transparent;
   height: 100%;
   width: 800px;
   box-sizing: border-box;
@@ -127,12 +127,12 @@
 }
 
 .messages::-webkit-scrollbar-thumb {
-  background: #cccccc;
+  background: var(--border-elevated);
   border-radius: 3px;
 }
 
 .messages::-webkit-scrollbar-thumb:hover {
-  background: #999999;
+  background: var(--border-focus);
 }
 
 /* Mobile responsive design */

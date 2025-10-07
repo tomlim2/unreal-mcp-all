@@ -8,22 +8,22 @@
 }
 
 .sessionItemContainer:hover {
-  background-color: #2a2a2a;
+  background-color: var(--bg-elevated-2);
 }
 
 .sessionItemContainer.active {
-  background-color: #3a3a3a;
+  background-color: var(--bg-elevated-3);
 }
 
 .sessionItemContainer.active:hover {
-  background-color: #404040;
+  background-color: var(--bg-hover);
 }
 
 .sessionItem {
   flex: 1;
   padding: 8px 12px;
   background: transparent;
-  color: #cccccc;
+  color: var(--text-primary);
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
@@ -35,16 +35,16 @@
 }
 
 .sessionItem:hover {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .sessionItem.active {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .sessionItemDelete {
   background: transparent;
-  color: #ffffff;
+  color: var(--text-primary);
   border: none;
   width: 20px;
   height: 20px;
@@ -65,8 +65,8 @@
 }
 
 .sessionItemDelete:hover:not(:disabled) {
-  background: #333333;
-  color: #ffffff;
+  background: var(--bg-elevated-3);
+  color: var(--text-primary);
 }
 
 .sessionItemDelete:disabled {

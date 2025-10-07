@@ -17,29 +17,29 @@
   justify-content: space-between;
   align-items: center;
   padding-top: .5rem;
-  border-top: 2px solid #333333;
+  border-top: 2px solid var(--border-default);
 }
 
 .modelSelect {
-  background: #1a1a1a;
-  border: 1px solid #333333;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--text-primary);
   padding: 0.375rem 2rem 0.375rem 0.625rem;
   font-size: 0.8125rem;
   cursor: pointer;
   outline: none;
   transition: all 0.2s ease;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23999999' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23878580' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
   background-position: right 0.5rem center;
   background-repeat: no-repeat;
   background-size: 1em;
 }
 
 .modelSelect:hover:not(:disabled) {
-  border-color: #555555;
-  background-color: #2a2a2a;
+  border-color: var(--border-focus);
+  background-color: var(--bg-elevated-2);
 }
 
 .modelSelect:disabled {
@@ -48,8 +48,8 @@
 }
 
 .modelSelectDisabled {
-  background-color: #1a1a1a !important;
-  color: #666666 !important;
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-tertiary) !important;
   cursor: not-allowed !important;
   opacity: 0.6;
 }
@@ -58,14 +58,14 @@
 .inputContainer {
   width: 800px;
   border-radius: 10px 10px 0 0;
-  background-color: #212121;
+  background-color: var(--bg-base);
 }
 
 .inputWrapper {
   display: flex;
   flex-direction: column;
-  background: #2a2a2a;
-  border: 1px solid #404040;
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border-elevated);
   border-radius: 12px;
   margin-bottom: 2rem;
   padding: 0.75rem 1rem;
@@ -74,8 +74,8 @@
 }
 
 .inputWrapper:focus-within {
-  border-color: #666666;
-  box-shadow: 0 0 0 1px #666666;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 1px var(--border-focus);
 }
 
 /* Textarea Row (textarea + send button) */
@@ -90,7 +90,7 @@
   flex: 1;
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 0.95rem;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
@@ -102,7 +102,7 @@
 }
 
 .messageInput::placeholder {
-  color: #999999;
+  color: var(--text-secondary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-weight: 400;
 }
@@ -120,8 +120,8 @@
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: #404040;
-  color: #999999;
+  background: var(--bg-elevated-3);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -133,12 +133,12 @@
 }
 
 .screenshotButtonActive {
-  background: #4CAF50;
-  color: #ffffff;
+  background: var(--accent-success);
+  color: var(--text-primary);
 }
 
 .screenshotButtonActive:hover {
-  background: #45a049;
+  background: var(--accent-success-hover);
 }
 
 /* Transform Button */
@@ -150,8 +150,8 @@
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: #404040;
-  color: #999999;
+  background: var(--bg-elevated-3);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -163,12 +163,12 @@
 }
 
 .transformButtonActive {
-  background: #FF9800;
-  color: #ffffff;
+  background: var(--accent-warning);
+  color: var(--text-primary);
 }
 
 .transformButtonActive:hover {
-  background: #FB8C00;
+  background: var(--accent-warning-hover);
 }
 
 /* Send Button (like ChatGPT) */
@@ -180,8 +180,8 @@
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: #404040;
-  color: #999999;
+  background: var(--bg-elevated-3);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -193,12 +193,12 @@
 }
 
 .sendButtonActive {
-  background: #ffffff;
-  color: #000000;
+  background: var(--text-primary);
+  color: var(--text-inverse);
 }
 
 .sendButtonActive:hover {
-  background: #e6e6e6;
+  background: var(--flexoki-150);
 }
 
 /* Loading Spinner */
@@ -221,7 +221,7 @@
 .examplesToggle {
   background: transparent;
   border: none;
-  color: #999999;
+  color: var(--text-secondary);
   font-size: 0.8125rem;
   cursor: pointer;
   padding: 0.25rem 0;
@@ -229,7 +229,7 @@
 }
 
 .examplesToggle:hover:not(:disabled) {
-  color: #cccccc;
+  color: var(--text-primary);
 }
 
 .examplesToggle:disabled {
@@ -241,8 +241,8 @@
 .examplesPanel {
   position: absolute;
   width: 800px;
-  background: #1a1a1a;
-  border: 1px solid #333333;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 1rem;
   z-index: 1000;
@@ -280,11 +280,11 @@
 }
 
 .exampleCard {
-  background: #2a2a2a;
-  border: 1px solid #404040;
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border-elevated);
   border-radius: 8px;
   padding: 0.875rem 1rem;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 0.875rem;
   line-height: 1.4;
   cursor: pointer;
@@ -293,14 +293,14 @@
 }
 
 .exampleCardFocused {
-  background: #3a3a3a;
-  border-color: #666666;
-  box-shadow: 0 0 0 2px rgba(102, 102, 102, 0.3);
+  background: var(--bg-elevated-3);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(87, 86, 83, 0.3);
 }
 
 .exampleCard:hover:not(:disabled) {
-  background: #3a3a3a;
-  border-color: #555555;
+  background: var(--bg-elevated-3);
+  border-color: var(--border-focus);
 }
 
 .exampleCard:disabled {
@@ -310,10 +310,10 @@
 
 /* Error Message */
 .errorMessage {
-  background: #2a1a1a;
-  border: 1px solid #663333;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent-error);
   border-radius: 8px;
-  color: #ff9999;
+  color: var(--accent-error-hover);
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
   margin-top: 0.75rem;
