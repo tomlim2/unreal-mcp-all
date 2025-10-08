@@ -359,7 +359,9 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
 
             {/* Breakdown by Category */}
             <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>1. NLP (Text Processing):</span>
+              <span className={styles.debugLabel}>
+                1. NLP (Text Processing):
+              </span>
               <span>
                 {tokenInfo.userInput.estimatedTokens} tokens •{" "}
                 {tokenInfo.costs?.modelName || "Unknown"} • $
@@ -420,7 +422,9 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
                       : styles.statusRed
                   }
                 >
-                  {tokenInfo.nanoBanana.available ? "Available" : "Not Available"}
+                  {tokenInfo.nanoBanana.available
+                    ? "Available"
+                    : "Not Available"}
                   {tokenInfo.nanoBanana.error &&
                     ` (${tokenInfo.nanoBanana.error})`}
                 </span>
@@ -436,7 +440,8 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
             {tokenInfo.costs && tokenInfo.costs.total > 0.001 && (
               <div className={styles.debugTip}>
                 Cost per interaction: ${tokenInfo.costs.total.toFixed(6)} (~$
-                {(tokenInfo.costs.total * 1000).toFixed(3)} per 1000 interactions)
+                {(tokenInfo.costs.total * 1000).toFixed(3)} per 1000
+                interactions)
               </div>
             )}
           </div>
@@ -462,13 +467,13 @@ export default function AssistantMessage({
   }, []);
 
   const [isExpanded, setIsExpanded] = useState(getDefaultExpanded());
-  const [activeTab, setActiveTab] = useState<"response" | "debug">("response");
+  const [activeTab, setActiveTab] = useState<"closed-debug" | "open-debug">("closed-debug");
 
   // Find the actual user input from the previous message
   const getUserInput = () => {
     if (allMessages && currentIndex !== undefined && currentIndex > 0) {
       const previousMessage = allMessages[currentIndex - 1];
-      if (previousMessage && previousMessage.role === 'user') {
+      if (previousMessage && previousMessage.role === "user") {
         return previousMessage.content;
       }
     }
@@ -500,105 +505,74 @@ export default function AssistantMessage({
 
       {isExpanded && (
         <>
+          {/* Tab Content */}
+          <div className={styles.tabContent}>
+            <div className={styles.responseTab}>
+              {message.explanation && (
+                <div className={styles.aiSection}>
+                  <p>{message.explanation}</p>
+                </div>
+              )}
+
+              {message.fallback && (
+                <div className={styles.aiSection}>
+                  <strong>FALLBACK RESPONSE</strong>
+                  <p>
+                    This response was generated as a fallback when the primary
+                    AI processing failed.
+                  </p>
+                </div>
+              )}
+
+              <ExecutionResults
+                executionResults={message.execution_results}
+                excludeImages={false}
+              />
+            </div>
+          </div>
           {/* Tab Navigation */}
           <div className={styles.tabContainer}>
             <div className={styles.tabButtons}>
-              <button
-                className={`${styles.tabButton} ${
-                  activeTab === "response" ? styles.activeTab : ""
-                }`}
-                onClick={() => setActiveTab("response")}
-              >
-                Answer
-              </button>
-              <button
-                className={`${styles.tabButton} ${
-                  activeTab === "debug" ? styles.activeTab : ""
-                }`}
-                onClick={() => setActiveTab("debug")}
-              >
-                Detail
-              </button>
+              {activeTab === "open-debug" ? (
+                <button
+                  className={`${styles.tabButton} ${
+                    activeTab === "closed-debug" ? styles.activeTab : ""
+                  }`}
+                  onClick={() => setActiveTab("closed-debug")}
+                >
+                  Close
+                </button>
+              ) : (
+                <button
+                  className={`${styles.tabButton} ${
+                    activeTab === "open-debug" ? styles.activeTab : ""
+                  }`}
+                  onClick={() => setActiveTab("open-debug")}
+                >
+                  Open Debug
+                </button>
+              )}
             </div>
           </div>
-
-          {/* Tab Content */}
-          <div className={styles.tabContent}>
-            {activeTab === "response" && (
-              <div className={styles.responseTab}>
-                {message.explanation && (
-                  <div className={styles.aiSection}>
-                    <p>{message.explanation}</p>
-                  </div>
-                )}
-
-                {message.fallback && (
-                  <div className={styles.aiSection}>
-                    <strong>FALLBACK RESPONSE</strong>
-                    <p>
-                      This response was generated as a fallback when the primary
-                      AI processing failed.
-                    </p>
-                  </div>
-                )}
-
-                <ExecutionResults
-                  executionResults={message.execution_results}
-                  excludeImages={false}
-                />
-              </div>
-            )}
-
-            {activeTab === "debug" && (
-              <div className={styles.debugTab}>
-                <div className={styles.debugCodeBlock}>
-                  <div className={styles.debugHeader}>
-                    <span className={styles.codeBlockTitle}>Debug Log</span>
-                    <button
-                      onClick={() => {
-                        const debugData = {
-                          timestamp: message.timestamp || new Date().toISOString(),
-                          user_input: getUserInput(),
-                          ai_explanation: message.explanation || "",
-                          generated_commands: message.commands || [],
-                          expected_result: message.expectedResult || "",
-                          processing_error: message.error || null,
-                          fallback_used: message.fallback || false,
-                          execution_results: (message.execution_results || []).map((result) => ({
-                            command: result.command,
-                            success: result.success,
-                            error: result.error || null,
-                            error_code: result.error_code || null,
-                            category: result.category || null,
-                            error_details: result.error_details || null,
-                            suggestion: result.suggestion || null,
-                            result: result.result || null,
-                          })),
-                          session_id: sessionId || "no_session",
-                          model_used: message.model_used || "unknown",
-                        };
-                        navigator.clipboard.writeText(
-                          JSON.stringify(debugData, null, 2)
-                        );
-                      }}
-                      className={styles.copyButton}
-                      title="Copy Debug Log"
-                    >
-                      📋
-                    </button>
-                  </div>
-
-                  <pre className={styles.debugContent}>
-                    {JSON.stringify(
-                      {
-                        timestamp: message.timestamp || new Date().toISOString(),
+          {activeTab === "open-debug" && (
+            <div className={styles.debugTab}>
+              <div className={styles.debugCodeBlock}>
+                <div className={styles.debugHeader}>
+                  <span className={styles.codeBlockTitle}>Debug Log</span>
+                  <button
+                    onClick={() => {
+                      const debugData = {
+                        timestamp:
+                          message.timestamp || new Date().toISOString(),
                         user_input: getUserInput(),
                         ai_explanation: message.explanation || "",
                         generated_commands: message.commands || [],
                         expected_result: message.expectedResult || "",
                         processing_error: message.error || null,
                         fallback_used: message.fallback || false,
-                        execution_results: (message.execution_results || []).map((result) => ({
+                        execution_results: (
+                          message.execution_results || []
+                        ).map((result) => ({
                           command: result.command,
                           success: result.success,
                           error: result.error || null,
@@ -610,17 +584,52 @@ export default function AssistantMessage({
                         })),
                         session_id: sessionId || "no_session",
                         model_used: message.model_used || "unknown",
-                      },
-                      null,
-                      2
-                    )}
-                  </pre>
+                      };
+                      navigator.clipboard.writeText(
+                        JSON.stringify(debugData, null, 2)
+                      );
+                    }}
+                    className={styles.copyButton}
+                    title="Copy Debug Log"
+                  >
+                    📋
+                  </button>
                 </div>
 
-				<TokenAnalysisPanel message={message} />
+                <pre className={styles.debugContent}>
+                  {JSON.stringify(
+                    {
+                      timestamp: message.timestamp || new Date().toISOString(),
+                      user_input: getUserInput(),
+                      ai_explanation: message.explanation || "",
+                      generated_commands: message.commands || [],
+                      expected_result: message.expectedResult || "",
+                      processing_error: message.error || null,
+                      fallback_used: message.fallback || false,
+                      execution_results: (message.execution_results || []).map(
+                        (result) => ({
+                          command: result.command,
+                          success: result.success,
+                          error: result.error || null,
+                          error_code: result.error_code || null,
+                          category: result.category || null,
+                          error_details: result.error_details || null,
+                          suggestion: result.suggestion || null,
+                          result: result.result || null,
+                        })
+                      ),
+                      session_id: sessionId || "no_session",
+                      model_used: message.model_used || "unknown",
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
               </div>
-            )}
-          </div>
+
+              <TokenAnalysisPanel message={message} />
+            </div>
+          )}
         </>
       )}
     </div>

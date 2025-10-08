@@ -82,7 +82,7 @@
 .textareaRow {
   display: flex;
   align-items: flex-end;
-  gap: 0.75rem;
+  gap: 4px;
 }
 
 /* Auto-resizing Textarea */
@@ -133,12 +133,12 @@
 }
 
 .screenshotButtonActive {
-  background: var(--accent-success);
+  background: var(--icon-base);
   color: var(--text-primary);
 }
 
 .screenshotButtonActive:hover {
-  background: var(--accent-success-hover);
+  background: var(--icon-hover);
 }
 
 /* Transform Button */
@@ -163,12 +163,12 @@
 }
 
 .transformButtonActive {
-  background: var(--accent-warning);
+  background: var(--icon-base);
   color: var(--text-primary);
 }
 
 .transformButtonActive:hover {
-  background: var(--accent-warning-hover);
+  background: var(--icon-hover);
 }
 
 /* Send Button (like ChatGPT) */
@@ -193,12 +193,12 @@
 }
 
 .sendButtonActive {
-  background: var(--text-primary);
-  color: var(--text-inverse);
+  background: var(--icon-base);
+  color: var(--text-primary);
 }
 
 .sendButtonActive:hover {
-  background: var(--flexoki-150);
+  background: var(--icon-hover);
 }
 
 /* Loading Spinner */
