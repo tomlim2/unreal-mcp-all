@@ -153,10 +153,13 @@
   --accent-success-hover: var(--flexoki-green-400);
   --accent-warning: var(--flexoki-orange-600);
   --accent-warning-hover: var(--flexoki-orange-400);
-  --accent-error: var(--flexoki-red-600);
-  --accent-error-hover: var(--flexoki-red-400);
+  --accent-error: var(--flexoki-red-400);
+  --accent-error-hover: var(--flexoki-red-200);
   --accent-info: var(--flexoki-blue-600);
   --accent-info-hover: var(--flexoki-blue-400);
+
+  --icon-base: var(--flexoki-cyan-700);
+  --icon-hover: var(--flexoki-cyan-600);
 
   /* Code syntax highlighting */
   --code-bg: var(--flexoki-950);
