@@ -13,7 +13,7 @@ import os
 logger = logging.getLogger("UnrealMCP")
 
 # Configuration
-UNREAL_HOST = os.getenv("UNREAL_TCP_HOST", "127.0.1")
+UNREAL_HOST = os.getenv("UNREAL_TCP_HOST", "127.0.0.1")
 UNREAL_PORT = int(os.getenv("UNREAL_TCP_PORT", "55557"))
 
 
