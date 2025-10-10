@@ -540,7 +540,7 @@ export default function AssistantMessage({
                   }`}
                   onClick={() => setActiveTab("closed-debug")}
                 >
-                  Close
+                  Close Debug
                 </button>
               ) : (
                 <button

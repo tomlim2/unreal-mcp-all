@@ -42,7 +42,6 @@
 
 /* Debug Code Block Wrapper */
 .debugCodeBlock {
-  background-color: var(--code-bg);
   overflow: hidden;
 }
 
@@ -52,7 +51,6 @@
   justify-content: space-between;
   align-items: center;
   padding: 4px 0;
-  background-color: var(--code-bg);
   border-top: 1px solid var(--border-default);
   border-bottom: 1px solid var(--border-default);
 }
@@ -158,6 +156,7 @@
 
 .tabButtons {
   display: flex;
+  justify-content: end;
   gap: 12px;
   margin-top: 24px;
   border-top: 1px solid var(--border-default);
@@ -385,8 +384,8 @@
 
 .aiSection strong {
   display: block;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 400;
   color: var(--text-primary);
   margin-bottom: 4px;
   font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
@@ -394,8 +393,9 @@
 
 .aiSection p {
   margin: 0;
-  font-size: 1.125rem;
-  line-height: 1.4;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  font-weight: 400;
   color: var(--text-primary);
 }
 

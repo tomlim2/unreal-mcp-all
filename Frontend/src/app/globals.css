@@ -131,15 +131,16 @@
   --flexoki-magenta-950:     #24131D;
 
   /* Semantic tokens for dark mode - Warmer variant */
-  --bg-base: var(--flexoki-950);
-  --bg-elevated: var(--flexoki-900);
-  --bg-elevated-2: var(--flexoki-850);
-  --bg-elevated-3: var(--flexoki-800);
+  --bg-base: var(--flexoki-900);
+  --bg-elevated: var(--flexoki-800);
+  --bg-elevated-2: var(--flexoki-750);
+  --bg-elevated-3: var(--flexoki-700);
   --bg-input: var(--flexoki-850);
   --bg-hover: var(--flexoki-800);
+  --bg-sidebar: var(--flexoki-950);
 
   --text-primary: var(--flexoki-100);
-  --text-secondary: var(--flexoki-400);
+  --text-secondary: var(--flexoki-700);
   --text-tertiary: var(--flexoki-500);
   --text-inverse: var(--flexoki-black);
 
@@ -158,11 +159,11 @@
   --accent-info: var(--flexoki-blue-600);
   --accent-info-hover: var(--flexoki-blue-400);
 
-  --icon-base: var(--flexoki-cyan-700);
-  --icon-hover: var(--flexoki-cyan-600);
+  --icon-base: var(--flexoki-800);
+  --icon-hover: var(--flexoki-700);
 
   /* Code syntax highlighting */
-  --code-bg: var(--flexoki-950);
+  --code-bg: var(--flexoki-blue-950);
   --code-text: var(--flexoki-200);
   --code-comment: var(--flexoki-600);
   --code-keyword: var(--flexoki-purple-600);
