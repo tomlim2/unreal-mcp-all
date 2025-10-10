@@ -191,7 +191,7 @@ def main():
         use_mesh_edges=False,
         use_tspace=False,
         use_custom_props=False,
-        add_leaf_bones=True,
+        add_leaf_bones=False,
         primary_bone_axis='Y',
         secondary_bone_axis='X',
         armature_nodetype='NULL',

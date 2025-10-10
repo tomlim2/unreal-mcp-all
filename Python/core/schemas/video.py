@@ -1,41 +1,14 @@
 """
 Video Schema Utilities
 
-Standard schema builders for consistent video API responses across all handlers.
-Implements the hierarchical schema structure for video generation and processing models.
+Standard schema builders for consistent video API responses.
+Handles video generation from images and video processing operations.
 """
 
 import time
-import uuid
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from pathlib import Path
-
-
-def generate_request_id() -> str:
-    """Generate unique request ID for audit tracking."""
-    return f"req_{uuid.uuid4().hex[:12]}"
-
-
-def get_current_timestamp() -> str:
-    """Get current ISO timestamp in UTC."""
-    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-
-
-def calculate_file_size(file_path: str) -> Dict[str, Any]:
-    """Calculate file size in bytes and display format."""
-    try:
-        file_size_bytes = Path(file_path).stat().st_size
-        file_size_mb = file_size_bytes / (1024 * 1024)
-        return {
-            "bytes": file_size_bytes,
-            "display": f"{file_size_mb:.1f} MB"
-        }
-    except Exception:
-        return {
-            "bytes": 0,
-            "display": "0.0 MB"
-        }
+from .base import get_current_timestamp, calculate_file_size
 
 
 def build_video_transform_response(
@@ -56,7 +29,29 @@ def build_video_transform_response(
     start_time: float,
     origin: str = "latest_screenshot_to_video"
 ) -> Dict[str, Any]:
-    """Build standard schema response for video generation operations."""
+    """Build standard schema response for video generation operations.
+
+    Args:
+        video_uid: Unique identifier for generated video
+        parent_uid: UID of source image
+        filename: Video filename
+        video_path: Absolute path to video file
+        original_width: Source image width
+        original_height: Source image height
+        processed_width: Output video width
+        processed_height: Output video height
+        duration_seconds: Video duration in seconds
+        prompt: Generation prompt
+        aspect_ratio: Video aspect ratio ("16:9" or "9:16")
+        resolution: Video resolution ("720p" or "1080p")
+        cost: Generation cost in USD
+        request_id: Request tracking ID
+        start_time: Operation start timestamp
+        origin: Source type (default: "latest_screenshot_to_video")
+
+    Returns:
+        Standardized video generation response with metadata and cost tracking
+    """
     duration_ms = int((time.time() - start_time) * 1000)
     file_size = calculate_file_size(video_path)
 
@@ -109,11 +104,15 @@ def build_video_transform_response(
     }
 
 
-# REMOVED: build_error_response() - replaced by core.errors.AppError system
-
-
 def extract_parent_filename(image_path: str) -> str:
-    """Extract parent filename without extension for video naming."""
+    """Extract parent filename without extension for video naming.
+
+    Args:
+        image_path: Path to parent image file
+
+    Returns:
+        Filename stem (without extension)
+    """
     try:
         path = Path(image_path)
         return path.stem  # Gets filename without extension
@@ -122,5 +121,13 @@ def extract_parent_filename(image_path: str) -> str:
 
 
 def generate_video_filename(parent_filename: str, timestamp: int) -> str:
-    """Generate video filename using parent image filename + VEO3 + timestamp."""
+    """Generate video filename using parent image filename + VEO3 + timestamp.
+
+    Args:
+        parent_filename: Parent image filename (without extension)
+        timestamp: Unix timestamp for uniqueness
+
+    Returns:
+        Generated filename (e.g., "screenshot_VEO3_1696123456.mp4")
+    """
     return f"{parent_filename}_VEO3_{timestamp}.mp4"

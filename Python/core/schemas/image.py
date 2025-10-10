@@ -1,41 +1,13 @@
 """
 Image Schema Utilities
 
-Standard schema builders for consistent image API responses across all handlers.
-Implements the hierarchical schema structure for screenshots, transformations, and future processing models.
+Standard schema builders for consistent image API responses.
+Handles screenshot captures and image transformations (AI styling, filters, etc.).
 """
 
 import time
-import uuid
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
-from pathlib import Path
-
-
-def generate_request_id() -> str:
-    """Generate unique request ID for audit tracking."""
-    return f"req_{uuid.uuid4().hex[:12]}"
-
-
-def get_current_timestamp() -> str:
-    """Get current ISO timestamp in UTC."""
-    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-
-
-def calculate_file_size(file_path: str) -> Dict[str, Any]:
-    """Calculate file size in bytes and display format."""
-    try:
-        file_size_bytes = Path(file_path).stat().st_size
-        file_size_mb = file_size_bytes / (1024 * 1024)
-        return {
-            "bytes": file_size_bytes,
-            "display": f"{file_size_mb:.1f} MB"
-        }
-    except Exception:
-        return {
-            "bytes": 0,
-            "display": "0.0 MB"
-        }
+from typing import Dict, Any
+from .base import get_current_timestamp, calculate_file_size
 
 
 def build_screenshot_response(
@@ -47,10 +19,23 @@ def build_screenshot_response(
     request_id: str,
     start_time: float
 ) -> Dict[str, Any]:
-    """Build standard schema response for screenshot operations."""
+    """Build standard schema response for screenshot operations.
+
+    Args:
+        image_uid: Unique identifier for the screenshot
+        filename: Screenshot filename
+        image_path: Absolute path to screenshot file
+        width: Image width in pixels
+        height: Image height in pixels
+        request_id: Request tracking ID
+        start_time: Operation start timestamp
+
+    Returns:
+        Standardized screenshot response with UIDs, metadata, and audit info
+    """
     duration_ms = int((time.time() - start_time) * 1000)
     file_size = calculate_file_size(image_path)
-    
+
     return {
         "success": True,
         "status_code": 200,
@@ -99,10 +84,32 @@ def build_transform_response(
     start_time: float,
     origin: str = "screenshot"
 ) -> Dict[str, Any]:
-    """Build standard schema response for image transformation operations."""
+    """Build standard schema response for image transformation operations.
+
+    Args:
+        image_uid: Unique identifier for transformed image
+        parent_uid: UID of the source image
+        filename: Output filename
+        image_path: Absolute path to transformed image
+        original_width: Source image width
+        original_height: Source image height
+        processed_width: Output image width
+        processed_height: Output image height
+        style_name: Style identifier (e.g., "cyberpunk")
+        style_prompt: Full style description
+        intensity: Style intensity (0.0-1.0)
+        tokens: Token count used
+        cost: Processing cost in USD
+        request_id: Request tracking ID
+        start_time: Operation start timestamp
+        origin: Source type ("screenshot" or "user_upload")
+
+    Returns:
+        Standardized transformation response with parent tracking and cost info
+    """
     duration_ms = int((time.time() - start_time) * 1000)
     file_size = calculate_file_size(image_path)
-    
+
     return {
         "success": True,
         "status_code": 200,
@@ -146,18 +153,22 @@ def build_transform_response(
     }
 
 
-# REMOVED: build_error_response() - replaced by core.errors.AppError system
-
-
 def extract_style_name(style_prompt: str) -> str:
-    """Extract style name from style prompt for cleaner display."""
+    """Extract style name from style prompt for cleaner display.
+
+    Args:
+        style_prompt: Full style description (e.g., "cyberpunk, neon lights, futuristic")
+
+    Returns:
+        Short style identifier (e.g., "cyberpunk")
+    """
     # Simple extraction - take first word or phrase before comma
     style_name = style_prompt.split(',')[0].strip().lower()
-    
+
     # Common style mappings
     style_mappings = {
         "cyberpunk": "cyberpunk",
-        "anime": "anime", 
+        "anime": "anime",
         "watercolor": "watercolor",
         "oil painting": "oil_painting",
         "sketch": "sketch",
@@ -165,11 +176,11 @@ def extract_style_name(style_prompt: str) -> str:
         "photorealistic": "photorealistic",
         "abstract": "abstract"
     }
-    
+
     # Check for known styles
     for key, value in style_mappings.items():
         if key in style_name:
             return value
-    
+
     # Default to cleaned first word
     return style_name.replace(' ', '_')[:20]
