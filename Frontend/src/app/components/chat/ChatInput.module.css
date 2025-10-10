@@ -179,7 +179,7 @@
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: var(--bg-elevated-3);
+  background: var(--icon-base);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;

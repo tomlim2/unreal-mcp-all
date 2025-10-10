@@ -148,8 +148,8 @@
   --border-elevated: var(--flexoki-800);
   --border-focus: var(--flexoki-700);
 
-  --accent-primary: var(--flexoki-cyan-600);
-  --accent-primary-hover: var(--flexoki-cyan-400);
+  --accent-primary: var(--flexoki-purple-400);
+  --accent-primary-hover: var(--flexoki-purple-300);
   --accent-success: var(--flexoki-green-600);
   --accent-success-hover: var(--flexoki-green-400);
   --accent-warning: var(--flexoki-orange-600);

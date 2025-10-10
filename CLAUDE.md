@@ -841,3 +841,4 @@ cd Python && python -c "from tools.ai.command_handlers import get_command_regist
 "Create a red cube at the origin and focus the camera on it"
 "Move the map to Tokyo and adjust the lighting to sunset"
 ```
+- frontend - modal does not trigger refresh data from backend. it only take the data from cached data

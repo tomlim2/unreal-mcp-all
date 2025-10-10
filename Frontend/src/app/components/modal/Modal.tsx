@@ -19,10 +19,21 @@ interface ModalProps {
 
 export default function Modal({ modalState }: ModalProps) {
   useEffect(() => {
+    // Save current scroll position
+    const scrollY = window.scrollY;
+
+    // Prevent body scroll without causing layout shift
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
-    
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+
     return () => {
-      document.body.style.overflow = 'unset';
+      // Restore body scroll
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
     };
   }, []);
 

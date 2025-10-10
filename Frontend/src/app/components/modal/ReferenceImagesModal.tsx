@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ReferenceImagesModalConfig, ReferenceImagesData, ReferenceImageUpload } from './types';
+import { useSessionImagesStore } from '../../stores/sessionImagesStore';
 import styles from './ReferenceImagesModal.module.css';
 
 // Import the URL transformation function to handle backend/frontend routing
@@ -30,6 +31,15 @@ interface LatestImageInfo {
   available: boolean;
 }
 
+interface SessionImageInfo {
+  uid: string;
+  url: string;
+  thumbnail_url: string;
+  filename: string;
+  timestamp: string;
+  command: string;
+}
+
 interface ReferenceImagesModalProps {
   config: ReferenceImagesModalConfig;
   onClose: (data?: ReferenceImagesData) => void;
@@ -38,9 +48,19 @@ interface ReferenceImagesModalProps {
 export default function ReferenceImagesModal({ config, onClose }: ReferenceImagesModalProps) {
   const { sessionId, onSubmit } = config;
 
+  // sessionId is now guaranteed to exist (required in type)
+
+  // Use global store for session images (read-only)
+  const {
+    getSessionImages,
+    getLatestImage,
+  } = useSessionImagesStore();
+
   const [latestImage, setLatestImage] = useState<LatestImageInfo | null>(null);
+  const [sessionImages, setSessionImages] = useState<SessionImageInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1); // -1 = upload button, 0+ = session image index
 
   // Form state
   const [mainPrompt, setMainPrompt] = useState('');
@@ -52,42 +72,29 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
   const mainImageInputRef = useRef<HTMLInputElement | null>(null);
   const imageUrlRef = useRef<string | null>(null);
 
-  // Fetch latest image info - only once on mount
+  // Load data from Zustand cache only (no fetching - SessionProvider handles that)
   useEffect(() => {
-    async function fetchLatestImage() {
-      // Skip fetching if no sessionId (user will upload main image)
-      if (!sessionId) {
-        setLatestImage({ uid: null, filename: null, thumbnail_url: null, available: false });
-        setLoading(false);
-        return;
-      }
+    // Get data from cache
+    const cachedImages = getSessionImages(sessionId);
+    const cachedLatest = getLatestImage(sessionId);
 
-      try {
-        const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
-        const response = await fetch(`http://localhost:${httpBridgePort}/api/session/${sessionId}/latest-image`);
-        const data = await response.json();
-
-        if (data.success) {
-          setLatestImage(data.latest_image);
-          // Cache the image URL to prevent reloading
-          if (data.latest_image.thumbnail_url) {
-            imageUrlRef.current = getFullImageUrl(data.latest_image.thumbnail_url);
-          }
-        } else {
-          console.error('Failed to fetch latest image:', data.error);
-          setLatestImage({ uid: null, filename: null, thumbnail_url: null, available: false });
-        }
-      } catch (error) {
-        console.error('Error fetching latest image:', error);
-        setLatestImage({ uid: null, filename: null, thumbnail_url: null, available: false });
-      } finally {
-        setLoading(false);
+    if (cachedImages && cachedLatest) {
+      // Use cached data
+      console.log(`Modal: Using cached data for session ${sessionId}`);
+      setSessionImages(cachedImages);
+      setLatestImage(cachedLatest);
+      if (cachedLatest.thumbnail_url) {
+        imageUrlRef.current = getFullImageUrl(cachedLatest.thumbnail_url);
       }
+    } else {
+      // No cache available - SessionProvider should have loaded this
+      console.warn(`Modal: No cached data for session ${sessionId}`);
+      setLatestImage({ uid: null, filename: null, thumbnail_url: null, available: false });
+      setSessionImages([]);
     }
 
-    fetchLatestImage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+    setLoading(false);
+  }, [sessionId, getSessionImages, getLatestImage]);
 
   // Handle main image upload
   const handleMainImageUpload = async (file: File | null) => {
@@ -114,6 +121,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     }
 
     setMainImageUpload({ file, preview });
+    setSelectedImageIndex(-1); // Select upload button
   };
 
   // Remove main image upload
@@ -122,6 +130,42 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
       URL.revokeObjectURL(mainImageUpload.preview);
     }
     setMainImageUpload(null);
+    setSelectedImageIndex(-1);
+  };
+
+  // Handle selecting a session image from slider
+  const handleSelectSessionImage = (index: number) => {
+    setSelectedImageIndex(index);
+    // Clear uploaded image when switching to UID
+    if (mainImageUpload) {
+      if (mainImageUpload.preview) {
+        URL.revokeObjectURL(mainImageUpload.preview);
+      }
+      setMainImageUpload(null);
+    }
+  };
+
+  // Handle selecting upload button
+  const handleSelectUpload = () => {
+    setSelectedImageIndex(-1);
+    mainImageInputRef.current?.click();
+  };
+
+  // Get currently selected image for main display
+  const getSelectedImage = () => {
+    if (selectedImageIndex === -1 && mainImageUpload) {
+      return { type: 'upload' as const, preview: mainImageUpload.preview };
+    }
+    if (selectedImageIndex >= 0 && selectedImageIndex < sessionImages.length) {
+      const sessionImage = sessionImages[selectedImageIndex];
+      return {
+        type: 'session' as const,
+        url: getFullImageUrl(sessionImage.url),
+        uid: sessionImage.uid,
+        filename: sessionImage.filename
+      };
+    }
+    return null;
   };
 
   // Handle file upload - client-side only processing
@@ -147,10 +191,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     const newReferenceImages = [...referenceImages];
     newReferenceImages[index] = {
       file,
-      purpose: newReferenceImages[index]?.purpose || 'style', // Keep for backward compatibility
-      preview,
-      uploading: false,  // No uploading state needed
-      refer_uid: undefined  // Will be generated on submit
+      preview
     };
     setReferenceImages(newReferenceImages);
   };
@@ -165,15 +206,6 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsDataURL(file);
     });
-  };
-
-  // Handle purpose change - client-side only (keep for backward compatibility)
-  const handlePurposeChange = (index: number, purpose: 'style' | 'color' | 'composition') => {
-    const newReferenceImages = [...referenceImages];
-    if (newReferenceImages[index]) {
-      newReferenceImages[index].purpose = purpose;
-      setReferenceImages([...newReferenceImages]);
-    }
   };
 
   // Handle reference prompt change - new functionality
@@ -200,9 +232,10 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
 
   // Handle submit - send images directly with transformation request
   const handleSubmit = async () => {
-    // Check if we have either a target image UID OR a main image upload
-    const hasTargetImage = latestImage?.available && latestImage.uid;
-    const hasMainImageUpload = mainImageUpload !== null;
+    // Get selected image based on slider selection
+    const selectedImage = getSelectedImage();
+    const hasTargetImage = selectedImage?.type === 'session';
+    const hasMainImageUpload = selectedImage?.type === 'upload';
 
     if (!hasTargetImage && !hasMainImageUpload) {
       alert('Please provide a target image (either upload one or use an existing screenshot)');
@@ -268,7 +301,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         prompt: mainPrompt.trim() || 'Transform using reference images', // Minimal backward compatibility
         main_prompt: mainPrompt.trim() || undefined, // NEW: Optional main prompt
         reference_prompts: activeReferencePrompts, // NEW: Individual prompts per image
-        targetImageUid: hasTargetImage ? latestImage.uid : undefined,
+        targetImageUid: hasTargetImage && selectedImage?.type === 'session' ? selectedImage.uid : undefined,
         mainImageData: mainImageData, // NEW: User-uploaded main image
         referenceImageData // NEW: Direct image data (replaces referenceImageUids)
       };
@@ -292,19 +325,25 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     }
   };
 
-  // Handle close
+  // Handle close - just call onClose, cleanup happens on unmount
   const handleClose = () => {
-    // Clean up preview URLs
-    if (mainImageUpload?.preview) {
-      URL.revokeObjectURL(mainImageUpload.preview);
-    }
-    referenceImages.forEach(ref => {
-      if (ref.preview) {
-        URL.revokeObjectURL(ref.preview);
-      }
-    });
     onClose();
   };
+
+  // Cleanup on unmount only
+  useEffect(() => {
+    return () => {
+      // Clean up preview URLs when modal actually unmounts
+      if (mainImageUpload?.preview) {
+        URL.revokeObjectURL(mainImageUpload.preview);
+      }
+      referenceImages.forEach(ref => {
+        if (ref.preview) {
+          URL.revokeObjectURL(ref.preview);
+        }
+      });
+    };
+  }, [mainImageUpload, referenceImages]);
 
   if (loading) {
     return (
@@ -319,8 +358,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     );
   }
 
-  // Show main image upload UI if no latest image OR user uploaded an image
-  const showMainImageUpload = !latestImage?.available || mainImageUpload !== null;
+  const selectedImage = getSelectedImage();
 
   return (
     <div className={styles.modal}>
@@ -331,73 +369,82 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         </div>
 
         <div className={styles.body}>
-          {/* Target Image Section */}
+          {/* Target Image Section with Slider */}
           <div className={styles.section}>
             <h3>Target Image (Main Image to Transform)</h3>
-            {showMainImageUpload ? (
-              <div className={styles.targetImage}>
-                {mainImageUpload ? (
-                  <div className={styles.uploadedImage}>
-                    <img
-                      src={mainImageUpload.preview}
-                      alt="Main image to transform"
-                      className={styles.thumbnail}
-                    />
-                    <button
-                      className={styles.removeButton}
-                      onClick={removeMainImageUpload}
-                      disabled={submitting}
-                    >
-                      ×
-                    </button>
-                  </div>
+
+            {/* Main Image Display */}
+            <div className={styles.mainImageDisplay}>
+              {selectedImage ? (
+                selectedImage.type === 'upload' ? (
+                  <img
+                    src={selectedImage.preview}
+                    alt="Uploaded image to transform"
+                    className={styles.mainImage}
+                  />
                 ) : (
-                  <div
-                    className={styles.uploadPlaceholder}
-                    onClick={() => mainImageInputRef.current?.click()}
-                  >
-                    <span className={styles.uploadIcon}>+</span>
-                    <span>Upload Main Image to Transform</span>
+                  <div className={styles.mainImageContainer}>
+					<div className={styles.mainImageWrapper}>
+						<img
+							src={selectedImage.url}
+							alt={`Session image ${selectedImage.uid}`}
+							className={styles.mainImage}
+						/>
+					</div>
+                    <div className={styles.imageInfo}>
+                      <span className={styles.uid}>{selectedImage.uid}</span> <span className={styles.filename}>{selectedImage.filename}</span>
+                    </div>
                   </div>
-                )}
-                <input
-                  ref={mainImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleMainImageUpload(e.target.files?.[0] || null)}
-                  style={{ display: 'none' }}
-                  disabled={submitting}
-                />
-              </div>
-            ) : (
-              <div className={styles.targetImage}>
-                <img
-                  src={imageUrlRef.current || getFullImageUrl(latestImage!.thumbnail_url!)}
-                  alt={`Image ${latestImage!.uid}`}
-                  className={styles.thumbnail}
-                />
-                <div className={styles.imageInfo}>
-                  <span className={styles.uid}>UID: {latestImage!.uid}</span>
-                  <span className={styles.filename}>{latestImage!.filename}</span>
+                )
+              ) : (
+                <div className={styles.mainImagePlaceholder}>
+                  <span>Select an image from below or upload a new one</span>
                 </div>
-                <button
-                  className={styles.button}
-                  onClick={() => mainImageInputRef.current?.click()}
-                  disabled={submitting}
-                  style={{ marginTop: '8px' }}
+              )}
+            </div>
+
+            {/* Image Slider */}
+            <div className={styles.imageSlider}>
+              <div className={styles.sliderTrack}>
+                {/* Upload Button */}
+                <div
+                  className={`${styles.sliderItem} ${styles.sliderItemUpload} ${
+                    selectedImageIndex === -1 ? styles.sliderItemSelected : ''
+                  }`}
+                  onClick={handleSelectUpload}
                 >
-                  Upload Different Image Instead
-                </button>
-                <input
-                  ref={mainImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleMainImageUpload(e.target.files?.[0] || null)}
-                  style={{ display: 'none' }}
-                  disabled={submitting}
-                />
+                  <span className={styles.uploadIcon}>+</span>
+                  <span className={styles.uploadText}>Upload</span>
+                </div>
+
+                {/* Session Images */}
+                {sessionImages.map((image, index) => (
+                  <div
+                    key={image.uid}
+                    className={`${styles.sliderItem} ${
+                      selectedImageIndex === index ? styles.sliderItemSelected : ''
+                    }`}
+                    onClick={() => handleSelectSessionImage(index)}
+                  >
+                    <img
+                      src={getFullImageUrl(image.thumbnail_url)}
+                      alt={`Session image ${image.uid}`}
+                      className={styles.sliderThumbnail}
+                    />
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={mainImageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleMainImageUpload(e.target.files?.[0] || null)}
+              style={{ display: 'none' }}
+              disabled={submitting}
+            />
           </div>
 
           {/* Main Prompt Section */}

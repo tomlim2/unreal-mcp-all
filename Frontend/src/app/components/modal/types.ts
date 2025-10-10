@@ -86,7 +86,6 @@ export interface CustomModalConfig extends BaseModalConfig {
 // Reference Images modal types
 export interface ReferenceImageUpload {
   file: File;
-  purpose: 'style' | 'color' | 'composition'; // Legacy field, not used
   preview?: string;
 }
 
@@ -105,7 +104,7 @@ export interface ReferenceImagesData {
 }
 
 export interface ReferenceImagesModalConfig extends BaseModalConfig {
-  sessionId: string | null; // Allow null for first page usage
+  sessionId: string; // Required: must have active session
   onSubmit: (data: ReferenceImagesData) => void | Promise<void>;
 }
 

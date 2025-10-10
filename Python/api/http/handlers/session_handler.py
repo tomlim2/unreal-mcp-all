@@ -306,3 +306,82 @@ def handle_get_latest_image(handler, request_data: dict, trace_id: str) -> Dict[
     except Exception as e:
         log_error(trace_id, e, "get_latest_image")
         raise
+
+
+@route("/api/session/*/images", method="GET", description="Get all images for session", tags=["Session"])
+def handle_get_session_images(handler, request_data: dict, trace_id: str) -> Dict[str, Any]:
+    """
+    Handle request for all images in a session.
+
+    Args:
+        handler: HTTP request handler instance
+        request_data: Parsed request body (unused for GET)
+        trace_id: Request trace ID
+
+    Returns:
+        Dict with all session images
+
+    Response Format:
+        {
+            "success": bool,
+            "images": [
+                {
+                    "uid": str,
+                    "url": str,
+                    "thumbnail_url": str,
+                    "filename": str,
+                    "timestamp": ISO timestamp,
+                    "command": str
+                },
+                ...
+            ]
+        }
+    """
+    # Extract session ID from path
+    path_parts = handler.path.split('/')
+    if len(path_parts) < 4:
+        raise ValueError("Invalid session ID in path")
+
+    session_id = path_parts[3]
+    log_request_start(trace_id, "GET", f"/api/session/{session_id}/images", None)
+
+    try:
+        session_manager = get_session_manager()
+        session_context = session_manager.get_session(session_id)
+
+        if not session_context:
+            return {
+                'success': False,
+                'error': 'Session not found',
+                'images': []
+            }
+
+        # Get all recent images from session (up to 50)
+        recent_images = session_context.get_recent_images(max_images=50)
+
+        # Transform to frontend format
+        images = []
+        for img_info in recent_images:
+            image_url = img_info.get('image_url', '')
+            image_uid = img_info.get('image_uid', '')
+            filename = img_info.get('filename', '')
+
+            images.append({
+                'uid': image_uid,
+                'url': image_url,
+                'thumbnail_url': image_url,  # Same as URL for thumbnails
+                'filename': filename,
+                'timestamp': img_info.get('timestamp', ''),
+                'command': img_info.get('command', 'unknown')
+            })
+
+        logger.info(f"Returning {len(images)} images for session {session_id}")
+
+        return {
+            'success': True,
+            'images': images
+        }
+
+    except Exception as e:
+        log_error(trace_id, e, "get_session_images")
+        raise
