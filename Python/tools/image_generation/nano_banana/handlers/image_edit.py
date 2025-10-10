@@ -73,7 +73,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             return False
     
     def get_supported_commands(self) -> List[str]:
-        return ["transform_image_style"]
+        return ["transform_image_style", "generate_image_from_text"]
     
     def _extract_image_dimensions(self, image_data: Dict[str, Any]) -> Dict[str, int]:
         """Extract width and height from image data (bytes or file path)."""
@@ -193,7 +193,23 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                     errors.append("intensity must be a number")
                 elif intensity < 0.1 or intensity > 1.0:
                     errors.append("intensity must be between 0.1 and 1.0")
-        
+
+        elif command_type == "generate_image_from_text":
+            # Required parameters
+            if not params.get("text_prompt"):
+                errors.append("text_prompt is required")
+
+            # Validate aspect ratio if provided
+            if "aspect_ratio" in params:
+                valid_ratios = ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
+                if params["aspect_ratio"] not in valid_ratios:
+                    errors.append(f"aspect_ratio must be one of {valid_ratios}")
+
+            # Validate reference images count
+            reference_images = params.get("reference_images", [])
+            if len(reference_images) > 3:
+                errors.append("Maximum 3 reference images allowed")
+
         return ValidatedCommand(
             type=command_type,
             params=params,
@@ -203,13 +219,18 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     
     def preprocess_params(self, command_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
         processed = params.copy()
-        processed.setdefault("intensity", 0.8)
 
-        # Auto-assign target_image_uid from image_uid if not provided
         if command_type == "transform_image_style":
+            processed.setdefault("intensity", 0.8)
+            # Auto-assign target_image_uid from image_uid if not provided
             if not processed.get("target_image_uid") and processed.get("image_uid"):
                 processed["target_image_uid"] = processed["image_uid"]
                 logger.info(f"Auto-assigned target_image_uid: {processed['target_image_uid']}")
+
+        elif command_type == "generate_image_from_text":
+            processed.setdefault("aspect_ratio", "16:9")
+            processed.setdefault("reference_images", [])
+            processed.setdefault("reference_prompts", [])
 
         return processed
     
@@ -248,12 +269,14 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
         if command_type == "transform_image_style":
             return self._transform_existing_image(params)
+        elif command_type == "generate_image_from_text":
+            return self._generate_image_from_text(params)
         else:
             from core.errors import validation_failed
             raise validation_failed(
                 message=f"Unsupported command: {command_type}",
                 invalid_params={"type": command_type},
-                suggestion="Use 'transform_image_style' for image transformations"
+                suggestion="Use 'transform_image_style' for image transformations or 'generate_image_from_text' for text-to-image generation"
             )
     
     def _transform_existing_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -422,7 +445,96 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Transform failed: {e}")
             raise transformation_failed(str(e))
-    
+
+    def _generate_image_from_text(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate image from text prompt with optional reference images for style."""
+        start_time = time.time()
+        request_id = generate_request_id()
+
+        text_prompt = params["text_prompt"]
+        aspect_ratio = params.get("aspect_ratio", "16:9")
+        reference_images = params.get("reference_images", [])
+        reference_prompts = params.get("reference_prompts", [])
+        session_id = params.get("session_id")
+
+        logger.info(f"Text-to-image generation: '{text_prompt}' [aspect_ratio: {aspect_ratio}, refs: {len(reference_images)}] [req_id: {request_id}]")
+
+        # Generate UID and filename BEFORE generation
+        new_image_uid = generate_image_uid()
+        model = params.get("model", "gemini-2.5-flash-image")
+        generated_filename = self._generate_styled_filename(new_image_uid, model, "text_to_image")
+
+        try:
+            # Build generation prompt
+            if reference_images:
+                # Text-to-image with style references
+                logger.info(f"Generating with {len(reference_images)} style reference images")
+                generation_prompt = self._build_text_to_image_prompt_with_references(
+                    text_prompt, reference_prompts, aspect_ratio
+                )
+            else:
+                # Pure text-to-image
+                logger.info("Generating from text only (no references)")
+                generation_prompt = self._build_text_to_image_prompt(text_prompt, aspect_ratio)
+
+            # Generate image using Gemini
+            generated_image_path = self._generate_with_gemini(
+                generation_prompt, reference_images, generated_filename
+            )
+
+            if not generated_image_path:
+                raise transformation_failed("Text-to-image generation returned no result")
+
+            filename = generated_filename
+
+            # Extract metadata
+            generated_metadata = self._extract_image_metadata(generated_image_path, model=model)
+
+            # Add mapping for the generated image (no parent_uid)
+            add_uid_mapping(
+                new_image_uid,
+                'image',
+                filename,
+                parent_uid=None,  # Text-generated images have no parent
+                session_id=session_id,
+                metadata={
+                    'width': generated_metadata['width'],
+                    'height': generated_metadata['height'],
+                    'file_path': generated_image_path,
+                    'style_type': 'text_to_image',
+                    'model': model,
+                    'aspect_ratio': aspect_ratio,
+                    'reference_count': len(reference_images),
+                    'source': 'text_generated'  # Distinguish from screenshot/user_upload
+                }
+            )
+
+            # Build standardized response
+            return build_transform_response(
+                image_uid=new_image_uid,
+                parent_uid=None,
+                filename=filename,
+                image_path=generated_image_path,
+                original_width=0,  # No original image
+                original_height=0,
+                processed_width=generated_metadata['width'],
+                processed_height=generated_metadata['height'],
+                style_name=extract_style_name(text_prompt),
+                style_prompt=text_prompt,
+                intensity=1.0,  # N/A for text-to-image
+                tokens=generated_metadata['tokens'],
+                cost=float(generated_metadata['estimated_cost'].replace('$', '')),
+                request_id=request_id,
+                start_time=start_time,
+                origin="text_to_image"
+            )
+
+        except AppError:
+            raise
+        except Exception as e:
+            logger.error(f"Text-to-image generation failed: {e}")
+            raise transformation_failed(str(e))
+
     def _apply_nano_banana_style(self, image_path: str, style_prompt: str, intensity: float, output_filename: str = None) -> Optional[str]:
         """Apply Gemini image generation style transformation to image."""
         if not self._ensure_gemini_initialized():
@@ -1153,4 +1265,75 @@ Combined prompt:"""
                 reason=str(e),
                 model="fallback"
             )
-    
+
+    def _build_text_to_image_prompt(self, text_prompt: str, aspect_ratio: str) -> str:
+        """Build prompt for pure text-to-image generation."""
+        return f"""Generate a high-quality image based on this description: {text_prompt}
+
+Create a detailed, visually appealing image that accurately represents the described scene.
+Aspect ratio: {aspect_ratio}
+Focus on quality, composition, and aesthetic appeal."""
+
+    def _build_text_to_image_prompt_with_references(self, text_prompt: str, reference_prompts: List[str], aspect_ratio: str) -> str:
+        """Build prompt for text-to-image with style reference images."""
+        # Build style instruction from reference prompts
+        style_instructions = []
+        for i, ref_prompt in enumerate(reference_prompts):
+            if ref_prompt.strip():
+                style_instructions.append(f"Apply the visual style from reference image {i+1}: {ref_prompt}")
+
+        style_text = ". ".join(style_instructions) if style_instructions else "Apply the visual style from the reference images"
+
+        return f"""Generate a high-quality image based on this description: {text_prompt}
+
+{style_text}.
+
+Create a detailed, visually appealing image that combines the described content with the referenced visual style.
+Aspect ratio: {aspect_ratio}
+Focus on quality, composition, and aesthetic appeal."""
+
+    def _generate_with_gemini(self, generation_prompt: str, reference_images: List[Dict[str, Any]], output_filename: str) -> Optional[str]:
+        """Generate image using Gemini API with optional reference images."""
+        if not self._ensure_gemini_initialized():
+            raise api_unavailable("Gemini", "Text-to-image generation requires Gemini API")
+
+        try:
+            # Prepare content parts
+            content_parts = []
+
+            # Add reference images first if present
+            for ref_img in reference_images[:3]:  # Max 3 references
+                if isinstance(ref_img['data'], bytes):
+                    ref_b64 = base64.b64encode(ref_img['data']).decode('utf-8')
+                else:
+                    ref_b64 = ref_img['data']
+
+                content_parts.append({
+                    'inline_data': {
+                        'mime_type': ref_img['mime_type'],
+                        'data': ref_b64
+                    }
+                })
+
+            # Add text prompt
+            content_parts.append(generation_prompt)
+
+            # Generate image
+            logger.info(f"Sending text-to-image request to Gemini with {len(reference_images)} references...")
+            logger.info(f"📋 PROMPT TO GEMINI:\n{generation_prompt}")
+            response = self._model.generate_content(content_parts)
+
+            if not response or not response.candidates:
+                logger.warning("No response from Gemini text-to-image generation")
+                return None
+
+            # Save the generated image
+            generated_image_path = self._save_gemini_generated_image(
+                response, "text_generated", generation_prompt, output_filename
+            )
+            return generated_image_path
+
+        except Exception as e:
+            logger.error(f"Gemini text-to-image generation failed: {e}")
+            raise transformation_failed(str(e), "gemini_text_to_image")
+

@@ -14,17 +14,18 @@ interface SessionContextType {
   sessionInfo: Session[];
   sessionsLoaded: boolean;
   sessionsLoading: boolean;
-  
+
   // Active session
   sessionId: string | null;
   setSessionId: (id: string | null) => void;
-  
+
   // Session operations
   handleCreateSession: (name: string) => Promise<Session | null>;
   handleDeleteSession: (sid: string) => Promise<void>;
   handleRenameSession: (sid: string, name: string) => Promise<void>;
   handleSelectSession: (sid: string) => void;
-  
+  fetchSessions: () => Promise<void>;
+
   // Error handling
   error: string | null;
   setError: (error: string | null) => void;
@@ -221,6 +222,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
     handleDeleteSession,
     handleRenameSession,
     handleSelectSession,
+    fetchSessions,
     error,
     setError
   };

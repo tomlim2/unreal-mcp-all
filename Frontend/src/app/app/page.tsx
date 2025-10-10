@@ -14,6 +14,7 @@ export default function AppHome() {
   const {
     sessionsLoaded,
     handleCreateSession,
+    fetchSessions,
     error,
     setError
   } = useSessionContext();
@@ -51,25 +52,27 @@ export default function AppHome() {
     referenceImageData?: any;
   }) => {
     try {
-      // Create new session with the prompt as the session name
-      const newSession = await handleCreateSession(data.prompt.trim());
-      if (newSession) {
-        // Send the transform request to the newly created session
-        await apiService.transform({
-          prompt: data.prompt,
-          sessionId: newSession.session_id,
-          model: data.model,
-          main_prompt: data.main_prompt,
-          reference_prompts: data.reference_prompts,
-          referenceImageData: data.referenceImageData,
-          mainImageData: data.mainImageData
-        });
+      // Call new atomic endpoint: create session + generate image
+      const result = await apiService.createSessionWithImage({
+        prompt: data.prompt,
+        main_prompt: data.main_prompt,
+        text_prompt: data.main_prompt || data.prompt,
+        aspect_ratio: "16:9",
+        model: data.model,
+        mainImageData: data.mainImageData,
+        referenceImageData: data.referenceImageData,
+        reference_prompts: data.reference_prompts
+      });
+
+      if (result.success && result.session_id) {
+        // Refresh session list to update sidebar
+        await fetchSessions();
 
         // Redirect to the newly created session
-        router.push(`/app/${newSession.session_id}`);
+        router.push(result.redirect_url || `/app/${result.session_id}`);
       }
     } catch (error) {
-      console.error('Failed to create session and transform image:', error);
+      console.error('Failed to create session with image:', error);
     }
   };
 
