@@ -4,6 +4,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useMemo } fr
 import { useRouter, usePathname } from "next/navigation";
 import { createApiService, Session } from "../services";
 import { useSessionStore } from "../store/sessionStore";
+import { useSessionImagesStore } from "../stores/sessionImagesStore";
 import Sidebar from "../components/sidebar/Sidebar";
 import styles from "../components/SessionManagerPanel.module.css";
 
@@ -41,25 +42,32 @@ export const useSessionContext = () => {
   return context;
 };
 
-// Session Provider Component  
+// Session Provider Component
 function SessionProvider({ children }: { children: ReactNode }) {
   const { sessionId, setSessionId } = useSessionStore();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
-  
+
   // Session management state
   const [sessionInfo, setSessionInfo] = useState<Session[]>([]);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  
+
+  // Session images store
+  const {
+    setSessionImages,
+    setLatestImage,
+    invalidateSession
+  } = useSessionImagesStore();
+
   // Create apiService once and memoize it
   const apiService = useMemo(() => createApiService(), []);
 
   // Only load sessions once on mount
   useEffect(() => {
     let isMounted = true;
-    
+
     const loadSessions = async () => {
       try {
         const sessions = await apiService.getSessions();
@@ -83,11 +91,54 @@ function SessionProvider({ children }: { children: ReactNode }) {
     };
 
     loadSessions();
-    
+
     return () => {
       isMounted = false;
     };
   }, []); // Only run once on mount
+
+  // Fetch and cache session images data
+  const fetchSessionImages = async (sid: string) => {
+    try {
+      const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
+
+      // Fetch both latest image and all images in parallel
+      const [latestResponse, imagesResponse] = await Promise.all([
+        fetch(`http://localhost:${httpBridgePort}/api/session/${sid}/latest-image`),
+        fetch(`http://localhost:${httpBridgePort}/api/session/${sid}/images`)
+      ]);
+
+      const [latestData, imagesData] = await Promise.all([
+        latestResponse.json(),
+        imagesResponse.json()
+      ]);
+
+      // Handle latest image
+      const latestImageData = latestData.success
+        ? latestData.latest_image
+        : { uid: null, filename: null, thumbnail_url: null, available: false };
+
+      // Handle session images
+      const imagesArray = imagesData.success ? (imagesData.images || []) : [];
+
+      // Cache in Zustand
+      setLatestImage(sid, latestImageData);
+      setSessionImages(sid, imagesArray);
+
+      console.log(`SessionProvider: Cached ${imagesArray.length} images for session ${sid}`);
+    } catch (error) {
+      console.error(`Failed to fetch session images for ${sid}:`, error);
+      // Don't throw - just don't cache
+    }
+  };
+
+  // Fetch session images when sessionId changes
+  useEffect(() => {
+    if (sessionId) {
+      fetchSessionImages(sessionId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]); // fetchSessionImages is stable, doesn't need to be in deps
 
   const fetchSessions = async () => {
     try {
@@ -121,10 +172,14 @@ function SessionProvider({ children }: { children: ReactNode }) {
   const handleDeleteSession = async (sid: string) => {
     try {
       const isCurrentSession = sessionId === sid;
-      
+
       await apiService.deleteSession(sid);
+
+      // Invalidate session images cache
+      invalidateSession(sid);
+
       await fetchSessions(); // Refresh the list
-      
+
       if (isCurrentSession) {
         // If deleting current session, redirect to /app
         setSessionId(null);

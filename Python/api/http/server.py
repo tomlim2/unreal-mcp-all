@@ -135,13 +135,32 @@ class HTTPBridgeHandler(BaseHTTPRequestHandler):
             parsed_url = urlparse(self.path)
             path = parsed_url.path
 
-            # Check for dynamic routes first (session latest image)
+            # Check for dynamic routes first (session-based endpoints)
             import re
             latest_image_match = re.match(r'^/api/session/([^/]+)/latest-image$', path)
+            session_images_match = re.match(r'^/api/session/([^/]+)/images$', path)
+
             if latest_image_match:
                 # Call the handler directly
                 from api.http.handlers import session_handler
                 response = session_handler.handle_get_latest_image(self, {}, trace_id)
+
+                self.send_response(200)
+                add_cors_headers(self)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+
+                response_json = json.dumps(response, cls=SafeJSONEncoder)
+                self.wfile.write(response_json.encode('utf-8'))
+
+                duration_ms = (time.time() - start_time) * 1000
+                log_request_end(trace_id, 200, duration_ms)
+                return
+
+            if session_images_match:
+                # Call the handler directly
+                from api.http.handlers import session_handler
+                response = session_handler.handle_get_session_images(self, {}, trace_id)
 
                 self.send_response(200)
                 add_cors_headers(self)

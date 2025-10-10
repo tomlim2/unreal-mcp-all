@@ -78,14 +78,6 @@ export default function MessageItemImageResult({
                 e.preventDefault();
               }}
             />
-            {/* Display UID and filename only */}
-            {/* <div className={styles.transformationDetails}>
-              <small className={styles.styleInfo}>
-                {resultData?.uids?.image && `${resultData.uids.image}`}
-                {resultData?.uids?.image && resultData?.filename && ` | `}
-                {resultData?.filename && `File: ${resultData.filename}`}
-              </small>
-            </div> */}
           </>
         ) : (
           <div className={styles.screenshotError}>

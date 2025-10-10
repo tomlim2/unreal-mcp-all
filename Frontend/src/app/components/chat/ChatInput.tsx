@@ -233,6 +233,28 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	const handleTransformClick = async () => {
 		if (isProcessing || !onTransformSubmit) return;
 
+		// Don't open modal if no valid session
+		if (!sessionId) {
+			console.warn('Cannot open transform modal: No active session');
+			return;
+		}
+
+		// Check if session exists in backend before opening modal
+		try {
+			const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
+			const checkResponse = await fetch(`http://localhost:${httpBridgePort}/api/session/${sessionId}/latest-image`);
+			const checkData = await checkResponse.json();
+
+			// If session doesn't exist, warn user
+			if (!checkData.success && checkData.error?.includes('Session not found')) {
+				console.warn('Session not initialized yet - please send a message first');
+				return;
+			}
+		} catch (err) {
+			console.error('Failed to check session:', err);
+			return;
+		}
+
 		try {
 			await showReferenceImages({
 				sessionId,
@@ -265,7 +287,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
 	const isProcessing = loading || submitting;
 	const canSubmit = prompt.trim() && !isProcessing;
-	const canTransform = !isProcessing && onTransformSubmit;
+	const canTransform = !isProcessing && onTransformSubmit && !!sessionId;
 
 	// Re-focus after loading finishes
 	useEffect(() => {

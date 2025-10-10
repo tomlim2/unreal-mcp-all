@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createApiService, SessionContext, TransformRequest } from "../services";
 import { useSessionContext } from "../layout";
+import { useSessionImagesStore } from "../stores/sessionImagesStore";
 import Sidebar from "./sidebar/Sidebar";
 import ConversationHistory from "./conversation/ConversationHistory";
 import ChatInput, { ChatInputHandle } from "./chat/ChatInput";
@@ -22,15 +23,18 @@ export default function SessionManagerPanel() {
     error,
     setError
   } = useSessionContext();
-  
+
+  // Session images store
+  const { invalidateSession } = useSessionImagesStore();
+
   // Session context state
   const [messageInfo, setMessageInfo] = useState<SessionContext | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
-  
+
   // Chat state
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);  
+  const [chatError, setChatError] = useState<string | null>(null);
   const contextCache = useRef<Map<string, SessionContext>>(new Map());
   const chatInputRef = useRef<ChatInputHandle>(null);
 
@@ -81,6 +85,9 @@ export default function SessionManagerPanel() {
       const result = await apiService.chat(prompt, sessionId, llmModel);
       console.log('Chat result:', result);
 
+      // Invalidate session images cache (new screenshot may have been taken)
+      invalidateSession(sessionId);
+
       // Refresh context to show new messages
       contextCache.current.delete(sessionId);
       await fetchSessionContext(sessionId, true);
@@ -101,6 +108,7 @@ export default function SessionManagerPanel() {
   // Wrap session operations to handle context cache
   const handleSessionDelete = async (sid: string) => {
     contextCache.current.delete(sid);
+    invalidateSession(sid); // Clear session images cache
     await handleDeleteSession(sid);
   };
 
@@ -117,6 +125,9 @@ export default function SessionManagerPanel() {
     try {
       const result = await apiService.transform(data as TransformRequest);
       console.log('Transform result:', result);
+
+      // Invalidate session images cache (new transformed image was created)
+      invalidateSession(sessionId);
 
       // Refresh context to show new messages
       contextCache.current.delete(sessionId);
