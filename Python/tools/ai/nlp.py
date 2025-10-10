@@ -253,12 +253,20 @@ def _auto_assign_latest_image_if_needed(command, session_context):
     params = command["params"]
     command_type = command.get("type")
 
-    # Image-related commands
+    # Image-related commands (commands that require source images)
     image_commands = ["transform_image_style", "generate_video_from_image"]
+
+    # Text-to-image commands (commands that DON'T require source images)
+    text_to_image_commands = ["generate_image_from_text"]
 
     # Check if image parameter already provided
     has_image = ("image_url" in params or "image_uid" in params or
                  "target_image_uid" in params or "main_image_data" in params)
+
+    # Skip auto-assignment for text-to-image commands (they don't need source images)
+    if command_type in text_to_image_commands:
+        logger.info(f"Skipping auto-assignment for {command_type} (text-to-image, no source image needed)")
+        return
 
     if command_type in image_commands and not has_image:
         logger.info(f"Attempting auto-assignment for {command_type} (has_image={has_image}, session_context={session_context is not None})")
@@ -373,6 +381,7 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
     # Commands that support image processing
     image_commands = {
         'transform_image_style',
+        'generate_image_from_text',  # Also supports reference images for style
         'compose_images',
         'blend_images',
         'transfer_style'
@@ -385,16 +394,20 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
             if 'params' not in command:
                 command['params'] = {}
 
-            # Priority 1: Add user-uploaded main image (in-memory, no UID) - takes precedence over auto-fetched UID
-            if main_image_data:
-                command['params']['main_image_data'] = main_image_data
-                logger.info(f"Added user-uploaded main image ({main_image_data.get('mime_type')}, {len(main_image_data.get('data', b''))//1024}KB) to command {command_type}")
-            # Priority 2: Add target image UID if provided (existing screenshot or auto-fetched)
-            elif target_image_uid:
-                command['params']['target_image_uid'] = target_image_uid
-                logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
+            # Special case: generate_image_from_text does NOT use main_image_data or target_image_uid
+            # It only uses reference_images for style guidance
+            if command_type != 'generate_image_from_text':
+                # Priority 1: Add user-uploaded main image (in-memory, no UID) - takes precedence over auto-fetched UID
+                if main_image_data:
+                    command['params']['main_image_data'] = main_image_data
+                    logger.info(f"Added user-uploaded main image ({main_image_data.get('mime_type')}, {len(main_image_data.get('data', b''))//1024}KB) to command {command_type}")
+                # Priority 2: Add target image UID if provided (existing screenshot or auto-fetched)
+                elif target_image_uid:
+                    command['params']['target_image_uid'] = target_image_uid
+                    logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
 
             # Add reference images if provided (in-memory only, no UID)
+            # For generate_image_from_text, reference images are used for style guidance only
             if reference_images and len(reference_images) > 0:
                 command['params']['reference_images'] = reference_images
                 logger.info(f"Added {len(reference_images)} reference images to command {command_type}")
@@ -734,10 +747,11 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     registry = get_command_registry()
     
     # Check if this is a command that doesn't need Unreal Engine connection
-    # AI Image Editing: Image transformation (uses external API)
+    # AI Image Generation/Editing: Uses external APIs (Gemini)
     # Roblox: Avatar downloads (uses Roblox API + local file storage)
     no_unreal_required_commands = [
-        'transform_image_style',
+        'generate_image_from_text',  # Text-to-image generation
+        'transform_image_style',      # Image-to-image transformation
         'download_roblox_obj',
         'get_roblox_download_status',
         'cancel_roblox_download',

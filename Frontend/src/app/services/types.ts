@@ -69,7 +69,7 @@ export interface SessionContext {
 }
 
 
-// Transform request data
+// Transform request data (image-to-image)
 export interface TransformRequest {
   prompt: string;
   main_prompt?: string;
@@ -78,6 +78,41 @@ export interface TransformRequest {
   sessionId: string;
   mainImageData?: {data: string; mime_type: string}; // User-uploaded main image
   referenceImageData?: Array<{data: string; mime_type: string}>;
+}
+
+// Text-to-image generation request data
+export interface GenerateImageRequest {
+  prompt: string;
+  text_prompt: string;  // Main generation prompt
+  aspect_ratio?: string;  // Default "16:9"
+  model: string;
+  sessionId: string;
+  referenceImageData?: Array<{data: string; mime_type: string}>; // Style references only
+  reference_prompts?: string[];
+}
+
+// Create session with image generation request
+export interface CreateSessionWithImageRequest {
+  prompt: string;
+  main_prompt?: string;
+  text_prompt?: string;
+  aspect_ratio?: string;
+  model: string;
+  session_name?: string;
+  mainImageData?: {data: string; mime_type: string};
+  referenceImageData?: Array<{data: string; mime_type: string}>;
+  reference_prompts?: string[];
+}
+
+// Create session with image generation response
+export interface CreateSessionWithImageResponse {
+  success: boolean;
+  session_id: string;
+  session_name: string;
+  image_uid?: string;
+  image_url?: string;
+  redirect_url: string;
+  nlp_result?: any;
 }
 
 // API Service Interface
@@ -95,6 +130,9 @@ export interface ApiService {
 
   // Image transformation with reference images
   transform: (data: TransformRequest) => Promise<AIResponse>;
+
+  // Create session with image generation (for first page)
+  createSessionWithImage: (data: CreateSessionWithImageRequest) => Promise<CreateSessionWithImageResponse>;
 
   // Context history
   getSessionContext: (sessionId: string) => Promise<SessionContext>;

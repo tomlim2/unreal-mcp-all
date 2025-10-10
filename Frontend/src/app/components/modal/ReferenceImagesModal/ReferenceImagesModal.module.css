@@ -102,7 +102,6 @@
 .mainImageDisplay {
   width: 100%;
   height: 400px;
-  background: var(--bg-elevated-3);
   border: 1px solid var(--border-elevated);
   margin-bottom: 8px;
   overflow: hidden;
@@ -111,6 +110,7 @@
 .mainImageWrapper {
   width: 100%;
   height: 100%;
+  background: var(--bg-elevated-3);
 }
 
 .mainImageWrapper img {
@@ -120,10 +120,37 @@
 }
 
 .mainImageContainer {
+  position: relative;
   display: grid;
-  grid-template-rows: calc(400px - 28px) 28px;
+  grid-template-rows: 28px calc(400px - 28px);
   align-items: center;
   width: 100%;
+}
+
+/* Clear image button (X) in imageInfo section */
+.clearImageButton {
+  background: var(--bg-elevated-3);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.clearImageButton:hover {
+  background: var(--flexoki-red-600);
+  border-color: var(--flexoki-red-600);
+  color: white;
+  transform: scale(1.1);
 }
 
 .mainImagePlaceholder {
@@ -242,8 +269,15 @@
 }
 
 .imageInfo {
-  gap: 0.25rem;
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.imageInfoLeft {
+
 }
 
 .uid {
@@ -254,8 +288,12 @@
 }
 
 .filename {
+  margin-left: 8px;
   font-size: 0.75rem;
   color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Form Elements */
@@ -352,26 +390,53 @@
   object-fit: cover;
 }
 
-.removeButton {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+/* Reference image info section */
+.referenceImageInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.referenceImageName {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.referenceRemoveButton {
+  background: var(--bg-elevated-3);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
   width: 1.5rem;
   height: 1.5rem;
-  background: rgba(16, 15, 15, 0.7);
-  border: none;
-  border-radius: 50%;
-  color: var(--text-primary);
-  font-size: 1rem;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
-.removeButton:hover {
+.referenceRemoveButton:hover:not(:disabled) {
   background: var(--flexoki-red-600);
+  border-color: var(--flexoki-red-600);
+  color: white;
+  transform: scale(1.1);
+}
+
+.referenceRemoveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .uploadingOverlay {

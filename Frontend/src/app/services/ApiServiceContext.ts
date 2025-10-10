@@ -1,4 +1,4 @@
-import { ApiService, Session, AIResponse, SessionContext, TransformRequest } from './types';
+import { ApiService, Session, AIResponse, SessionContext, TransformRequest, CreateSessionWithImageRequest, CreateSessionWithImageResponse } from './types';
 
 interface SessionsResponse {
   sessions: Session[];
@@ -257,6 +257,35 @@ export function createApiService(): ApiService {
         return result;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Transform failed';
+        console.error(errorMessage);
+        throw err;
+      }
+    },
+
+    createSessionWithImage: async (data: CreateSessionWithImageRequest): Promise<CreateSessionWithImageResponse> => {
+      try {
+        const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
+        const response = await fetch(`http://localhost:${httpBridgePort}/api/create-session-with-image`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to create session with image: ${response.status}`);
+        }
+
+        const result: CreateSessionWithImageResponse = await response.json();
+
+        if (!result.success) {
+          throw new Error(result['error'] || 'Failed to create session with image');
+        }
+
+        return result;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Create session with image failed';
         console.error(errorMessage);
         throw err;
       }

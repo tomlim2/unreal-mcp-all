@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, createContext, useContext, ReactNode, useM
 import { useRouter } from "next/navigation";
 import { createApiService, SessionContext, TransformRequest } from "../../services";
 import { useSessionContext } from "../layout";
+import { useSessionImagesStore } from "../../stores/sessionImagesStore";
 import styles from "../../components/SessionManagerPanel.module.css";
 
 // Conversation Context Types
@@ -69,6 +70,9 @@ function ConversationProvider({
 
   const apiService = useMemo(() => createApiService(), []);
 
+  // Zustand store for session images
+  const { setSessionImages, setLatestImage } = useSessionImagesStore();
+
   useEffect(() => {
     if (sectionId) {
       handleSelectSession(sectionId);
@@ -83,6 +87,26 @@ function ConversationProvider({
     }
   }, [sectionId]);
 
+  const fetchSessionImages = async (sid: string) => {
+    try {
+      // Fetch latest image
+      const latestImageResponse = await fetch(`http://localhost:8080/api/session/${sid}/latest-image`);
+      if (latestImageResponse.ok) {
+        const latestImageData = await latestImageResponse.json();
+        setLatestImage(sid, latestImageData);
+      }
+
+      // Fetch session images
+      const imagesResponse = await fetch(`http://localhost:8080/api/session/${sid}/images`);
+      if (imagesResponse.ok) {
+        const imagesData = await imagesResponse.json();
+        setSessionImages(sid, imagesData.images || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch session images:', error);
+    }
+  };
+
   const fetchSessionContext = async (sid: string, forceRefresh: boolean = false) => {
     if (!forceRefresh && contextCache.current.has(sid)) {
       setMessageInfo(contextCache.current.get(sid)!);
@@ -95,6 +119,9 @@ function ConversationProvider({
       const context = await apiService.getSessionContext(sid);
       contextCache.current.set(sid, context);
       setMessageInfo(context);
+
+      // Fetch and cache images
+      await fetchSessionImages(sid);
     } catch (error) {
       console.error('Failed to fetch session context:', error);
       setContextError('Failed to load conversation history');

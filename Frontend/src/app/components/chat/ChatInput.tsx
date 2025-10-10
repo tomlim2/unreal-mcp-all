@@ -233,31 +233,27 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	const handleTransformClick = async () => {
 		if (isProcessing || !onTransformSubmit) return;
 
-		// Don't open modal if no valid session
-		if (!sessionId) {
-			console.warn('Cannot open transform modal: No active session');
-			return;
-		}
+		// If session exists, check if it's initialized
+		if (sessionId) {
+			try {
+				const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
+				const checkResponse = await fetch(`http://localhost:${httpBridgePort}/api/session/${sessionId}/latest-image`);
+				const checkData = await checkResponse.json();
 
-		// Check if session exists in backend before opening modal
-		try {
-			const httpBridgePort = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
-			const checkResponse = await fetch(`http://localhost:${httpBridgePort}/api/session/${sessionId}/latest-image`);
-			const checkData = await checkResponse.json();
-
-			// If session doesn't exist, warn user
-			if (!checkData.success && checkData.error?.includes('Session not found')) {
-				console.warn('Session not initialized yet - please send a message first');
+				// If session doesn't exist, warn user
+				if (!checkData.success && checkData.error?.includes('Session not found')) {
+					console.warn('Session not initialized yet - please send a message first');
+					return;
+				}
+			} catch (err) {
+				console.error('Failed to check session:', err);
 				return;
 			}
-		} catch (err) {
-			console.error('Failed to check session:', err);
-			return;
 		}
 
 		try {
 			await showReferenceImages({
-				sessionId,
+				sessionId: sessionId || '',  // Allow empty session for first page
 				onSubmit: async (data) => {
 					setSubmitting(true);
 					setShowExamples(false);
@@ -268,7 +264,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 							main_prompt: data.main_prompt,
 							reference_prompts: data.reference_prompts,
 							model: selectedLlm,
-							sessionId,
+							sessionId: sessionId || '',  // Pass empty string for first page
 							mainImageData: data.mainImageData,
 							referenceImageData: data.referenceImageData
 						});
@@ -287,7 +283,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
 	const isProcessing = loading || submitting;
 	const canSubmit = prompt.trim() && !isProcessing;
-	const canTransform = !isProcessing && onTransformSubmit && !!sessionId;
+	const canTransform = !isProcessing && onTransformSubmit;  // Allow transform even without session
 
 	// Re-focus after loading finishes
 	useEffect(() => {
