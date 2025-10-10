@@ -9,7 +9,7 @@ from tools.ai.command_handlers.main import BaseCommandHandler
 from tools.ai.command_handlers.validation import ValidatedCommand
 from core.utils.path_manager import get_path_manager
 from tools.ai.pricing_manager import get_pricing_manager
-from tools.ai.image_schema_utils import (
+from core.schemas import (
     build_transform_response,
     generate_request_id,
     extract_style_name

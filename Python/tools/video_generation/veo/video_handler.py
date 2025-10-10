@@ -15,9 +15,11 @@ from tools.ai.command_handlers.main import BaseCommandHandler
 from tools.ai.command_handlers.validation import ValidatedCommand
 from core.utils.path_manager import get_path_manager
 from tools.ai.pricing_manager import get_pricing_manager
-from tools.ai.video_schema_utils import (
+from core.schemas import (
     build_video_transform_response,
-    generate_request_id,
+    generate_request_id
+)
+from core.schemas.video import (
     extract_parent_filename,
     generate_video_filename
 )
