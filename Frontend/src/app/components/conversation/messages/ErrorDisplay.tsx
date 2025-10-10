@@ -19,10 +19,6 @@ export default function ErrorDisplay({
 }: ErrorDisplayProps) {
   return (
     <div className={styles.resultContent}>
-      <div className={styles.errorMessage}>
-        {errorMessage}
-      </div>
-
       {errorCode && (
         <div className={styles.resultDetail}>
           <strong>Code:</strong> {errorCode}

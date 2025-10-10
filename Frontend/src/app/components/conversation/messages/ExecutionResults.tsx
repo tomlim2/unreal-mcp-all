@@ -122,20 +122,9 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
               />
             )}
 
-            {/* Message display (unified for success and error) */}
+            {/* Message display (success only - errors shown in debug panel) */}
             {!isFbxConversion && (
               <>
-                {/* Error state */}
-                {!result.success && errorMessage && (
-                  <ErrorDisplay
-                    errorMessage={errorMessage}
-                    errorCode={result.error_code}
-                    category={result.category}
-                    errorDetails={result.error_details}
-                    suggestion={result.suggestion}
-                  />
-                )}
-
                 {/* Success state - show message if available */}
                 {result.success && resultData?.message && (
                   <div className={styles.successMessage}>

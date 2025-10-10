@@ -1,5 +1,5 @@
 .container {
-  background-color: var(--bg-base);
+  background-color: var(--bg-sidebar);
   color: var(--text-primary);
   padding: .5rem;
   width: 320px;
