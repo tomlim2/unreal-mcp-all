@@ -9,6 +9,12 @@
 #include "Misc/PackageName.h"
 #include "FileHelpers.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Materials/Material.h"
+#include "Engine/Texture2D.h"
 
 FUnrealMCPObject3DCommands::FUnrealMCPObject3DCommands()
 {
@@ -91,21 +97,18 @@ TSharedPtr<FJsonObject> FUnrealMCPObject3DCommands::HandleImportObject3DByUID(co
 	UE_LOG(LogTemp, Display, TEXT("Physical path: Plugins/UnrealMCP/Content/Roblox/%s/"), *UserDirectory);
 
 	// Step 4: Check if asset already exists
-	UStaticMesh* ImportedMesh = nullptr;
+	UObject* ImportedAsset = nullptr;
 	UObject* ExistingAsset = UEditorAssetLibrary::LoadAsset(FullAssetPath);
 
 	if (ExistingAsset)
 	{
 		// Asset already exists, use it
-		ImportedMesh = Cast<UStaticMesh>(ExistingAsset);
-		if (ImportedMesh)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Asset already exists: %s, using existing asset"), *FullAssetPath);
-		}
+		ImportedAsset = ExistingAsset;
+		UE_LOG(LogTemp, Warning, TEXT("Asset already exists: %s, using existing asset"), *FullAssetPath);
 	}
 
 	// Step 5: Import 3D mesh file if not already imported
-	if (!ImportedMesh)
+	if (!ImportedAsset)
 	{
 		UE_LOG(LogTemp, Display, TEXT("=== Starting %s Import Process ==="), *MeshFormat.ToUpper());
 		UE_LOG(LogTemp, Display, TEXT("Source File: %s"), *MeshFilePath);
@@ -150,14 +153,14 @@ TSharedPtr<FJsonObject> FUnrealMCPObject3DCommands::HandleImportObject3DByUID(co
 			UE_LOG(LogTemp, Display, TEXT("✅ Import successful: %s"), *FullAssetPath);
 
 			// Try to load the imported asset
-			ImportedMesh = Cast<UStaticMesh>(UEditorAssetLibrary::LoadAsset(FullAssetPath));
-			if (ImportedMesh)
+			ImportedAsset = UEditorAssetLibrary::LoadAsset(FullAssetPath);
+			if (ImportedAsset)
 			{
-				UE_LOG(LogTemp, Display, TEXT("✅ Asset loaded successfully as StaticMesh"));
+				UE_LOG(LogTemp, Display, TEXT("✅ Asset loaded successfully: %s"), *ImportedAsset->GetClass()->GetName());
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("⚠️ Asset imported but could not be loaded as StaticMesh"));
+				UE_LOG(LogTemp, Warning, TEXT("⚠️ Asset imported but could not be loaded"));
 			}
 		}
 		else
@@ -169,7 +172,113 @@ TSharedPtr<FJsonObject> FUnrealMCPObject3DCommands::HandleImportObject3DByUID(co
 		}
 	}
 
-	// Step 6: Build simplified success response
+	// Step 6: Roblox Material Instance Setup (if SkeletalMesh)
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ImportedAsset);
+	if (SkeletalMesh)
+	{
+		// Access materials through the Materials property
+		const TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
+		if (Materials.Num() > 0)
+		{
+			UE_LOG(LogTemp, Display, TEXT("=== Starting Roblox Material Setup ==="));
+
+			// 1. Find texture from base material
+			UTexture2D* RobloxTexture = nullptr;
+			UMaterialInterface* BaseMat = Materials[0].MaterialInterface;
+
+			if (BaseMat)
+			{
+				UE_LOG(LogTemp, Display, TEXT("Base Material: %s"), *BaseMat->GetName());
+
+				// Try to get texture from BaseColor parameter
+				UTexture* BaseColorTexture = nullptr;
+				if (BaseMat->GetTextureParameterValue(FMaterialParameterInfo(TEXT("BaseColor")), BaseColorTexture))
+				{
+					RobloxTexture = Cast<UTexture2D>(BaseColorTexture);
+					if (RobloxTexture)
+					{
+						UE_LOG(LogTemp, Display, TEXT("✅ Found texture from BaseColor parameter: %s"), *RobloxTexture->GetName());
+					}
+				}
+
+				// If not found in BaseColor parameter, try to get from material's textures
+				if (!RobloxTexture)
+				{
+					TArray<UTexture*> UsedTextures;
+					BaseMat->GetUsedTextures(UsedTextures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
+
+					if (UsedTextures.Num() > 0)
+					{
+						RobloxTexture = Cast<UTexture2D>(UsedTextures[0]);
+						if (RobloxTexture)
+						{
+							UE_LOG(LogTemp, Display, TEXT("✅ Found texture from material textures: %s"), *RobloxTexture->GetName());
+						}
+					}
+				}
+
+				if (!RobloxTexture)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("⚠️ No texture found in base material, will keep base material as-is"));
+				}
+			}
+
+			// 2. Duplicate MI_Roblox to user folder
+			FString SourceMIPath = TEXT("/UnrealMCP/Roblox/Materials/MI_Roblox");
+			FString NewMIName = FString::Printf(TEXT("MI_Roblox_%s_%d"), *Username, UserId);
+			FString NewMIPath = FString::Printf(TEXT("%s/%s"), *ImportPath, *NewMIName);
+
+			UE_LOG(LogTemp, Display, TEXT("Duplicating material instance:"));
+			UE_LOG(LogTemp, Display, TEXT("  Source: %s"), *SourceMIPath);
+			UE_LOG(LogTemp, Display, TEXT("  Destination: %s"), *NewMIPath);
+
+			UMaterialInstanceConstant* NewMI = Cast<UMaterialInstanceConstant>(
+				UEditorAssetLibrary::DuplicateAsset(SourceMIPath, NewMIPath)
+			);
+
+			if (NewMI)
+			{
+				UE_LOG(LogTemp, Display, TEXT("✅ Material instance duplicated successfully"));
+
+				// 3. If texture found, apply to BaseColor parameter
+				if (RobloxTexture)
+				{
+					UE_LOG(LogTemp, Display, TEXT("Applying texture to BaseColor parameter..."));
+
+					NewMI->SetTextureParameterValueEditorOnly(
+						FMaterialParameterInfo(TEXT("BaseColor")),
+						RobloxTexture
+					);
+
+					// Save the modified material instance
+					if (UEditorAssetLibrary::SaveAsset(NewMIPath, false))
+					{
+						UE_LOG(LogTemp, Display, TEXT("✅ Texture applied and material instance saved"));
+					}
+					else
+					{
+						UE_LOG(LogTemp, Warning, TEXT("⚠️ Material instance modified but save failed"));
+					}
+				}
+				else
+				{
+					UE_LOG(LogTemp, Display, TEXT("Material instance duplicated without texture (keeping base material)"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("❌ Failed to duplicate material instance from %s"), *SourceMIPath);
+			}
+
+			UE_LOG(LogTemp, Display, TEXT("=== Material Setup Complete ==="));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SkeletalMesh has no materials, skipping material setup"));
+		}
+	}
+
+	// Step 7: Build simplified success response
 	TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
 	ResultObj->SetStringField(TEXT("message"), TEXT("Avatar imported to Plugin Content Browser"));
 	ResultObj->SetStringField(TEXT("uid"), UID);
