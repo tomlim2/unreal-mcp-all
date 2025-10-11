@@ -11,7 +11,7 @@ import ImageModal from './ImageModal';
 import LoadingModal from './LoadingModal';
 import SettingsModal from './SettingsModal';
 import CustomModal from './CustomModal';
-import ReferenceImagesModal from './ReferenceImagesModal';
+import ImageGenerationModal from './ImageGenerationModal';
 
 interface ModalProps {
   modalState: ModalState;
@@ -53,8 +53,8 @@ export default function Modal({ modalState }: ModalProps) {
         return <SettingsModal config={modalState.config} />;
       case 'custom':
         return <CustomModal config={modalState.config} />;
-      case 'reference-images':
-        return <ReferenceImagesModal config={modalState.config} onClose={modalState.config.onClose} />;
+      case 'image-generation':
+        return <ImageGenerationModal config={modalState.config} onClose={modalState.config.onClose} />;
       default:
         return null;
     }

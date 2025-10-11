@@ -19,15 +19,17 @@ def process_images_from_request(
 
     Args:
         request_data: HTTP request data
-        session_id: Optional session ID for auto-fetching latest image
+        session_id: Optional session ID (unused, kept for compatibility)
 
     Returns:
         Tuple of (target_image_uid, main_image_data, reference_images)
 
-    Image Sources Priority:
-        1. target_image_uid - Existing screenshot UID
-        2. mainImageData - User-uploaded image (in-memory)
-        3. Session auto-fetch - Latest image from session history
+    Image Sources:
+        1. target_image_uid - Existing screenshot UID (explicit selection)
+        2. mainImageData - User-uploaded image (in-memory, explicit upload)
+
+    Note: No auto-fetching. If neither is provided, returns (None, None, reference_images)
+    to enable true text-to-image generation mode.
     """
     from core.resources.images import process_main_image, process_reference_images
 
@@ -36,10 +38,6 @@ def process_images_from_request(
         main_image_request=request_data.get('mainImageData'),
         target_image_uid=request_data.get('target_image_uid')
     )
-
-    # Auto-fetch latest image from session if no image provided
-    if not target_uid and not main_image_data and session_id:
-        target_uid = _auto_fetch_latest_image(session_id)
 
     # Log selected image source
     if target_uid:
@@ -104,37 +102,3 @@ def prepare_reference_images_for_nlp(reference_images: Optional[List[Dict]]) -> 
 
     logger.debug(f"Successfully converted {len(nlp_reference_images)} reference images for NLP")
     return nlp_reference_images
-
-
-def _auto_fetch_latest_image(session_id: str) -> Optional[str]:
-    """
-    Auto-fetch latest image UID from session history.
-
-    Args:
-        session_id: Session identifier
-
-    Returns:
-        Latest image UID, or None if not found
-
-    Internal helper for process_images_from_request().
-    """
-    try:
-        from core.session import get_session_manager
-
-        sess_manager = get_session_manager()
-        session_context = sess_manager.get_session(session_id)
-
-        if session_context:
-            latest_image_uid = session_context.get_latest_image_uid()
-            if latest_image_uid:
-                logger.debug(f"Auto-fetched latest image from session: {latest_image_uid}")
-                return latest_image_uid
-            else:
-                logger.debug(f"No latest image found in session {session_id}")
-        else:
-            logger.debug(f"Session {session_id} not found")
-
-    except Exception as e:
-        logger.warning(f"Failed to auto-fetch latest image: {e}")
-
-    return None

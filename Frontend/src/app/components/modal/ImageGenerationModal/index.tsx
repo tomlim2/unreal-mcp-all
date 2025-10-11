@@ -1,12 +1,13 @@
 /**
- * Reference Images Modal - Main Component
+ * Image Generation Modal - Main Component
  * Orchestrates the modal with all sub-components
+ * Supports multiple image generation services: NanoBanana, SeeDream, Midjourney, etc.
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ReferenceImagesModalConfig, ReferenceImagesData } from '../types';
+import { ImageGenerationModalConfig, ImageGenerationData } from '../types';
 import { useSessionImageData } from './hooks/useSessionImageData';
 import { useImageSelection } from './hooks/useImageSelection';
 import { useReferenceImages } from './hooks/useReferenceImages';
@@ -15,14 +16,14 @@ import { MainPromptSection } from './components/MainPromptSection';
 import { ReferenceImagesSection } from './components/ReferenceImagesSection';
 import { fileToDataUri } from './utils/imageUtils';
 import { revokePreviewUrl } from './utils/imageUtils';
-import styles from './ReferenceImagesModal.module.css';
+import styles from './ImageGenerationModal.module.css';
 
-interface ReferenceImagesModalProps {
-  config: ReferenceImagesModalConfig;
-  onClose: (data?: ReferenceImagesData) => void;
+interface ImageGenerationModalProps {
+  config: ImageGenerationModalConfig;
+  onClose: (data?: ImageGenerationData) => void;
 }
 
-export default function ReferenceImagesModal({ config, onClose }: ReferenceImagesModalProps) {
+export default function ImageGenerationModal({ config, onClose }: ImageGenerationModalProps) {
   const { sessionId, onSubmit } = config;
 
   // Hooks
@@ -121,7 +122,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         }
       }
 
-      const data: ReferenceImagesData = {
+      const data: ImageGenerationData = {
         prompt: mainPrompt.trim() || 'Transform using reference images',
         main_prompt: mainPrompt.trim() || undefined,
         reference_prompts: activeReferencePrompts,
@@ -130,7 +131,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
         referenceImageData
       };
 
-      console.log('ReferenceImagesModal: Submitting data:', {
+      console.log('ImageGenerationModal: Submitting data:', {
         mode: isTextToImage ? '🎨 TEXT-TO-IMAGE' : '🖼️ IMAGE-TO-IMAGE',
         prompt: data.prompt,
         main_prompt: data.main_prompt,
@@ -144,7 +145,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
       await onSubmit(data);
       onClose(data);
     } catch (error) {
-      console.error('Error submitting reference images:', error);
+      console.error('Error submitting image generation:', error);
       alert('Failed to submit request. Please try again.');
     } finally {
       setSubmitting(false);
@@ -174,7 +175,7 @@ export default function ReferenceImagesModal({ config, onClose }: ReferenceImage
     <div className={styles.modal}>
       <div className={styles.modalContent}>
         <div className={styles.header}>
-          <h2>Image to Image with Reference Images</h2>
+          <h2>Image Generation</h2>
           <button className={styles.closeButton} onClick={handleClose}>×</button>
         </div>
 

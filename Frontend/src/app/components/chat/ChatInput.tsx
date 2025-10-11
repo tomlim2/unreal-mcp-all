@@ -46,7 +46,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const examplesRef = useRef<HTMLDivElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
-	const { showReferenceImages } = useModalContext();
+	const { showImageGeneration } = useModalContext();
 
 	// Expose focusInput method to parent
 	useImperativeHandle(ref, () => ({
@@ -252,7 +252,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 		}
 
 		try {
-			await showReferenceImages({
+			await showImageGeneration({
 				sessionId: sessionId || '',  // Allow empty session for first page
 				onSubmit: async (data) => {
 					setSubmitting(true);
@@ -277,7 +277,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 				}
 			});
 		} catch (err) {
-			console.error('Reference images modal failed:', err);
+			console.error('Image generation modal failed:', err);
 		}
 	};
 

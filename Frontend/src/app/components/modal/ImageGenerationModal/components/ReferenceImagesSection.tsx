@@ -6,7 +6,7 @@
 import { ReferenceImageSlot } from './ReferenceImageSlot';
 import { ReferenceImageUpload } from '../../../modal/types';
 import { MAX_REFERENCE_IMAGES } from '../utils/constants';
-import styles from '../ReferenceImagesModal.module.css';
+import styles from '../ImageGenerationModal.module.css';
 
 interface ReferenceImagesSectionProps {
   referenceImages: ReferenceImageUpload[];
