@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { ReferenceImageUpload } from '../../../modal/types';
 import { MAX_REFERENCE_PROMPT_LENGTH } from '../utils/constants';
-import styles from '../ReferenceImagesModal.module.css';
+import styles from '../ImageGenerationModal.module.css';
 
 interface ReferenceImageSlotProps {
   index: number;

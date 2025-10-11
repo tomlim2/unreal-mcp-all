@@ -11,8 +11,8 @@ import {
   LoadingModalConfig,
   SettingsModalConfig,
   CustomModalConfig,
-  ReferenceImagesModalConfig,
-  ReferenceImagesData,
+  ImageGenerationModalConfig,
+  ImageGenerationData,
   AlertType
 } from './types';
 import Modal from './Modal';
@@ -223,23 +223,23 @@ export default function ModalProvider({ children }: ModalProviderProps) {
     setModals(prev => [...prev, modalState]);
   }, [closeModal]);
 
-  // Show reference images modal
-  const showReferenceImages = useCallback((config: ReferenceImagesModalConfig): Promise<ReferenceImagesData | null> => {
+  // Show image generation modal
+  const showImageGeneration = useCallback((config: ImageGenerationModalConfig): Promise<ImageGenerationData | null> => {
     return new Promise((resolve) => {
       const id = generateId();
       const modalState: ModalState = {
         id,
-        type: 'reference-images',
+        type: 'image-generation',
         config: {
           ...config,
-          onSubmit: async (data: ReferenceImagesData) => {
+          onSubmit: async (data: ImageGenerationData) => {
             if (config.onSubmit) {
               await config.onSubmit(data);
             }
             resolve(data);
             closeModal(id);
           },
-          onClose: (data?: ReferenceImagesData) => {
+          onClose: (data?: ImageGenerationData) => {
             resolve(data || null);
             closeModal(id);
           }
@@ -274,7 +274,7 @@ export default function ModalProvider({ children }: ModalProviderProps) {
     showLoading,
     showSettings,
     showModal,
-    showReferenceImages,
+    showImageGeneration,
     closeModal,
     closeAll
   };

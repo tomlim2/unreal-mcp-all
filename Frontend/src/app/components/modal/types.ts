@@ -83,7 +83,7 @@ export interface CustomModalConfig extends BaseModalConfig {
   footer?: ReactNode;
 }
 
-// Reference Images modal types
+// Image Generation modal types
 export interface ReferenceImageUpload {
   file: File;
   preview?: string;
@@ -94,7 +94,7 @@ export interface ReferenceImageData {
   mime_type: string;
 }
 
-export interface ReferenceImagesData {
+export interface ImageGenerationData {
   prompt: string; // Keep for backward compatibility
   main_prompt?: string; // Optional main transformation prompt
   reference_prompts?: string[]; // Individual prompts per image
@@ -103,9 +103,9 @@ export interface ReferenceImagesData {
   referenceImageData?: ReferenceImageData[]; // Direct image data (new approach)
 }
 
-export interface ReferenceImagesModalConfig extends BaseModalConfig {
+export interface ImageGenerationModalConfig extends BaseModalConfig {
   sessionId: string; // Required: must have active session
-  onSubmit: (data: ReferenceImagesData) => void | Promise<void>;
+  onSubmit: (data: ImageGenerationData) => void | Promise<void>;
 }
 
 // Modal state types
@@ -117,12 +117,12 @@ export type ModalType =
   | 'loading'
   | 'settings'
   | 'custom'
-  | 'reference-images';
+  | 'image-generation';
 
 export interface ModalState {
   id: string;
   type: ModalType;
-  config: AlertModalConfig | ConfirmModalConfig | FormModalConfig | ImageModalConfig | LoadingModalConfig | SettingsModalConfig | CustomModalConfig | ReferenceImagesModalConfig;
+  config: AlertModalConfig | ConfirmModalConfig | FormModalConfig | ImageModalConfig | LoadingModalConfig | SettingsModalConfig | CustomModalConfig | ImageGenerationModalConfig;
   resolve?: (value: any) => void;
   reject?: (reason: any) => void;
 }
@@ -137,7 +137,7 @@ export interface ModalContextType {
   showLoading: (config: LoadingModalConfig) => { close: () => void; updateProgress: (progress: number) => void };
   showSettings: (config: SettingsModalConfig) => Promise<any>;
   showModal: (config: CustomModalConfig) => void;
-  showReferenceImages: (config: ReferenceImagesModalConfig) => Promise<ReferenceImagesData | null>;
+  showImageGeneration: (config: ImageGenerationModalConfig) => Promise<ImageGenerationData | null>;
   closeModal: (id: string) => void;
   closeAll: () => void;
 }

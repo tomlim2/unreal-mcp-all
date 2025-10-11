@@ -4,7 +4,7 @@
  */
 
 import { MAX_MAIN_PROMPT_LENGTH } from '../utils/constants';
-import styles from '../ReferenceImagesModal.module.css';
+import styles from '../ImageGenerationModal.module.css';
 
 interface MainPromptSectionProps {
   value: string;

@@ -6,7 +6,7 @@
 import { MainImageDisplay } from './MainImageDisplay';
 import { ImageSlider } from './ImageSlider';
 import { SelectedImage, SessionImageInfo } from '../types';
-import styles from '../ReferenceImagesModal.module.css';
+import styles from '../ImageGenerationModal.module.css';
 
 interface MainImageSectionProps {
   selectedImage: SelectedImage;

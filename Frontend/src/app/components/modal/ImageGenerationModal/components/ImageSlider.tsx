@@ -5,7 +5,7 @@
 
 import { SessionImageInfo } from '../types';
 import { getFullImageUrl } from '../utils/imageUtils';
-import styles from '../ReferenceImagesModal.module.css';
+import styles from '../ImageGenerationModal.module.css';
 
 interface ImageSliderProps {
   sessionImages: SessionImageInfo[];

@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { SelectedImage } from "../types";
-import styles from "../ReferenceImagesModal.module.css";
+import styles from "../ImageGenerationModal.module.css";
 
 interface MainImageDisplayProps {
   selectedImage: SelectedImage;

@@ -41,6 +41,10 @@ export function useImageSelection(sessionImages: SessionImageInfo[]) {
     }
     setMainImageUpload(null);
     setSelectedImageIndex(-1);
+    // Reset file input to allow re-uploading the same file
+    if (mainImageInputRef.current) {
+      mainImageInputRef.current.value = '';
+    }
   };
 
   // Handle selecting a session image from slider
