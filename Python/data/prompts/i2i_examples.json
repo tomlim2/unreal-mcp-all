@@ -1,0 +1,261 @@
+{
+  "meta": {
+    "version": "1.0",
+    "source": "awesome-nano-banana GitHub repositories",
+    "model": "gemini-2.5-flash-image (Nano Banana)",
+    "type": "image-to-image",
+    "total_prompts": 25
+  },
+  "prompts": [
+    {
+      "id": "i2i_001",
+      "title": "Cute Chibi Keychain",
+      "description": "Transform a photo into a cute chibi keychain design",
+      "prompt": "A close-up photo of a cute, colorful keychain held by a person's hand. The keychain features a chibi-style version of the character/object from the attached image. The keychain is made of soft rubber with bold black outlines, vibrant colors, and simple features. Attached to a small silver keyring. Neutral background. Product photography style.",
+      "category": "personalization",
+      "difficulty": "beginner",
+      "requires_input": "Character photo or object image",
+      "tags": ["keychain", "chibi", "personalization", "product"]
+    },
+    {
+      "id": "i2i_002",
+      "title": "Kawaii Enamel Pin",
+      "description": "Transform subject into kawaii enamel pin design",
+      "prompt": "Turn the subject in the attached image into a kawaii enamel pin. Use glossy metal outlines and vibrant enamel fill colors. Simplify features while maintaining recognizability. No extra added features. Square mockup format showing the pin. White background. Product photography lighting.",
+      "category": "personalization",
+      "difficulty": "beginner",
+      "requires_input": "Character or object photo",
+      "tags": ["enamel pin", "kawaii", "cute", "personalization"]
+    },
+    {
+      "id": "i2i_003",
+      "title": "Bobblehead Generator",
+      "description": "Convert selfie into cartoon bobblehead figure",
+      "prompt": "Turn this photo into a bobblehead figure: enlarge the head slightly to 1.5x normal proportion, keep the face accurate with recognizable features, and cartoonify the body with simplified, rounded shapes. Add a spring-like neck connection. Place on a circular base. Vibrant colors, playful style. Product mockup presentation.",
+      "category": "personalization",
+      "difficulty": "intermediate",
+      "requires_input": "Portrait or selfie photo",
+      "tags": ["bobblehead", "cartoon", "personalization", "3d"]
+    },
+    {
+      "id": "i2i_004",
+      "title": "Glass Texture Transformation",
+      "description": "Apply iridescent glass effects to objects",
+      "prompt": "Retexture the object in the attached image with photorealistic glass, transparent, and iridescent effects. Create a 3D render aesthetic with light refraction, rainbow shimmer, and translucent materials. Maintain the original object's shape and form. Studio lighting with black background.",
+      "category": "style transfer",
+      "difficulty": "advanced",
+      "requires_input": "Object or product image",
+      "tags": ["glass", "iridescent", "3d render", "texture"]
+    },
+    {
+      "id": "i2i_005",
+      "title": "Anime Figure Conversion",
+      "description": "Transform photo into anime-style collectible figure",
+      "prompt": "Generate an anime-style figure photo of the character from the attached image, placed on a desktop. Present from a casual snapshot perspective. Match the original pose and clothing while adding anime aesthetic - larger eyes, stylized features, vibrant colors. Include figure base and packaging box in background.",
+      "category": "character transformation",
+      "difficulty": "advanced",
+      "requires_input": "Full-body character photo",
+      "tags": ["anime", "figure", "collectible", "character"]
+    },
+    {
+      "id": "i2i_006",
+      "title": "Ancient Treasure Map",
+      "description": "Transform map into vintage pirate treasure map",
+      "prompt": "Convert this map into an ancient treasure map style. Apply aged parchment texture with weathering, tears, and stains. Use hand-drawn cartography elements with period-appropriate fonts. Add vintage pirate aesthetics - compass rose, 'X marks the spot', sea monsters in margins. Warm sepia tones.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Map screenshot or image",
+      "tags": ["treasure map", "vintage", "pirate", "aged"]
+    },
+    {
+      "id": "i2i_007",
+      "title": "Cyberpunk Neon Transformation",
+      "description": "Add cyberpunk neon aesthetic to photos",
+      "prompt": "Transform the attached image into cyberpunk aesthetic. Add vibrant neon lighting effects (pink, blue, purple), holographic glitches, rain effects on surfaces, and atmospheric fog. Increase contrast and saturation. Maintain original composition while adding futuristic neon signs and reflections.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Urban photo or portrait",
+      "tags": ["cyberpunk", "neon", "futuristic", "sci-fi"]
+    },
+    {
+      "id": "i2i_008",
+      "title": "Watercolor Painting Effect",
+      "description": "Convert photo to watercolor artwork",
+      "prompt": "Transform the attached image into a watercolor painting. Apply soft, flowing brushstrokes with wet-on-wet technique. Use gentle color bleeds and natural watercolor texture. Maintain composition but simplify details. Add paper texture. Light, airy feel with traditional watercolor aesthetic.",
+      "category": "artistic filter",
+      "difficulty": "beginner",
+      "requires_input": "Any photo",
+      "tags": ["watercolor", "painting", "artistic", "traditional art"]
+    },
+    {
+      "id": "i2i_009",
+      "title": "Pop Art Portrait",
+      "description": "Transform portrait into Andy Warhol style pop art",
+      "prompt": "Convert this portrait into pop art style inspired by Andy Warhol. Use bold, saturated colors (4-color palette). High contrast with simplified shapes. Black outlines. Halftone dot patterns. Flat graphic style. Vibrant, eye-catching aesthetic.",
+      "category": "artistic filter",
+      "difficulty": "beginner",
+      "requires_input": "Portrait photo",
+      "tags": ["pop art", "warhol", "portrait", "graphic"]
+    },
+    {
+      "id": "i2i_010",
+      "title": "Vintage Film Photography",
+      "description": "Apply retro film camera aesthetic",
+      "prompt": "Transform the attached image to look like it was shot on vintage film camera. Add film grain, light leaks, vignetting, and subtle color shifts (warm tones or cool blues). Slightly reduced contrast. Nostalgic 1970s-1990s film aesthetic. Natural imperfections.",
+      "category": "photo filter",
+      "difficulty": "beginner",
+      "requires_input": "Any photo",
+      "tags": ["vintage", "film", "retro", "photography"]
+    },
+    {
+      "id": "i2i_011",
+      "title": "Sketch Drawing Conversion",
+      "description": "Convert photo to pencil sketch",
+      "prompt": "Transform the attached image into a detailed pencil sketch drawing. Use crosshatching and shading techniques. Maintain key details and proportions. Black and white linework on white paper texture. Artistic hand-drawn feel. Realistic sketch style.",
+      "category": "artistic filter",
+      "difficulty": "beginner",
+      "requires_input": "Any photo",
+      "tags": ["sketch", "pencil drawing", "black and white", "linework"]
+    },
+    {
+      "id": "i2i_012",
+      "title": "Oil Painting Masterpiece",
+      "description": "Transform to classical oil painting",
+      "prompt": "Convert the attached image into a classical oil painting in the style of old masters. Rich, thick brushstrokes visible. Deep shadows and dramatic lighting (chiaroscuro). Warm color palette with aged varnish effect. Museum-quality painting aesthetic.",
+      "category": "artistic filter",
+      "difficulty": "intermediate",
+      "requires_input": "Any photo",
+      "tags": ["oil painting", "classical", "masterpiece", "renaissance"]
+    },
+    {
+      "id": "i2i_013",
+      "title": "Anime Background Art",
+      "description": "Transform scenery into anime background style",
+      "prompt": "Convert this scenery into an anime background art style. Enhance colors and lighting to be more vibrant. Add soft atmospheric perspective. Use anime-style rendering with clean linework and gradient skies. Makoto Shinkai aesthetic. Detailed foreground, softer background.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Landscape or scenery photo",
+      "tags": ["anime", "background", "scenery", "japanese"]
+    },
+    {
+      "id": "i2i_014",
+      "title": "Low Poly 3D Conversion",
+      "description": "Transform image into low poly 3D art",
+      "prompt": "Convert the attached image into low poly 3D art style. Use geometric triangular facets, flat colors per polygon. Simplified forms while maintaining recognizable shapes. Modern digital art aesthetic. Vibrant color palette. Game asset style.",
+      "category": "style transfer",
+      "difficulty": "advanced",
+      "requires_input": "Any photo or illustration",
+      "tags": ["low poly", "3d", "geometric", "game art"]
+    },
+    {
+      "id": "i2i_015",
+      "title": "Dramatic Black and White",
+      "description": "Convert to high-contrast B&W photography",
+      "prompt": "Transform the attached image into dramatic black and white photography. High contrast with deep blacks and bright whites. Enhance textures and details. Film noir aesthetic. Moody, cinematic lighting. Fine art photography style.",
+      "category": "photo filter",
+      "difficulty": "beginner",
+      "requires_input": "Any photo",
+      "tags": ["black and white", "contrast", "dramatic", "film noir"]
+    },
+    {
+      "id": "i2i_016",
+      "title": "Sticker Design",
+      "description": "Transform image into die-cut sticker",
+      "prompt": "Convert the attached image into a die-cut sticker design. Add white border outline around the subject. Remove background completely. Enhance colors to be vibrant and glossy. Simplified details for printing. Product mockup on white background.",
+      "category": "personalization",
+      "difficulty": "beginner",
+      "requires_input": "Logo, character, or object",
+      "tags": ["sticker", "die-cut", "design", "product"]
+    },
+    {
+      "id": "i2i_017",
+      "title": "Pixel Art Conversion",
+      "description": "Transform to retro pixel art style",
+      "prompt": "Convert the attached image into pixel art style. Use limited color palette (16-32 colors). Clear pixel grid visible. Retro 8-bit or 16-bit game aesthetic. Simplified shapes and details. Crisp pixels, no anti-aliasing.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Any image",
+      "tags": ["pixel art", "retro", "8-bit", "game art"]
+    },
+    {
+      "id": "i2i_018",
+      "title": "Comic Book Style",
+      "description": "Transform to comic book illustration",
+      "prompt": "Convert the attached image into comic book art style. Bold black outlines, halftone dot shading, vibrant flat colors. Add dramatic angles and dynamic composition. Ben-Day dots for shadows. Pop art influence. Action-packed aesthetic.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Portrait or action photo",
+      "tags": ["comic book", "pop art", "halftone", "illustration"]
+    },
+    {
+      "id": "i2i_019",
+      "title": "Miniature Tilt-Shift",
+      "description": "Apply tilt-shift miniature effect",
+      "prompt": "Transform the attached image to look like a miniature scene using tilt-shift photography effect. Apply selective blur to top and bottom, enhanced color saturation, and increased contrast. Make the scene appear toy-like and miniaturized. Aerial perspective works best.",
+      "category": "photo filter",
+      "difficulty": "beginner",
+      "requires_input": "Aerial or elevated view photo",
+      "tags": ["tilt-shift", "miniature", "photography", "blur"]
+    },
+    {
+      "id": "i2i_020",
+      "title": "Neon Sign Conversion",
+      "description": "Transform text/logo into glowing neon sign",
+      "prompt": "Convert the attached text or logo into a glowing neon sign. Use realistic neon tube lighting effects with vibrant colors. Add glow, reflections on surface. Set against brick wall or dark background. Night time aesthetic. Authentic neon light quality.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Logo or text image",
+      "tags": ["neon", "sign", "glow", "lighting"]
+    },
+    {
+      "id": "i2i_021",
+      "title": "Pastel Aesthetic Filter",
+      "description": "Apply soft pastel color grading",
+      "prompt": "Transform the attached image with pastel aesthetic. Soften all colors to pastel tones (soft pink, lavender, mint, peach). Reduce contrast slightly. Add dreamy, ethereal quality. Soft lighting. Instagram aesthetic. Gentle, feminine vibe.",
+      "category": "photo filter",
+      "difficulty": "beginner",
+      "requires_input": "Any photo",
+      "tags": ["pastel", "aesthetic", "soft", "dreamy"]
+    },
+    {
+      "id": "i2i_022",
+      "title": "Tattoo Design Conversion",
+      "description": "Transform image into tattoo-ready design",
+      "prompt": "Convert the attached image into a tattoo design. Bold black linework, clear shapes suitable for skin. Traditional or neo-traditional tattoo style. Add shading with classic tattoo techniques. Simplify details for clarity. Tattoo flash sheet presentation.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Any image or illustration",
+      "tags": ["tattoo", "linework", "traditional", "design"]
+    },
+    {
+      "id": "i2i_023",
+      "title": "Vintage Postcard",
+      "description": "Transform photo into retro postcard",
+      "prompt": "Convert the attached image into a vintage postcard from the 1950s-1960s. Add aged paper texture, faded colors, slight yellowing. Include 'Greetings from [location]' text overlay in retro typography. Border edges. Nostalgic, worn aesthetic.",
+      "category": "style transfer",
+      "difficulty": "beginner",
+      "requires_input": "Landmark or scenery photo",
+      "tags": ["vintage", "postcard", "retro", "aged"]
+    },
+    {
+      "id": "i2i_024",
+      "title": "Holographic Sticker Effect",
+      "description": "Add holographic rainbow sheen to image",
+      "prompt": "Transform the attached image into a holographic sticker design. Add iridescent rainbow sheen effects, prismatic color shifts, and metallic reflections. Bright, eye-catching colors. Y2K aesthetic. Glossy, futuristic look.",
+      "category": "style transfer",
+      "difficulty": "intermediate",
+      "requires_input": "Graphic or character image",
+      "tags": ["holographic", "iridescent", "sticker", "y2k"]
+    },
+    {
+      "id": "i2i_025",
+      "title": "Fairy Tale Illustration",
+      "description": "Transform into storybook illustration style",
+      "prompt": "Convert the attached image into a fairy tale storybook illustration. Use soft watercolor and colored pencil techniques. Whimsical, magical atmosphere. Gentle colors and dreamy lighting. Children's book illustration aesthetic. Enchanting, timeless quality.",
+      "category": "artistic filter",
+      "difficulty": "intermediate",
+      "requires_input": "Any photo",
+      "tags": ["fairy tale", "storybook", "illustration", "whimsical"]
+    }
+  ]
+}

@@ -164,7 +164,7 @@ def _extract_from_partial_response(partial_response: str) -> dict:
             }
             
             # Extract common parameters based on command type
-            if command_type == "transform_image_style":
+            if command_type == "image_to_image":
                 # Extract style_prompt
                 style_match = re.search(r'"style_prompt":\s*"([^"]*)', partial_response)
                 if style_match:
@@ -254,10 +254,10 @@ def _auto_assign_latest_image_if_needed(command, session_context):
     command_type = command.get("type")
 
     # Image-related commands (commands that require source images)
-    image_commands = ["transform_image_style", "generate_video_from_image"]
+    image_commands = ["image_to_image", "generate_video_from_image"]
 
     # Text-to-image commands (commands that DON'T require source images)
-    text_to_image_commands = ["generate_image_from_text"]
+    text_to_image_commands = ["text_to_image"]
 
     # Check if image parameter already provided
     has_image = ("image_url" in params or "image_uid" in params or
@@ -287,7 +287,7 @@ def _auto_assign_latest_image_if_needed(command, session_context):
         # Double-check: ensure we only use image UIDs, never video UIDs
         if latest_uid and latest_uid.startswith('img_'):
             # Assign latest image UID to appropriate parameter
-            if command_type == "transform_image_style":
+            if command_type == "image_to_image":
                 params["target_image_uid"] = latest_uid
                 logger.info(f"✅ Auto-assigned latest image UID for {command_type}: {latest_uid}")
             elif command_type == "generate_video_from_image":
@@ -380,8 +380,8 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
 
     # Commands that support image processing
     image_commands = {
-        'transform_image_style',
-        'generate_image_from_text',  # Also supports reference images for style
+        'image_to_image',
+        'text_to_image',  # Also supports reference images for style
         'compose_images',
         'blend_images',
         'transfer_style'
@@ -394,9 +394,9 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
             if 'params' not in command:
                 command['params'] = {}
 
-            # Special case: generate_image_from_text does NOT use main_image_data or target_image_uid
+            # Special case: text_to_image does NOT use main_image_data or target_image_uid
             # It only uses reference_images for style guidance
-            if command_type != 'generate_image_from_text':
+            if command_type != 'text_to_image':
                 # Priority 1: Add user-uploaded main image (in-memory, no UID) - takes precedence over auto-fetched UID
                 if main_image_data:
                     command['params']['main_image_data'] = main_image_data
@@ -407,7 +407,7 @@ def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_ui
                     logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
 
             # Add reference images if provided (in-memory only, no UID)
-            # For generate_image_from_text, reference images are used for style guidance only
+            # For text_to_image, reference images are used for style guidance only
             if reference_images and len(reference_images) > 0:
                 command['params']['reference_images'] = reference_images
                 logger.info(f"Added {len(reference_images)} reference images to command {command_type}")
@@ -705,7 +705,7 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
         
         if recent_commands:
             # Check if recent commands were primarily 2D image editing
-            image_commands = ['transform_image_style']
+            image_commands = ['image_to_image']
             recent_image_commands = [cmd for cmd in recent_commands if cmd.get('type') in image_commands]
             
             if len(recent_image_commands) >= len(recent_commands) // 2:  # 50% or more were image commands
@@ -713,7 +713,7 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
         
         base_prompt += f"\n\n## CURRENT MODE: {current_mode}"
         if current_mode == "2D Image Mode":
-            base_prompt += "\nContinue image editing workflow. For 'add X' use transform_image_style."
+            base_prompt += "\nContinue image editing workflow. For 'add X' use image_to_image."
         else:
             base_prompt += "\nContinue 3D scene workflow. Use lighting, environment, weather commands."
         
@@ -750,8 +750,8 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     # AI Image Generation/Editing: Uses external APIs (Gemini)
     # Roblox: Avatar downloads (uses Roblox API + local file storage)
     no_unreal_required_commands = [
-        'generate_image_from_text',  # Text-to-image generation
-        'transform_image_style',      # Image-to-image transformation
+        'text_to_image',  # Text-to-image generation
+        'image_to_image',      # Image-to-image transformation
         'download_roblox_obj',
         'get_roblox_download_status',
         'cancel_roblox_download',

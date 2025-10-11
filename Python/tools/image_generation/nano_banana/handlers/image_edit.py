@@ -73,7 +73,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             return False
     
     def get_supported_commands(self) -> List[str]:
-        return ["transform_image_style", "generate_image_from_text"]
+        return ["image_to_image", "text_to_image"]
     
     def _extract_image_dimensions(self, image_data: Dict[str, Any]) -> Dict[str, int]:
         """Extract width and height from image data (bytes or file path)."""
@@ -162,7 +162,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         return metadata
     
     def validate_command(self, command_type: str, params: Dict[str, Any]) -> ValidatedCommand:
-        """Validate Nano Banana commands with parameter checks."""
+        """Validate Nano Banana commands with new schema (fal.ai style)."""
         errors = []
 
         if not self._ensure_gemini_initialized():
@@ -171,44 +171,45 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             else:
                 errors.append("Gemini API not properly configured (check GOOGLE_API_KEY)")
 
-        if command_type == "transform_image_style":
-            # Required parameters
-            if not params.get("style_prompt"):
-                errors.append("style_prompt is required")
+        # Common validation: prompt is required
+        if not params.get("prompt"):
+            errors.append("prompt is required")
 
-            # Check for either UID, user-uploaded image, or session_id (for auto-fetch)
-            target_image_uid = params.get("target_image_uid") or params.get("image_uid")
-            main_image_data = params.get("main_image_data")
-            session_id = params.get("session_id")
+        # Validate images array
+        images = params.get("images", [])
+        if not isinstance(images, list):
+            errors.append("images must be an array")
 
-            if not target_image_uid and not main_image_data and not session_id:
-                errors.append("Either target_image_uid, main_image_data, or session_id is required")
-            elif target_image_uid and not (target_image_uid.startswith('img_') and target_image_uid[4:].isdigit()):
-                errors.append("target_image_uid must be a valid UID format (e.g., 'img_177')")
+        if command_type == "image_to_image":
+            # I2I: images[0] is MAIN IMAGE (required)
+            if len(images) == 0:
+                errors.append("image_to_image requires at least 1 image (main image at images[0])")
+            elif len(images) > 4:
+                errors.append("Maximum 4 images allowed (images[0]=main + images[1,2,3]=references)")
 
-            # Validate optional parameters
-            if "intensity" in params:
-                intensity = params["intensity"]
-                if not isinstance(intensity, (int, float)):
-                    errors.append("intensity must be a number")
-                elif intensity < 0.1 or intensity > 1.0:
-                    errors.append("intensity must be between 0.1 and 1.0")
+        elif command_type == "text_to_image":
+            # T2I: images are optional reference images (max 3)
+            if len(images) > 3:
+                errors.append("Maximum 3 reference images allowed for text_to_image (images[0,1,2])")
 
-        elif command_type == "generate_image_from_text":
-            # Required parameters
-            if not params.get("text_prompt"):
-                errors.append("text_prompt is required")
+        # Validate config.aspect_ratio if provided
+        config = params.get("config", {})
+        if "aspect_ratio" in config:
+            valid_ratios = ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
+            if config["aspect_ratio"] not in valid_ratios:
+                errors.append(f"config.aspect_ratio must be one of {valid_ratios}")
 
-            # Validate aspect ratio if provided
-            if "aspect_ratio" in params:
-                valid_ratios = ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
-                if params["aspect_ratio"] not in valid_ratios:
-                    errors.append(f"aspect_ratio must be one of {valid_ratios}")
+        # Validate config.num_images if provided
+        if "num_images" in config:
+            num_images = config["num_images"]
+            if not isinstance(num_images, int) or num_images < 1 or num_images > 4:
+                errors.append("config.num_images must be an integer between 1 and 4")
 
-            # Validate reference images count
-            reference_images = params.get("reference_images", [])
-            if len(reference_images) > 3:
-                errors.append("Maximum 3 reference images allowed")
+        # Validate config.output_format if provided
+        if "output_format" in config:
+            valid_formats = ["png", "jpeg", "jpg"]
+            if config["output_format"] not in valid_formats:
+                errors.append(f"config.output_format must be one of {valid_formats}")
 
         return ValidatedCommand(
             type=command_type,
@@ -220,310 +221,210 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
     def preprocess_params(self, command_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
         processed = params.copy()
 
-        if command_type == "transform_image_style":
-            processed.setdefault("intensity", 0.8)
-            # Auto-assign target_image_uid from image_uid if not provided
-            if not processed.get("target_image_uid") and processed.get("image_uid"):
-                processed["target_image_uid"] = processed["image_uid"]
-                logger.info(f"Auto-assigned target_image_uid: {processed['target_image_uid']}")
+        # Ensure config exists
+        if "config" not in processed:
+            processed["config"] = {}
 
-        elif command_type == "generate_image_from_text":
-            processed.setdefault("aspect_ratio", "16:9")
-            processed.setdefault("reference_images", [])
-            processed.setdefault("reference_prompts", [])
+        config = processed["config"]
+
+        # Set default config values (fal.ai style)
+        config.setdefault("aspect_ratio", "16:9")  # 기존 방식 유지
+        config.setdefault("num_images", 1)
+        config.setdefault("output_format", "png")
+
+        # Ensure images array exists
+        processed.setdefault("images", [])
 
         return processed
     
     def execute_command(self, connection, command_type: str, params: Dict[str, Any]) -> Any:
         logger.info(f"Nano Banana Handler: Executing {command_type} with params: {params}")
 
-        # DEBUG: Log detailed parameter analysis
-        logger.info(f"🔍 DEBUG - Parameter analysis:")
-        logger.info(f"  - main_prompt present: {'main_prompt' in params} = '{params.get('main_prompt', 'NOT_PRESENT')}'")
-        logger.info(f"  - reference_prompts present: {'reference_prompts' in params} = {params.get('reference_prompts', 'NOT_PRESENT')}")
-        logger.info(f"  - style_prompt present: {'style_prompt' in params} = '{params.get('style_prompt', 'NOT_PRESENT')}'")
+        # Get prompt and translate if needed (Korean → English)
+        prompt = params.get("prompt", "")
+        if prompt and self._is_non_english(prompt):
+            logger.info(f"Non-English prompt detected, translating: '{prompt}'")
+            params["prompt"] = self._translate_style_prompt_if_needed(prompt)
 
-        if "reference_images" in params:
-            ref_images = params["reference_images"]
-            logger.info(f"  - reference_images count: {len(ref_images)}")
+        logger.info(f"📝 Final prompt: '{params.get('prompt', 'NO_PROMPT')}'")
 
-        # Always use new prompt organization system
-        # Extract prompts from parameters (with fallback to style_prompt for backward compatibility)
-        main_prompt = params.get("main_prompt", "")
-        reference_prompts = params.get("reference_prompts", [])
-
-        # If no new-style prompts, use style_prompt as fallback
-        if not main_prompt and not reference_prompts and "style_prompt" in params:
-            logger.info("🔄 Fallback: Using style_prompt as main_prompt")
-            main_prompt = params["style_prompt"]
-
-        logger.info(f"🎯 Prompt organization system - main: '{main_prompt}', refs: {reference_prompts}")
-
-        # Organize prompts into single style_prompt
-        params["style_prompt"] = self._translate_and_organize_prompts(
-            main_prompt=main_prompt,
-            reference_prompts=reference_prompts
-        )
-
-        logger.info(f"📝 Final style_prompt: '{params.get('style_prompt', 'NO_STYLE_PROMPT')}'")
-
-        if command_type == "transform_image_style":
-            return self._transform_existing_image(params)
-        elif command_type == "generate_image_from_text":
-            return self._generate_image_from_text(params)
+        if command_type == "image_to_image":
+            return self._image_to_image(params)
+        elif command_type == "text_to_image":
+            return self._text_to_image(params)
         else:
             from core.errors import validation_failed
             raise validation_failed(
                 message=f"Unsupported command: {command_type}",
                 invalid_params={"type": command_type},
-                suggestion="Use 'transform_image_style' for image transformations or 'generate_image_from_text' for text-to-image generation"
+                suggestion="Use 'image_to_image' or 'text_to_image'"
             )
     
-    def _transform_existing_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform an existing image with style - supports both UID and user upload."""
+    def _image_to_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Image-to-Image transformation (fal.ai style).
+
+        Schema:
+        - images[0] = MAIN IMAGE (required)
+        - images[1,2,3] = Reference images (optional)
+        """
         start_time = time.time()
         request_id = generate_request_id()
 
-        style_prompt = params["style_prompt"]
-        intensity = params.get("intensity", 0.8)
-
-        # Support both UID and user-uploaded images
-        target_image_uid = params.get("target_image_uid")
-        main_image_data = params.get("main_image_data")
+        prompt = params["prompt"]
+        images = params["images"]
+        config = params["config"]
         session_id = params.get("session_id")
 
-        # If no image source provided, try to auto-fetch from session
-        if not target_image_uid and not main_image_data and session_id:
-            try:
-                from core.session.session_manager import get_session_manager
-                sess_manager = get_session_manager()
-                session_context = sess_manager.get_session(session_id)
-                if session_context:
-                    latest_image_uid = session_context.get_latest_image_uid()
-                    if latest_image_uid:
-                        target_image_uid = latest_image_uid
-                        logger.info(f"Auto-fetched latest image from session: {target_image_uid}")
-                    else:
-                        logger.warning(f"No latest image found in session {session_id}")
-                else:
-                    logger.warning(f"Session {session_id} not found")
-            except Exception as e:
-                logger.error(f"Failed to auto-fetch latest image: {e}")
+        logger.info(f"I2I: prompt='{prompt}', images={len(images)}, config={config} [req_id: {request_id}]")
 
-        parent_uid = None
+        # images[0] = MAIN IMAGE (required, validated already)
+        main_image = images[0]
 
-        if target_image_uid:
-            # Load from UID (existing screenshot)
-            from core.resources.uid_manager import get_uid_mapping
-            logger.info(f"Loading target image from UID: {target_image_uid}")
-            mapping = get_uid_mapping(target_image_uid)
-            if not mapping:
-                raise image_not_found(target_image_uid)
-
-            file_path = mapping.get('metadata', {}).get('file_path')
-            if not file_path or not os.path.exists(file_path):
-                raise image_not_found(target_image_uid)
-
-            # Read target image file as bytes
-            with open(file_path, 'rb') as f:
-                image_bytes = f.read()
-
-            target_image = {
-                'data': image_bytes,
-                'mime_type': 'image/png',
-                'file_path': file_path
-            }
-            parent_uid = target_image_uid
-            logger.info(f"Loaded target image from UID {target_image_uid}: {file_path}")
-
-        elif main_image_data:
-            # Use user-uploaded image directly (in-memory, no UID)
-            logger.info("Using user-uploaded main image (in-memory only, no UID)")
-            target_image = {
-                'data': main_image_data.get('data'),
-                'mime_type': main_image_data.get('mime_type', 'image/png'),
-                'file_path': None
-            }
-            parent_uid = None  # No parent UID for user uploads
-
-        else:
-            error_msg = "No image available to transform. "
-            if session_id:
-                error_msg += "Please take a screenshot first using the camera button or by saying 'take a screenshot'."
-            else:
-                error_msg += "Please provide an image (target_image_uid or main_image_data)."
-            raise AppError(
-                code="NO_IMAGE_AVAILABLE",
-                message=error_msg,
-                category=ErrorCategory.USER_INPUT,
-                suggestion="Take a screenshot or upload an image first"
-            )
-
-        # Get reference images directly from params (no UID loading needed)
-        reference_images = params.get("reference_images", [])
+        # images[1,2,3] = Reference images (optional)
+        reference_images = images[1:] if len(images) > 1 else []
 
         # Generate UID and filename BEFORE transformation
         new_image_uid = generate_image_uid()
-        model = params.get("model", "gemini-2.5-flash-image")
-        styled_filename = self._generate_styled_filename(new_image_uid, model, "transform")
+        model = "gemini-2.5-flash-image"
+        output_filename = self._generate_styled_filename(new_image_uid, model, "i2i")
 
         try:
+            # Apply transformation
             if reference_images:
-                # Multi-image approach with references
-                logger.info(f"Transform with {len(reference_images)} reference images: {style_prompt} [req_id: {request_id}]")
-                styled_image_path = self._apply_nano_banana_with_references(
-                    target_image, reference_images, style_prompt, intensity, styled_filename
-                )
-                origin = "multi_image_transform"
-            else:
-                # Single image transformation
-                logger.info(f"Transform single image: {style_prompt} [req_id: {request_id}]")
-                # Use data-based method which works for both file and in-memory images
-                styled_image_path = self._apply_nano_banana_with_references(
-                    target_image, [], style_prompt, intensity, styled_filename
-                )
-                origin = "single_image_transform"
-
-            if not styled_image_path:
-                raise transformation_failed("Style transformation returned no result")
-
-            # Use pre-generated filename
-            filename = styled_filename
-
-            # Extract metadata for both images
-            if target_image.get('file_path'):
-                original_metadata = self._extract_image_metadata(target_image['file_path'], model=model)
-            else:
-                # User upload: extract from data
-                original_metadata = {'width': 0, 'height': 0, 'cost': 0.0}
-            styled_metadata = self._extract_image_metadata(styled_image_path, model=model)
-
-            # UID was already generated above
-            session_id = params.get('session_id')
-
-            # Add mapping for the styled image
-            add_uid_mapping(
-                new_image_uid,
-                'image',
-                filename,
-                parent_uid=parent_uid,  # None if from user upload
-                session_id=session_id,
-                metadata={
-                    'width': styled_metadata['width'],
-                    'height': styled_metadata['height'],
-                    'file_path': styled_image_path,
-                    'style_type': 'transform_image_style',
-                    'model': model,
-                    'reference_count': len(reference_images),
-                    'source': 'user_upload' if parent_uid is None else 'screenshot'
-                }
-            )
-
-            # Build standardized response
-            return build_transform_response(
-                image_uid=new_image_uid,
-                parent_uid=parent_uid,
-                filename=filename,
-                image_path=styled_image_path,
-                original_width=original_metadata['width'],
-                original_height=original_metadata['height'],
-                processed_width=styled_metadata['width'],
-                processed_height=styled_metadata['height'],
-                style_name=extract_style_name(style_prompt),
-                style_prompt=style_prompt,
-                intensity=intensity,
-                tokens=styled_metadata['tokens'],
-                cost=float(styled_metadata['estimated_cost'].replace('$', '')),
-                request_id=request_id,
-                start_time=start_time,
-                origin=origin
-            )
-
-        except AppError:
-            # Re-raise AppError to preserve structured error info
-            raise
-        except Exception as e:
-            logger.error(f"Transform failed: {e}")
-            raise transformation_failed(str(e))
-
-    def _generate_image_from_text(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate image from text prompt with optional reference images for style."""
-        start_time = time.time()
-        request_id = generate_request_id()
-
-        text_prompt = params["text_prompt"]
-        aspect_ratio = params.get("aspect_ratio", "16:9")
-        reference_images = params.get("reference_images", [])
-        reference_prompts = params.get("reference_prompts", [])
-        session_id = params.get("session_id")
-
-        logger.info(f"Text-to-image generation: '{text_prompt}' [aspect_ratio: {aspect_ratio}, refs: {len(reference_images)}] [req_id: {request_id}]")
-
-        # Generate UID and filename BEFORE generation
-        new_image_uid = generate_image_uid()
-        model = params.get("model", "gemini-2.5-flash-image")
-        generated_filename = self._generate_styled_filename(new_image_uid, model, "text_to_image")
-
-        try:
-            # Build generation prompt
-            if reference_images:
-                # Text-to-image with style references
-                logger.info(f"Generating with {len(reference_images)} style reference images")
-                generation_prompt = self._build_text_to_image_prompt_with_references(
-                    text_prompt, reference_prompts, aspect_ratio
+                logger.info(f"I2I with {len(reference_images)} reference images")
+                result_path = self._transform_image_with_references(
+                    main_image, reference_images, prompt, output_filename
                 )
             else:
-                # Pure text-to-image
-                logger.info("Generating from text only (no references)")
-                generation_prompt = self._build_text_to_image_prompt(text_prompt, aspect_ratio)
+                logger.info("I2I without reference images")
+                result_path = self._transform_image_with_references(
+                    main_image, [], prompt, output_filename
+                )
 
-            # Generate image using Gemini
-            generated_image_path = self._generate_with_gemini(
-                generation_prompt, reference_images, generated_filename
-            )
-
-            if not generated_image_path:
-                raise transformation_failed("Text-to-image generation returned no result")
-
-            filename = generated_filename
+            if not result_path:
+                raise transformation_failed("Image transformation returned no result")
 
             # Extract metadata
-            generated_metadata = self._extract_image_metadata(generated_image_path, model=model)
+            result_metadata = self._extract_image_metadata(result_path, model=model)
 
-            # Add mapping for the generated image (no parent_uid)
+            # Add UID mapping
             add_uid_mapping(
                 new_image_uid,
                 'image',
-                filename,
-                parent_uid=None,  # Text-generated images have no parent
+                output_filename,
+                parent_uid=None,  # New schema: no parent tracking
                 session_id=session_id,
                 metadata={
-                    'width': generated_metadata['width'],
-                    'height': generated_metadata['height'],
-                    'file_path': generated_image_path,
-                    'style_type': 'text_to_image',
+                    'width': result_metadata['width'],
+                    'height': result_metadata['height'],
+                    'file_path': result_path,
+                    'style_type': 'image_to_image',
                     'model': model,
-                    'aspect_ratio': aspect_ratio,
                     'reference_count': len(reference_images),
-                    'source': 'text_generated'  # Distinguish from screenshot/user_upload
+                    'source': 'image_to_image'
                 }
             )
 
-            # Build standardized response
+            # Build response
             return build_transform_response(
                 image_uid=new_image_uid,
                 parent_uid=None,
-                filename=filename,
-                image_path=generated_image_path,
-                original_width=0,  # No original image
+                filename=output_filename,
+                image_path=result_path,
+                original_width=0,
                 original_height=0,
-                processed_width=generated_metadata['width'],
-                processed_height=generated_metadata['height'],
-                style_name=extract_style_name(text_prompt),
-                style_prompt=text_prompt,
-                intensity=1.0,  # N/A for text-to-image
-                tokens=generated_metadata['tokens'],
-                cost=float(generated_metadata['estimated_cost'].replace('$', '')),
+                processed_width=result_metadata['width'],
+                processed_height=result_metadata['height'],
+                style_name=extract_style_name(prompt),
+                style_prompt=prompt,
+                intensity=1.0,
+                tokens=result_metadata['tokens'],
+                cost=float(result_metadata['estimated_cost'].replace('$', '')),
+                request_id=request_id,
+                start_time=start_time,
+                origin="image_to_image"
+            )
+
+        except AppError:
+            raise
+        except Exception as e:
+            logger.error(f"I2I failed: {e}")
+            raise transformation_failed(str(e))
+
+    def _text_to_image(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Text-to-Image generation (fal.ai style).
+
+        Schema:
+        - images[0,1,2] = Optional reference images for style
+        """
+        start_time = time.time()
+        request_id = generate_request_id()
+
+        prompt = params["prompt"]
+        images = params["images"]  # Optional reference images
+        config = params["config"]
+        session_id = params.get("session_id")
+
+        aspect_ratio = config.get("aspect_ratio", "16:9")
+
+        logger.info(f"T2I: prompt='{prompt}', refs={len(images)}, aspect_ratio={aspect_ratio} [req_id: {request_id}]")
+
+        # Generate UID and filename
+        new_image_uid = generate_image_uid()
+        model = "gemini-2.5-flash-image"
+        output_filename = self._generate_styled_filename(new_image_uid, model, "t2i")
+
+        try:
+            # Build generation prompt
+            generation_prompt = self._build_text_to_image_prompt(prompt, aspect_ratio, images)
+
+            # Generate image
+            result_path = self._generate_image_from_text(
+                generation_prompt, images, output_filename
+            )
+
+            if not result_path:
+                raise transformation_failed("Text-to-image generation returned no result")
+
+            # Extract metadata
+            result_metadata = self._extract_image_metadata(result_path, model=model)
+
+            # Add UID mapping
+            add_uid_mapping(
+                new_image_uid,
+                'image',
+                output_filename,
+                parent_uid=None,
+                session_id=session_id,
+                metadata={
+                    'width': result_metadata['width'],
+                    'height': result_metadata['height'],
+                    'file_path': result_path,
+                    'style_type': 'text_to_image',
+                    'model': model,
+                    'aspect_ratio': aspect_ratio,
+                    'reference_count': len(images),
+                    'source': 'text_to_image'
+                }
+            )
+
+            # Build response
+            return build_transform_response(
+                image_uid=new_image_uid,
+                parent_uid=None,
+                filename=output_filename,
+                image_path=result_path,
+                original_width=0,
+                original_height=0,
+                processed_width=result_metadata['width'],
+                processed_height=result_metadata['height'],
+                style_name=extract_style_name(prompt),
+                style_prompt=prompt,
+                intensity=1.0,
+                tokens=result_metadata['tokens'],
+                cost=float(result_metadata['estimated_cost'].replace('$', '')),
                 request_id=request_id,
                 start_time=start_time,
                 origin="text_to_image"
@@ -532,16 +433,16 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
         except AppError:
             raise
         except Exception as e:
-            logger.error(f"Text-to-image generation failed: {e}")
+            logger.error(f"T2I failed: {e}")
             raise transformation_failed(str(e))
 
-    def _apply_nano_banana_style(self, image_path: str, style_prompt: str, intensity: float, output_filename: str = None) -> Optional[str]:
+    def _apply_nano_banana_style(self, image_path: str, style_prompt: str, output_filename: str = None) -> Optional[str]:
         """Apply Gemini image generation style transformation to image."""
         if not self._ensure_gemini_initialized():
             raise api_unavailable("Gemini", "Image generation requires Gemini API")
 
         try:
-            logger.info(f"Applying Gemini image transformation: {style_prompt} (intensity: {intensity})")
+            logger.info(f"Applying Gemini image transformation: {style_prompt}")
 
             # Read the original image
             with open(image_path, 'rb') as img_file:
@@ -549,7 +450,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
                 image_b64 = base64.b64encode(image_data).decode('utf-8')
 
             # Build the transformation prompt
-            transformation_prompt = self._build_gemini_image_prompt(style_prompt, intensity)
+            transformation_prompt = self._build_gemini_image_prompt(style_prompt)
 
             # Prepare image part for Gemini
             image_part = {
@@ -565,7 +466,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
             if not response or not response.candidates:
                 logger.warning("No response from Gemini - creating placeholder")
-                return self._create_placeholder_styled_image(image_path, style_prompt, intensity)
+                return self._create_placeholder_styled_image(image_path, style_prompt)
 
             # Try to save the generated image
             try:
@@ -576,19 +477,19 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             except Exception as save_error:
                 logger.warning(f"Gemini image generation failed: {save_error}")
                 logger.info("Creating placeholder styled image instead")
-                return self._create_placeholder_styled_image(image_path, style_prompt, intensity)
+                return self._create_placeholder_styled_image(image_path, style_prompt)
 
         except Exception as e:
             logger.error(f"Gemini image transformation failed: {e}")
             raise transformation_failed(str(e), "gemini")
 
-    def _apply_nano_banana_with_references(self, target_image_data: Dict[str, Any], reference_images: List[Dict[str, Any]], style_prompt: str, intensity: float, output_filename: str = None) -> Optional[str]:
-        """Apply Gemini multi-image generation with reference images."""
+    def _transform_image_with_references(self, target_image_data: Dict[str, Any], reference_images: List[Dict[str, Any]], style_prompt: str, output_filename: str = None) -> Optional[str]:
+        """Transform image using Gemini I2I with reference images (main image + references)."""
         if not self._ensure_gemini_initialized():
             raise api_unavailable("Gemini", "Multi-image transformation requires Gemini API")
 
         try:
-            logger.info(f"Applying Gemini multi-image transformation: {style_prompt} (intensity: {intensity})")
+            logger.info(f"Applying Gemini multi-image transformation: {style_prompt}")
             logger.info(f"Using {len(reference_images)} reference images")
 
             # Extract main image dimensions for aspect ratio preservation
@@ -622,7 +523,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             if not valid_references:
                 logger.warning("No valid reference images found - falling back to single image processing")
                 # Fallback to single image processing without references
-                return self._apply_nano_banana_style_fallback(target_image_data, style_prompt, intensity, output_filename)
+                return self._apply_nano_banana_style_fallback(target_image_data, style_prompt, output_filename)
 
             logger.info(f"Using {len(valid_references)} valid reference images (filtered from {len(reference_images)})")
             image_parts = []
@@ -661,7 +562,7 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
             # Build multi-image prompt with main image dimensions
             transformation_prompt = self._build_multi_image_prompt(
-                style_prompt, valid_references, intensity, main_image_dimensions
+                style_prompt, valid_references, main_image_dimensions
             )
 
             # Generate styled image using Gemini multi-image API
@@ -684,21 +585,13 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
             logger.error(f"Gemini multi-image transformation failed: {e}")
             raise transformation_failed(str(e), "gemini_multi_image")
 
-    def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], intensity: float, main_image_dimensions: Dict[str, int] = None) -> str:
-        """Build the multi-image generation prompt for Gemini using Google's recommended format.
+    def _build_multi_image_prompt(self, style_prompt: str, reference_images: List[Dict[str, Any]], main_image_dimensions: Dict[str, int] = None) -> str:
+        """Build the I2I prompt with unified prompt (no per-reference parsing needed).
 
-        CRITICAL: Image order in Gemini API call is [main_image, ref1, ref2, ref3]
-        So "image 1" = main, "image 2" = ref1, "image 3" = ref2, "image 4" = ref3
-
-        When user says "first reference's hair", that's ref1 = image 2 in Gemini
+        Image order in Gemini API: [main_image, ref1, ref2, ref3]
+        - First image = main image to transform
+        - Remaining images = reference images for style/features
         """
-        intensity_description = "subtle" if intensity < 0.4 else "moderate" if intensity < 0.7 else "strong"
-
-        # Parse style_prompt to extract features from each reference
-        # Expected format from LLM: "first reference's hair color, second reference's facial expression"
-        # Need to convert to Gemini format: "Take image 2's hair color. Add image 3's facial expression."
-        # Because: image 1 = main, image 2 = first ref, image 3 = second ref, etc.
-
         # Add dimension constraint if available
         dimension_instruction = ""
         if main_image_dimensions and main_image_dimensions.get('width') and main_image_dimensions.get('height'):
@@ -706,101 +599,25 @@ class NanoBananaImageEditHandler(BaseCommandHandler):
 
         ref_count = len(reference_images)
 
-        # Build Google-recommended format with correct image numbering
-        instructions = []
-
-        # Parse the style_prompt to extract individual features
-        import re
-
-        # Try multiple patterns in order of strictness
-        matches = []
-
-        # Pattern 1 (strictest): "1st reference's", "2nd reference's", "3rd reference's"
-        # Use [^,]+ to allow periods (for "2.5D" etc), split on commas only
-        pattern1 = r'(1st|2nd|3rd)\s+reference(?:\'s)?\s+([^,]+?)(?=\s*(?:,|\s+\d(?:st|nd|rd)\s+reference|$))'
-        matches1 = re.findall(pattern1, style_prompt, re.IGNORECASE)
-
-        # Pattern 2: "first reference's", "second reference's" (fallback)
-        pattern2 = r'(first|second|third)\s+reference(?:\'s)?\s+([^,]+?)(?=\s*(?:,|\s+(?:first|second|third)\s+reference|$))'
-        matches2 = re.findall(pattern2, style_prompt, re.IGNORECASE)
-
-        # Pattern 3: "Reference 1's", "Reference 2's" (fallback)
-        pattern3 = r'Reference\s+([123])(?:\'s)?\s+([^,]+?)(?=\s*(?:,|\s+Reference\s+[123]|$))'
-        matches3 = re.findall(pattern3, style_prompt, re.IGNORECASE)
-
-        # Use whichever pattern found matches (prefer strictest)
-        if matches1:
-            matches = matches1
-            logger.info(f"✓ Using 1st/2nd/3rd format: {matches}")
-        elif matches2:
-            matches = matches2
-            logger.info(f"Using first/second/third format: {matches}")
-        elif matches3:
-            matches = matches3
-            logger.info(f"Using Reference N format: {matches}")
-
-        if matches:
-            # Map reference identifiers to image numbers and features
-            # 1st/first/1 = image 2, 2nd/second/2 = image 3, 3rd/third/3 = image 4
-            ordinal_to_image_num = {
-                '1st': 'second', 'first': 'second', '1': 'second',
-                '2nd': 'third', 'second': 'third', '2': 'third',
-                '3rd': 'fourth', 'third': 'fourth', '3': 'fourth'
-            }
-
-            features_by_image = {}
-            for ordinal, feature in matches:
-                # Normalize ordinal and get image ordinal word
-                ordinal_lower = ordinal.lower()
-
-                # Direct numeric reference
-                if ordinal.isdigit():
-                    image_ordinal = ['second', 'third', 'fourth'][int(ordinal) - 1]
-                # Ordinal string
-                else:
-                    image_ordinal = ordinal_to_image_num.get(ordinal_lower, 'second')
-
-                # Collect features per image
-                if image_ordinal not in features_by_image:
-                    features_by_image[image_ordinal] = []
-                features_by_image[image_ordinal].append(feature.strip())
-
-            # Build natural language prompt following Google's best practices
-            # Format: "Edit the first image to have [feature] from the second image and [feature] from the third image"
-            feature_parts = []
-            for image_ordinal in ['second', 'third', 'fourth']:
-                if image_ordinal in features_by_image:
-                    features = features_by_image[image_ordinal]
-                    if len(features) == 1:
-                        feature_parts.append(f"the {features[0]} from the {image_ordinal} image")
-                    else:
-                        # Multiple features from same image
-                        features_text = " and ".join(features)
-                        feature_parts.append(f"the {features_text} from the {image_ordinal} image")
-
-            if feature_parts:
-                instruction_text = f"Edit the first image to change only {', '.join(feature_parts)}. Keep everything else in the first image exactly the same, preserving the original subject, pose, composition, style, and lighting."
-            else:
-                instruction_text = style_prompt
+        # Simple unified prompt - no complex parsing needed
+        if ref_count > 0:
+            instruction_text = f"Transform the first image based on this instruction: {style_prompt}. Use the reference images provided for style and visual guidance. Keep the first image's composition and structure."
         else:
-            # Fallback: use original style_prompt with base preservation
-            instruction_text = f"Edit the first image to {style_prompt}. Keep the first image's subject, pose, composition, and all other elements exactly the same."
+            instruction_text = f"Transform the first image: {style_prompt}. Keep the composition and structure."
 
         return f"""{instruction_text}
 
-Apply a {intensity_description} transformation that affects ONLY the elements mentioned. Do not change the aspect ratio.{dimension_instruction}"""
+Apply the transformation naturally. Do not change the aspect ratio.{dimension_instruction}"""
     
-    def _build_gemini_image_prompt(self, style_prompt: str, intensity: float) -> str:
+    def _build_gemini_image_prompt(self, style_prompt: str) -> str:
         """Build the image generation prompt for Gemini."""
-        intensity_description = "subtle" if intensity < 0.4 else "moderate" if intensity < 0.7 else "strong"
-
         return f"""Modify ONLY the requested changes: {style_prompt}.
-Apply a {intensity_description} transformation that affects ONLY the elements mentioned in the request.
+Apply the transformation that affects ONLY the elements mentioned in the request.
 Keep the background, environment, and all other elements completely unchanged.
 Only modify what is explicitly requested - preserve everything else exactly as it appears in the original image.
 Generate the image with minimal changes."""
     
-    def _create_placeholder_styled_image(self, original_path: str, style_prompt: str, intensity: float) -> str:
+    def _create_placeholder_styled_image(self, original_path: str, style_prompt: str) -> str:
         """Create a placeholder styled image by copying the original."""
         try:
             # Create generated images directory using centralized path management
@@ -995,144 +812,10 @@ Only return the English translation, nothing else:
         # If it's already in English (ASCII characters only), return as-is
         return style_prompt
 
-    def _translate_and_organize_prompts(self, main_prompt: str, reference_prompts: List[str]) -> str:
-        """Translate and organize multiple prompts using LLM-based prompt combination."""
-        try:
-            # Collect all non-empty prompts
-            all_prompts = []
-
-            if main_prompt.strip():
-                all_prompts.append(f"Main transformation: {main_prompt.strip()}")
-
-            for i, ref_prompt in enumerate(reference_prompts):
-                if ref_prompt.strip():
-                    all_prompts.append(f"Reference {i+1}: {ref_prompt.strip()}")
-
-            # If no prompts provided, use default
-            if not all_prompts:
-                logger.warning("No main or reference prompts provided")
-                return "Transform the image with artistic style"
-
-            # If only one prompt, handle based on language
-            if len(all_prompts) == 1:
-                single_prompt = all_prompts[0].split(": ", 1)[1] if ": " in all_prompts[0] else all_prompts[0]
-
-                # Check if Korean (or non-English) - translate it
-                if self._is_non_english(single_prompt):
-                    logger.info(f"Detected non-English prompt, translating: {single_prompt}")
-                    return self._translate_style_prompt_if_needed(single_prompt)
-                else:
-                    # English - minimal change, just return as-is
-                    logger.info(f"Detected English prompt, using as-is: {single_prompt}")
-                    return single_prompt
-
-            # Multiple prompts - check if any are Korean/non-English
-            has_non_english = any(self._is_non_english(p.split(": ", 1)[1] if ": " in p else p) for p in all_prompts)
-
-            if has_non_english:
-                # Has Korean/non-English - translate and organize with LLM
-                logger.info("Detected non-English in prompts, using LLM translation and organization")
-                return self._organize_prompts_with_llm(all_prompts)
-            else:
-                # All English - minimal formatting, just combine
-                logger.info("All prompts are English, using simple combination")
-                return self._concatenate_prompts_simple(all_prompts)
-
-        except Exception as e:
-            logger.error(f"Prompt organization failed: {e}")
-            # Fallback to first available prompt or default
-            if main_prompt.strip():
-                if self._is_non_english(main_prompt):
-                    return self._translate_style_prompt_if_needed(main_prompt)
-                return main_prompt
-            elif reference_prompts and any(p.strip() for p in reference_prompts):
-                first_ref = next(p for p in reference_prompts if p.strip())
-                if self._is_non_english(first_ref):
-                    return self._translate_style_prompt_if_needed(first_ref)
-                return first_ref
-            else:
-                return "Transform the image with artistic style"
-
     def _is_non_english(self, text: str) -> bool:
         """Check if text contains non-English (e.g., Korean) characters."""
         # Check for non-ASCII characters (Korean, Chinese, Japanese, etc.)
         return any(ord(char) > 127 for char in text)
-
-    def _organize_prompts_with_llm(self, all_prompts: List[str]) -> str:
-        """Use LLM to organize multiple prompts into a coherent single prompt."""
-        if not self._ensure_gemini_initialized():
-            logger.warning("Gemini not available for prompt organization, concatenating prompts")
-            # Fallback: simple concatenation without LLM
-            return self._concatenate_prompts_simple(all_prompts)
-
-        try:
-            # Create organization prompt for Gemini
-            prompts_text = "\n".join(f"- {prompt}" for prompt in all_prompts)
-
-            organization_request = f"""Combine and translate these image transformation instructions into a single, coherent English prompt:
-
-{prompts_text}
-
-CRITICAL Requirements - YOU MUST FOLLOW EXACTLY:
-1. Use ONLY this format: "[ordinal] reference's [feature]"
-2. REQUIRED ordinals: "1st", "2nd", "3rd" (NOT "first", NOT "Reference 1")
-3. Feature MUST come immediately after "reference's"
-4. Examples of CORRECT format:
-   ✓ "1st reference's facial expression, 2nd reference's pink hair, 3rd reference's background"
-   ✓ "1st reference's makeup style, 2nd reference's hairstyle"
-5. Examples of WRONG format:
-   ✗ "background like 3rd reference" (feature before reference)
-   ✗ "Reference 1's expression" (capital R)
-   ✗ "first reference's hair" (use 1st not first)
-6. Translate Korean:
-   - "이 표정" → "facial expression"
-   - "이 머리색" → "hair color"
-   - "이 배경" → "background"
-7. Keep under 800 characters
-8. Return ONLY the prompt, no explanations
-
-Combined prompt:"""
-
-            logger.info(f"Organizing {len(all_prompts)} prompts using Gemini LLM")
-            print(f"🔍 DEBUG: Organization request to Gemini:\n{organization_request}", flush=True)
-            response = self._model.generate_content(organization_request)
-
-            if response and response.text:
-                organized_prompt = response.text.strip()
-
-                # Apply length limits with truncation
-                if len(organized_prompt) > 800:
-                    logger.warning(f"Organized prompt too long ({len(organized_prompt)} chars), truncating")
-                    organized_prompt = organized_prompt[:800].rsplit(' ', 1)[0] + "..."
-
-                logger.info(f"LLM organized prompt: '{organized_prompt[:100]}...' ({len(organized_prompt)} chars)")
-                print(f"✅ DEBUG: Gemini organized prompt: {organized_prompt}", flush=True)
-                return organized_prompt
-            else:
-                logger.warning("LLM organization failed, using fallback")
-                return self._concatenate_prompts_simple(all_prompts)
-
-        except Exception as e:
-            logger.error(f"LLM prompt organization error: {e}")
-            return self._concatenate_prompts_simple(all_prompts)
-
-    def _concatenate_prompts_simple(self, all_prompts: List[str]) -> str:
-        """Simple fallback method to combine prompts without LLM."""
-        # Remove prefixes and combine with appropriate conjunctions
-        clean_prompts = []
-        for prompt in all_prompts:
-            clean = prompt.split(": ", 1)[1] if ": " in prompt else prompt
-            clean_prompts.append(clean.strip())
-
-        # Combine with "and" and apply basic length limits
-        combined = "; ".join(clean_prompts)
-
-        if len(combined) > 800:
-            logger.warning(f"Concatenated prompt too long ({len(combined)} chars), truncating")
-            combined = combined[:800].rsplit(';', 1)[0] + "..."
-
-        logger.info(f"Simple concatenation result: '{combined[:100]}...' ({len(combined)} chars)")
-        return combined
 
     def _estimate_request_size(self, image_data: Dict[str, Any], reference_images: List[Dict[str, Any]], prompt: str) -> Dict[str, Any]:
         """Estimate API request size and token count for validation."""
@@ -1231,7 +914,7 @@ Combined prompt:"""
         # Fallback: use first part before underscore
         return filename.split('_')[0]
 
-    def _apply_nano_banana_style_fallback(self, target_image_data: Dict[str, Any], style_prompt: str, intensity: float, output_filename: str = None) -> Optional[str]:
+    def _apply_nano_banana_style_fallback(self, target_image_data: Dict[str, Any], style_prompt: str, output_filename: str = None) -> Optional[str]:
         """Fallback method to process target image without reference images."""
         try:
             logger.info(f"Applying single-image transformation (fallback): {style_prompt}")
@@ -1248,7 +931,7 @@ Combined prompt:"""
 
             # Apply style transformation using existing single-image method
             styled_image_path = self._apply_nano_banana_style(
-                temp_image_path, style_prompt, intensity, output_filename
+                temp_image_path, style_prompt, output_filename
             )
 
             # Clean up temp file
@@ -1266,34 +949,27 @@ Combined prompt:"""
                 model="fallback"
             )
 
-    def _build_text_to_image_prompt(self, text_prompt: str, aspect_ratio: str) -> str:
-        """Build prompt for pure text-to-image generation."""
-        return f"""Generate a high-quality image based on this description: {text_prompt}
+    def _build_text_to_image_prompt(self, text_prompt: str, aspect_ratio: str, reference_images: List[Dict[str, Any]] = None) -> str:
+        """Build prompt for text-to-image generation with optional reference images."""
+        if reference_images and len(reference_images) > 0:
+            # With reference images - use their style
+            return f"""Generate a high-quality image based on this description: {text_prompt}
+
+Apply the visual style, color palette, and artistic elements from the provided reference images.
+
+Create a detailed, visually appealing image that combines the described content with the referenced visual style.
+Aspect ratio: {aspect_ratio}
+Focus on quality, composition, and aesthetic appeal."""
+        else:
+            # Pure text-to-image
+            return f"""Generate a high-quality image based on this description: {text_prompt}
 
 Create a detailed, visually appealing image that accurately represents the described scene.
 Aspect ratio: {aspect_ratio}
 Focus on quality, composition, and aesthetic appeal."""
 
-    def _build_text_to_image_prompt_with_references(self, text_prompt: str, reference_prompts: List[str], aspect_ratio: str) -> str:
-        """Build prompt for text-to-image with style reference images."""
-        # Build style instruction from reference prompts
-        style_instructions = []
-        for i, ref_prompt in enumerate(reference_prompts):
-            if ref_prompt.strip():
-                style_instructions.append(f"Apply the visual style from reference image {i+1}: {ref_prompt}")
-
-        style_text = ". ".join(style_instructions) if style_instructions else "Apply the visual style from the reference images"
-
-        return f"""Generate a high-quality image based on this description: {text_prompt}
-
-{style_text}.
-
-Create a detailed, visually appealing image that combines the described content with the referenced visual style.
-Aspect ratio: {aspect_ratio}
-Focus on quality, composition, and aesthetic appeal."""
-
-    def _generate_with_gemini(self, generation_prompt: str, reference_images: List[Dict[str, Any]], output_filename: str) -> Optional[str]:
-        """Generate image using Gemini API with optional reference images."""
+    def _generate_image_from_text(self, generation_prompt: str, reference_images: List[Dict[str, Any]], output_filename: str) -> Optional[str]:
+        """Generate image using Gemini T2I with optional reference images (text + references only)."""
         if not self._ensure_gemini_initialized():
             raise api_unavailable("Gemini", "Text-to-image generation requires Gemini API")
 

@@ -1,0 +1,236 @@
+{
+  "meta": {
+    "version": "1.0",
+    "source": "awesome-nano-banana GitHub repositories",
+    "model": "gemini-2.5-flash-image (Nano Banana)",
+    "type": "text-to-image",
+    "total_prompts": 25
+  },
+  "prompts": [
+    {
+      "id": "t2i_001",
+      "title": "Creative Ad with Hand-Drawn Doodle",
+      "description": "Minimalist advertisement integrating a real object with hand-drawn doodle",
+      "prompt": "A minimalist and creative advertisement set on a clean white background. A real [object like coffee cup, smartphone, sneaker] is integrated into a hand-drawn black ink doodle, using loose, playful lines. The doodle interacts with the object in a clever, imaginative way creating a sense of fun and innovation. Include bold black ad copy text at the top. High contrast, clean, conceptually smart.",
+      "category": "advertising",
+      "difficulty": "intermediate",
+      "tags": ["minimalist", "hand-drawn", "advertising", "creative"]
+    },
+    {
+      "id": "t2i_002",
+      "title": "Black and White Portrait Art",
+      "description": "High-resolution black and white portrait with soft gradient background",
+      "prompt": "A high-resolution black and white portrait artwork, in an editorial and fine art photography style. The background features a soft gradient, transitioning from mid-gray to almost pure white, creating depth and tranquility. Fine film grain adds tactile, analog-like softness reminiscent of classic black and white photography. Gentle directional light softly diffused.",
+      "category": "portrait",
+      "difficulty": "beginner",
+      "tags": ["black and white", "fine art", "portrait", "editorial"]
+    },
+    {
+      "id": "t2i_003",
+      "title": "Blurred Silhouette Behind Frosted Glass",
+      "description": "Artistic photograph of blurred silhouette behind translucent surface",
+      "prompt": "A black and white photograph shows the blurred silhouette of a [person/dancer/figure] behind a frosted or translucent surface. The figure is slightly distorted by the texture, creating an ethereal, dreamlike quality. Soft lighting from behind casts gentle shadows. Minimalist, mysterious, intimate mood.",
+      "category": "artistic",
+      "difficulty": "intermediate",
+      "tags": ["silhouette", "frosted glass", "black and white", "artistic"]
+    },
+    {
+      "id": "t2i_004",
+      "title": "Neon Cyberpunk Cityscape",
+      "description": "Futuristic city scene with vibrant neon lights",
+      "prompt": "A cyberpunk city street at night, rain-slicked streets reflecting vibrant neon signs in pink, blue, and purple. Towering skyscrapers with holographic advertisements. Steam rising from street vents. Cinematic wide angle, atmospheric fog, moody lighting. Ultra detailed, photorealistic.",
+      "category": "scene",
+      "difficulty": "intermediate",
+      "tags": ["cyberpunk", "neon", "cityscape", "futuristic"]
+    },
+    {
+      "id": "t2i_005",
+      "title": "Minimalist Product Photography",
+      "description": "Clean product shot with gradient background",
+      "prompt": "Professional product photography of a [product] on a seamless gradient background transitioning from soft white to pale blue. Perfect studio lighting with subtle shadows. Center composition. Clean, modern, commercial style. High resolution, sharp focus.",
+      "category": "product",
+      "difficulty": "beginner",
+      "tags": ["product photography", "minimalist", "studio", "commercial"]
+    },
+    {
+      "id": "t2i_006",
+      "title": "Watercolor Landscape",
+      "description": "Soft watercolor painting of natural scenery",
+      "prompt": "A serene watercolor landscape painting of rolling hills with scattered trees under a pastel sky. Soft washes of green, blue, and yellow. Loose brushstrokes, wet-on-wet technique. Dreamy, peaceful atmosphere. Traditional watercolor art style.",
+      "category": "landscape",
+      "difficulty": "beginner",
+      "tags": ["watercolor", "landscape", "painting", "traditional art"]
+    },
+    {
+      "id": "t2i_007",
+      "title": "Retro 80s Poster Design",
+      "description": "Vintage 80s style graphic design",
+      "prompt": "A retro 1980s style poster with bold geometric shapes, vibrant gradient colors (pink, purple, cyan, yellow). Memphis design elements. Neon grid lines. Chrome text effect. Synthwave aesthetic. High contrast, nostalgic vibe.",
+      "category": "graphic design",
+      "difficulty": "intermediate",
+      "tags": ["retro", "80s", "synthwave", "poster", "graphic design"]
+    },
+    {
+      "id": "t2i_008",
+      "title": "Fantasy Character Concept Art",
+      "description": "Detailed fantasy character illustration",
+      "prompt": "Fantasy character concept art of a [elven warrior/wizard/rogue]. Full body character design with intricate armor/clothing details. Dynamic pose. Painterly digital art style. Dramatic lighting. Rich color palette. Professional game art quality.",
+      "category": "character",
+      "difficulty": "advanced",
+      "tags": ["fantasy", "character design", "concept art", "game art"]
+    },
+    {
+      "id": "t2i_009",
+      "title": "Cozy Coffee Shop Interior",
+      "description": "Warm inviting cafe atmosphere",
+      "prompt": "Interior of a cozy coffee shop with warm lighting, wooden furniture, plants hanging from ceiling. Large windows with soft natural light. Barista counter with espresso machine. Chalkboard menu. Warm tones, inviting atmosphere. Lifestyle photography style.",
+      "category": "interior",
+      "difficulty": "beginner",
+      "tags": ["interior", "coffee shop", "cozy", "lifestyle"]
+    },
+    {
+      "id": "t2i_010",
+      "title": "Abstract Geometric Art",
+      "description": "Modern abstract composition with shapes",
+      "prompt": "Abstract geometric art with overlapping circles, triangles, and rectangles in bold primary colors (red, blue, yellow) on white background. Clean lines, minimalist composition. Bauhaus style influence. Modern, graphic design aesthetic.",
+      "category": "abstract",
+      "difficulty": "beginner",
+      "tags": ["abstract", "geometric", "bauhaus", "modern art"]
+    },
+    {
+      "id": "t2i_011",
+      "title": "Food Photography - Gourmet Dish",
+      "description": "Professional culinary photography",
+      "prompt": "Professional food photography of a gourmet dish plated artistically. Shallow depth of field. Natural window lighting from the side. Rustic wooden table surface. Fresh ingredients visible. Mouthwatering presentation. Magazine quality, editorial style.",
+      "category": "food",
+      "difficulty": "intermediate",
+      "tags": ["food photography", "gourmet", "culinary", "editorial"]
+    },
+    {
+      "id": "t2i_012",
+      "title": "Magical Forest Scene",
+      "description": "Enchanted forest with mystical atmosphere",
+      "prompt": "An enchanted forest scene with glowing fireflies, ancient twisted trees with luminescent mushrooms. Soft ethereal lighting filtering through fog. Magical particles floating in air. Fantasy illustration style. Rich greens and blues with glowing accents.",
+      "category": "fantasy scene",
+      "difficulty": "intermediate",
+      "tags": ["fantasy", "forest", "magical", "ethereal"]
+    },
+    {
+      "id": "t2i_013",
+      "title": "Isometric City Block",
+      "description": "Isometric 3D city illustration",
+      "prompt": "Isometric view of a modern city block with detailed buildings, streets, cars, and trees. Clean geometric style. Bright colors. Flat shading. Game asset aesthetic. Low poly style inspiration. Organized grid layout.",
+      "category": "isometric",
+      "difficulty": "advanced",
+      "tags": ["isometric", "city", "3d", "game asset"]
+    },
+    {
+      "id": "t2i_014",
+      "title": "Vintage Travel Poster",
+      "description": "Retro tourism poster design",
+      "prompt": "Vintage travel poster in 1950s style featuring [destination like Paris, Tokyo, New York]. Bold simplified shapes, limited color palette. Art deco influence. Hand-lettered title. Nostalgic, optimistic mood. Screen print aesthetic.",
+      "category": "poster",
+      "difficulty": "intermediate",
+      "tags": ["vintage", "travel", "poster", "retro", "art deco"]
+    },
+    {
+      "id": "t2i_015",
+      "title": "Cute Mascot Character",
+      "description": "Friendly cartoon character design",
+      "prompt": "Cute mascot character design of a [animal/creature]. Round simple shapes, big expressive eyes, friendly smile. Bright cheerful colors. Chibi proportions. Vector art style. Perfect for branding or children's content.",
+      "category": "character",
+      "difficulty": "beginner",
+      "tags": ["mascot", "cute", "cartoon", "chibi"]
+    },
+    {
+      "id": "t2i_016",
+      "title": "Dramatic Mountain Landscape",
+      "description": "Epic landscape photography",
+      "prompt": "Dramatic mountain landscape at golden hour. Snow-capped peaks against colorful sky. Alpine lake in foreground with perfect reflection. Wide angle shot. Rich colors, high dynamic range. National Geographic style landscape photography.",
+      "category": "landscape",
+      "difficulty": "beginner",
+      "tags": ["mountain", "landscape", "nature", "photography"]
+    },
+    {
+      "id": "t2i_017",
+      "title": "Sci-Fi Spaceship Interior",
+      "description": "Futuristic spacecraft control room",
+      "prompt": "Interior of a sci-fi spaceship control room. Holographic displays, sleek metallic surfaces. Futuristic control panels with glowing blue interfaces. Large viewing window showing stars. Cinematic lighting. High-tech, clean design. Movie concept art quality.",
+      "category": "sci-fi",
+      "difficulty": "advanced",
+      "tags": ["sci-fi", "spaceship", "interior", "futuristic"]
+    },
+    {
+      "id": "t2i_018",
+      "title": "Botanical Illustration",
+      "description": "Scientific plant drawing style",
+      "prompt": "Detailed botanical illustration of a [flower/plant] in vintage scientific drawing style. Precise linework showing different parts of the plant. Labeled anatomy. Watercolor accents. Cream background. Educational, elegant style.",
+      "category": "illustration",
+      "difficulty": "intermediate",
+      "tags": ["botanical", "scientific", "illustration", "vintage"]
+    },
+    {
+      "id": "t2i_019",
+      "title": "Urban Street Art Mural",
+      "description": "Large scale graffiti artwork",
+      "prompt": "Vibrant street art mural on brick wall. Bold colors, dynamic composition. Mix of abstract shapes and realistic elements. Spray paint texture visible. Urban culture aesthetic. Energetic, rebellious vibe.",
+      "category": "street art",
+      "difficulty": "intermediate",
+      "tags": ["street art", "mural", "graffiti", "urban"]
+    },
+    {
+      "id": "t2i_020",
+      "title": "Pastel Aesthetic Bedroom",
+      "description": "Dreamy pastel interior design",
+      "prompt": "A dreamy bedroom interior in soft pastel colors - pink, lavender, mint green. Fairy lights, fluffy pillows, plants. Soft natural lighting. Instagram aesthetic. Cozy, feminine, peaceful atmosphere. Lifestyle photography style.",
+      "category": "interior",
+      "difficulty": "beginner",
+      "tags": ["pastel", "bedroom", "aesthetic", "interior"]
+    },
+    {
+      "id": "t2i_021",
+      "title": "Steampunk Mechanical Device",
+      "description": "Victorian era inspired machinery",
+      "prompt": "Detailed steampunk mechanical device with brass gears, copper pipes, and ornate Victorian details. Industrial aesthetic. Warm metallic tones. Technical illustration style. Intricate craftsmanship visible.",
+      "category": "steampunk",
+      "difficulty": "advanced",
+      "tags": ["steampunk", "mechanical", "victorian", "brass"]
+    },
+    {
+      "id": "t2i_022",
+      "title": "Minimalist Logo Design",
+      "description": "Clean modern brand identity",
+      "prompt": "Minimalist logo design using simple geometric shapes. Monochromatic or limited color palette. Clean lines, balanced composition. Modern, professional, timeless. Suitable for tech/startup branding.",
+      "category": "logo",
+      "difficulty": "beginner",
+      "tags": ["logo", "minimalist", "branding", "design"]
+    },
+    {
+      "id": "t2i_023",
+      "title": "Anime Style Landscape",
+      "description": "Japanese animation background art",
+      "prompt": "Anime style landscape background with detailed scenery. Vibrant colors, soft lighting. Makoto Shinkai inspired. Peaceful rural scene or urban street. Rich atmospheric perspective. High detail in foreground.",
+      "category": "anime",
+      "difficulty": "intermediate",
+      "tags": ["anime", "landscape", "japanese", "makoto shinkai"]
+    },
+    {
+      "id": "t2i_024",
+      "title": "Abstract Paint Splatter",
+      "description": "Expressive abstract art",
+      "prompt": "Abstract expressionist painting with energetic paint splatters, drips, and bold brushstrokes. Vibrant color palette. Jackson Pollock inspired. Dynamic movement, raw emotion. Contemporary art style.",
+      "category": "abstract",
+      "difficulty": "beginner",
+      "tags": ["abstract", "expressionist", "paint splatter", "contemporary"]
+    },
+    {
+      "id": "t2i_025",
+      "title": "Luxury Watch Product Shot",
+      "description": "High-end jewelry photography",
+      "prompt": "Luxury watch product photography. Close-up macro shot showing intricate details of mechanism. Dramatic lighting with reflections on polished metal. Black background. Professional commercial photography. Premium, elegant presentation.",
+      "category": "product",
+      "difficulty": "advanced",
+      "tags": ["luxury", "watch", "product photography", "macro"]
+    }
+  ]
+}
