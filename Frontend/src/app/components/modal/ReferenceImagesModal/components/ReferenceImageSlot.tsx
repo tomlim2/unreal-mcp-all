@@ -3,6 +3,7 @@
  * Individual reference image upload slot with prompt
  */
 
+import { useState } from 'react';
 import { ReferenceImageUpload } from '../../../modal/types';
 import { MAX_REFERENCE_PROMPT_LENGTH } from '../utils/constants';
 import styles from '../ReferenceImagesModal.module.css';
@@ -28,11 +29,49 @@ export function ReferenceImageSlot({
   onRemove,
   submitting
 }: ReferenceImageSlotProps) {
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        onFileUpload(index, file);
+      }
+    }
+  };
   return (
     <div className={styles.referenceSlot}>
       {image ? (
         <>
-          <div className={styles.uploadArea}>
+          <div
+            className={`${styles.uploadArea} ${styles.dragDropZone} ${isDragOver ? styles.dragOver : ''}`}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             <div className={styles.uploadedImage}>
               <img
                 src={image.preview}
@@ -54,7 +93,13 @@ export function ReferenceImageSlot({
           </div>
         </>
       ) : (
-        <div className={styles.uploadArea}>
+        <div
+          className={`${styles.uploadArea} ${styles.dragDropZone} ${isDragOver ? styles.dragOver : ''}`}
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <div
             className={styles.uploadPlaceholder}
             onClick={() => {

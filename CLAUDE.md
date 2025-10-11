@@ -842,3 +842,4 @@ cd Python && python -c "from tools.ai.command_handlers import get_command_regist
 "Move the map to Tokyo and adjust the lighting to sunset"
 ```
 - frontend - modal does not trigger refresh data from backend. it only take the data from cached data
+- do not add scale on interaction in frontend

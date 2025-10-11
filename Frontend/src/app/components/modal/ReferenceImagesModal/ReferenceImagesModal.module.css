@@ -22,7 +22,8 @@
   display: flex;
   flex-direction: column;
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
   border: 1px solid var(--border-elevated);
 }
 
@@ -30,13 +31,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--border-default);
 }
 
 .header h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -111,6 +112,7 @@
   width: 100%;
   height: 100%;
   background: var(--bg-elevated-3);
+  padding: 0 8px 8px 8px
 }
 
 .mainImageWrapper img {
@@ -122,7 +124,7 @@
 .mainImageContainer {
   position: relative;
   display: grid;
-  grid-template-rows: 28px calc(400px - 28px);
+  grid-template-rows: 30px calc(400px - 30px);
   align-items: center;
   width: 100%;
 }
@@ -130,8 +132,8 @@
 /* Clear image button (X) in imageInfo section */
 .clearImageButton {
   background: var(--bg-elevated-3);
-  border: 1px solid var(--border-default);
-  color: var(--text-primary);
+  border: 0;
+  color: var(--icon-base);
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0;
@@ -140,26 +142,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
   transition: all 0.2s ease;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .clearImageButton:hover {
-  background: var(--flexoki-red-600);
-  border-color: var(--flexoki-red-600);
+  background: var(--icon-hover);
   color: white;
-  transform: scale(1.1);
 }
 
 .mainImagePlaceholder {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-tertiary);
   font-size: 0.875rem;
   padding: 2rem;
+  background: var(--bg-elevated-3);
 }
 
 /* Image Slider */
@@ -256,32 +257,20 @@
   padding: 0.5rem 0;
 }
 
-.scrollDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--flexoki-600);
-  transition: background 0.2s ease;
-}
-
-.scrollDot:hover {
-  background: var(--accent-primary);
-}
-
 .imageInfo {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem 0;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-elevated-3);
 }
 
 .imageInfoLeft {
-
 }
 
 .uid {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 0.8rem;
   color: var(--flexoki-cyan-400);
   font-weight: 500;
@@ -528,8 +517,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* No Images State */
@@ -651,4 +644,32 @@
   color: var(--flexoki-600);
   font-size: 0.75rem;
   line-height: 1.3;
+}
+
+/* Drag and Drop Styles */
+.dragDropZone {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.dragDropZone.dragOver {
+  border: 2px dashed var(--flexoki-cyan-600);
+  background: rgba(var(--flexoki-cyan-600-rgb, 0, 150, 199), 0.1);
+}
+
+.dragDropZone.dragOver::after {
+  content: "Drop image here";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--flexoki-cyan-600);
+  font-weight: 600;
+  font-size: 1.1rem;
+  pointer-events: none;
+  z-index: 10;
+  background: var(--bg-elevated);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--flexoki-cyan-600);
 }
