@@ -43,6 +43,7 @@ export function MainImageSection({
           selectedImage={selectedImage}
           onClearUpload={onRemoveMainImageUpload}
           onClearSession={() => onSetSelectedImageIndex(-1)}
+          onFileUpload={onMainImageUpload}
         />
       </div>
 
