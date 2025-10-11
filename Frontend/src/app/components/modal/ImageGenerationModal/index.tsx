@@ -41,10 +41,8 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
   } = useImageSelection(sessionImages);
   const {
     referenceImages,
-    referencePrompts,
     fileInputRefs,
     handleFileUpload,
-    handleReferencePromptChange,
     removeReferenceImage
   } = useReferenceImages();
 
@@ -71,10 +69,9 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
     const selectedImage = getSelectedImage();
     const hasTargetImage = selectedImage?.type === 'session';
     const hasMainImageUpload = selectedImage?.type === 'upload';
-    const hasPrompts = mainPrompt.trim() || referencePrompts.some(p => p.trim());
 
-    if (!hasPrompts) {
-      alert('Please enter at least one prompt (main prompt or reference prompts)');
+    if (!mainPrompt.trim()) {
+      alert('Please enter a prompt');
       return;
     }
 
@@ -100,9 +97,8 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
         }
       }
 
-      // Convert all reference images to base64 (skip undefined entries in sparse array)
+      // Convert all reference images to base64
       const referenceImageData = [];
-      const activeReferencePrompts = [];
       for (let i = 0; i < referenceImages.length; i++) {
         const refImage = referenceImages[i];
         if (!refImage) continue; // Skip undefined entries
@@ -113,7 +109,6 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
             data: dataUri,
             mime_type: refImage.file.type
           });
-          activeReferencePrompts.push(referencePrompts[i] || '');
         } catch (error) {
           console.error(`Failed to convert reference image ${i + 1}:`, error);
           alert(`Failed to process reference image ${i + 1}. Please try again.`);
@@ -123,9 +118,7 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
       }
 
       const data: ImageGenerationData = {
-        prompt: mainPrompt.trim() || 'Transform using reference images',
-        main_prompt: mainPrompt.trim() || undefined,
-        reference_prompts: activeReferencePrompts,
+        prompt: mainPrompt.trim(),
         targetImageUid: isTextToImage ? undefined : (hasTargetImage && selectedImage?.type === 'session' ? selectedImage.uid : undefined),
         mainImageData: mainImageData,
         referenceImageData
@@ -134,8 +127,6 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
       console.log('ImageGenerationModal: Submitting data:', {
         mode: isTextToImage ? '🎨 TEXT-TO-IMAGE' : '🖼️ IMAGE-TO-IMAGE',
         prompt: data.prompt,
-        main_prompt: data.main_prompt,
-        reference_prompts: data.reference_prompts,
         targetImageUid: data.targetImageUid,
         mainImageData: mainImageData ? 'present' : 'none',
         referenceImageData: data.referenceImageData?.length || 0,
@@ -204,10 +195,8 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
           {/* Reference Images Section */}
           <ReferenceImagesSection
             referenceImages={referenceImages}
-            referencePrompts={referencePrompts}
             fileInputRefs={fileInputRefs}
             onFileUpload={handleFileUpload}
-            onPromptChange={handleReferencePromptChange}
             onRemove={removeReferenceImage}
             submitting={submitting}
           />

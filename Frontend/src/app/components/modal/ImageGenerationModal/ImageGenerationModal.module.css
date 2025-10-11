@@ -649,7 +649,7 @@
 /* Drag and Drop Styles */
 .dragDropZone {
   position: relative;
-  transition: all 0.2s ease;
+  transition: none;
 }
 
 .dragDropZone.dragOver {

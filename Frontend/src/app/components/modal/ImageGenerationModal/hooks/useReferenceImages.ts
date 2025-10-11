@@ -1,5 +1,5 @@
 /**
- * Hook for managing reference images and their prompts
+ * Hook for managing reference images (simplified - no per-image prompts)
  */
 
 import { useState, useRef } from 'react';
@@ -8,7 +8,6 @@ import { validateImageFile, createPreviewUrl, revokePreviewUrl } from '../utils/
 
 export function useReferenceImages() {
   const [referenceImages, setReferenceImages] = useState<ReferenceImageUpload[]>([]);
-  const [referencePrompts, setReferencePrompts] = useState<string[]>(['', '', '']);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Handle file upload - client-side only processing
@@ -34,13 +33,6 @@ export function useReferenceImages() {
     setReferenceImages(newReferenceImages);
   };
 
-  // Handle reference prompt change
-  const handleReferencePromptChange = (index: number, promptText: string) => {
-    const newReferencePrompts = [...referencePrompts];
-    newReferencePrompts[index] = promptText;
-    setReferencePrompts(newReferencePrompts);
-  };
-
   // Remove reference image
   const removeReferenceImage = (index: number) => {
     // Revoke the preview URL to free memory
@@ -52,19 +44,12 @@ export function useReferenceImages() {
     const newReferenceImages = [...referenceImages];
     delete newReferenceImages[index];
     setReferenceImages(newReferenceImages);
-
-    // Clear the corresponding prompt
-    const newReferencePrompts = [...referencePrompts];
-    newReferencePrompts[index] = '';
-    setReferencePrompts(newReferencePrompts);
   };
 
   return {
     referenceImages,
-    referencePrompts,
     fileInputRefs,
     handleFileUpload,
-    handleReferencePromptChange,
     removeReferenceImage
   };
 }

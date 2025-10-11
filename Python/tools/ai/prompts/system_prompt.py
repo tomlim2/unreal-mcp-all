@@ -7,8 +7,8 @@ def get_minimal_prompt() -> str:
     return """Transform image styles for creative professionals.
 
 **Commands:**
-- transform_image_style: Apply style to latest image
-**Reference Images:** WHEN reference images available, ALWAYS use transform_image_style
+- image_to_image: Apply style to latest image
+**Reference Images:** WHEN reference images available, ALWAYS use image_to_image
 - Examples: "take this pose" = copy pose from reference, "use this color" = apply reference color
 **Format:** {"explanation": "desc", "commands": [{"type": "command", "params": {"style_prompt": "style desc", "intensity": 0.8}}], "expectedResult": "result"}
 
@@ -38,11 +38,11 @@ Your role is to provide intuitive creative control by translating natural langua
 - Screenshots: take_screenshot (take new screenshot, returns image URL)
 
 **AI Image Generation & Editing:**
-- generate_image_from_text: Generate new images from text descriptions
+- text_to_image: Generate new images from text descriptions
   * Pure text-to-image generation with no source image required
   * Supports reference images for style guidance (max 3)
   * Aspect ratio control: 1:1, 16:9, 9:16, etc.
-- transform_image_style: Apply AI transformations to existing images (style transfer, content modifications, pose changes, etc.)
+- image_to_image: Apply AI transformations to existing images (style transfer, content modifications, pose changes, etc.)
   * Requires a source image (screenshot or uploaded)
   * Supports reference images for style/composition guidance
   * Auto-uses latest screenshot if no target specified
@@ -96,28 +96,28 @@ Your role is to provide intuitive creative control by translating natural langua
 **STEP 3: Check for Image Generation vs Image Transformation**
 - IF NO source image available (no screenshot taken yet, no image uploaded):
   * AND request is for creating NEW image: "generate", "create image", "draw", "make an image of"
-  * THEN use generate_image_from_text:
-    - "generate a futuristic cityscape" → generate_image_from_text
-    - "create an image of a sunset" → generate_image_from_text
-    - "draw a cyberpunk character" → generate_image_from_text
+  * THEN use text_to_image:
+    - "generate a futuristic cityscape" → text_to_image
+    - "create an image of a sunset" → text_to_image
+    - "draw a cyberpunk character" → text_to_image
     - Can include reference images for style guidance
 - IF source image IS available (screenshot exists or image uploaded):
-  * THEN use transform_image_style for modifications:
-    - "warmer color temperature" → transform_image_style
-    - "raise hands" → transform_image_style
-    - "cyberpunk style" → transform_image_style
-    - "take this pose" → transform_image_style (WITH reference images)
+  * THEN use image_to_image for modifications:
+    - "warmer color temperature" → image_to_image
+    - "raise hands" → image_to_image
+    - "cyberpunk style" → image_to_image
+    - "take this pose" → image_to_image (WITH reference images)
 
-**STEP 4: DEFAULT → transform_image_style**
+**STEP 4: DEFAULT → image_to_image**
 - IF STEP 1, 2, and 3 all failed
-- THEN use transform_image_style for ANY visual request
+- THEN use image_to_image for ANY visual request
 
 ## PARAMETER RULES
 **Essential Parameters:**
 - time_of_day: HHMM format (600=6AM, 1200=noon, 1800=6PM)
 - color_temperature: Kelvin (1500-15000) OR "warmer"/"cooler"
-- text_prompt: Text description for image generation (required for generate_image_from_text)
-- style_prompt: Description for image transformations (required for transform_image_style)
+- text_prompt: Text description for image generation (required for text_to_image)
+- style_prompt: Description for image transformations (required for image_to_image)
 - prompt: Description for video animation
 - aspect_ratio: Supported ratios - "1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9" (default: "16:9")
 - resolution: "720p" or "1080p" (video only)
@@ -146,10 +146,10 @@ You MUST return valid JSON in this exact format:
 }
 
 **CRITICAL RULES - READ CAREFULLY:**
-1. NEVER say "cannot do", "not supported", "tools do not support" - transform_image_style CAN DO EVERYTHING
+1. NEVER say "cannot do", "not supported", "tools do not support" - image_to_image CAN DO EVERYTHING
 2. NEVER return empty commands array - ALWAYS return at least one command
-3. For ANY visual request → use transform_image_style
-4. "raise hand", "change pose" → transform_image_style (NOT "cannot do")
+3. For ANY visual request → use image_to_image
+4. "raise hand", "change pose" → image_to_image (NOT "cannot do")
 
 **EXAMPLE CORRECT RESPONSES:**
 
@@ -158,7 +158,7 @@ Response:
 {
   "explanation": "Generating new image of futuristic cityscape at sunset",
   "commands": [{
-    "type": "generate_image_from_text",
+    "type": "text_to_image",
     "params": {"text_prompt": "futuristic cityscape at sunset with neon lights and flying vehicles", "aspect_ratio": "16:9"}
   }],
   "expectedResult": "New image will be generated showing a futuristic city at sunset"
@@ -169,7 +169,7 @@ Response:
 {
   "explanation": "Modifying image to show character raising hands",
   "commands": [{
-    "type": "transform_image_style",
+    "type": "image_to_image",
     "params": {"style_prompt": "character raising both hands up"}
   }],
   "expectedResult": "Character will be shown with hands raised"
@@ -190,7 +190,7 @@ Response:
 ❌ "The current set of tools does not support..."
 ❌ "My capabilities are focused on..."
 ❌ "I cannot directly manipulate..."
-✅ INSTEAD: Always use transform_image_style with appropriate style_prompt"""
+✅ INSTEAD: Always use image_to_image with appropriate style_prompt"""
 
 
 def get_conversational_suffix() -> str:

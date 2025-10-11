@@ -95,12 +95,10 @@ export interface ReferenceImageData {
 }
 
 export interface ImageGenerationData {
-  prompt: string; // Keep for backward compatibility
-  main_prompt?: string; // Optional main transformation prompt
-  reference_prompts?: string[]; // Individual prompts per image
+  prompt: string; // Single unified prompt
   targetImageUid?: string; // Optional: use existing screenshot
   mainImageData?: ReferenceImageData; // Optional: user-uploaded main image
-  referenceImageData?: ReferenceImageData[]; // Direct image data (new approach)
+  referenceImageData?: ReferenceImageData[]; // Reference images for style
 }
 
 export interface ImageGenerationModalConfig extends BaseModalConfig {

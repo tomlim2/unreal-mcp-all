@@ -74,8 +74,8 @@ class Plugin(BasePlugin):
         if self._handler:
             return self._handler.get_supported_commands()
         return [
-            "generate_image_from_text",
-            "transform_image_style",
+            "text_to_image",
+            "image_to_image",
             "edit_image",
             "style_transfer",
             "upscale_image",
