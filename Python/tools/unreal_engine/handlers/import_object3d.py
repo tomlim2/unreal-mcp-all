@@ -157,7 +157,7 @@ class Object3DImportHandler(BaseCommandHandler):
                 username = metadata.get("username", "Unknown")
                 user_id = metadata.get("user_id", 0)
             else:
-                # Flat structure (legacy or other sources)
+                # Flat structure (alternative format)
                 username = metadata.get("name", "Unknown")
                 user_id = metadata.get("id", 0)
 

@@ -126,7 +126,7 @@ class HTTPBridgeHandler(BaseHTTPRequestHandler):
         """
         Handle GET requests with decorator-based routing.
 
-        Falls back to legacy handler for asset serving (screenshots, videos, etc.)
+        Falls back to base handler for asset serving (screenshots, videos, etc.)
         """
         trace_id = generate_trace_id()
         start_time = time.time()

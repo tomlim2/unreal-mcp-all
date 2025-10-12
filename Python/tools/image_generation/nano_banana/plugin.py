@@ -1,13 +1,14 @@
 """
 Nano Banana plugin for Creative Hub.
 
-Wraps the existing NanoBananaImageEditHandler to integrate with the plugin system.
+Provides separate handlers for I2I and T2I operations (fal.ai style).
 """
 
 import logging
 from typing import Dict, Any, List
 from core import BasePlugin, ToolCapability, ToolStatus, ToolMetadata, CommandResult
-from .handlers.image_edit import NanoBananaImageEditHandler
+from .handlers.i2i_handler import NanoBananaImageToImageHandler
+from .handlers.t2i_handler import NanaBananaTextToImageHandler
 
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class Plugin(BasePlugin):
 
     def __init__(self):
         super().__init__()
-        self._handler = None
+        self._handlers = []  # Changed from _handler to _handlers (list)
 
     def get_metadata(self) -> ToolMetadata:
         """Return Nano Banana tool metadata."""
@@ -39,11 +40,14 @@ class Plugin(BasePlugin):
         )
 
     def initialize(self) -> bool:
-        """Initialize the Nano Banana handler."""
+        """Initialize both I2I and T2I handlers."""
         try:
-            self._handler = NanoBananaImageEditHandler()
+            self._handlers = [
+                NanoBananaImageToImageHandler(),
+                NanaBananaTextToImageHandler()
+            ]
             self.set_status(ToolStatus.AVAILABLE)
-            logger.info("Nano Banana plugin initialized successfully")
+            logger.info("Nano Banana plugin initialized with I2I and T2I handlers")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize Nano Banana plugin: {e}")
@@ -52,46 +56,56 @@ class Plugin(BasePlugin):
 
     def shutdown(self) -> bool:
         """Shutdown the plugin (no cleanup needed currently)."""
-        self._handler = None
+        self._handlers = []
         self.set_status(ToolStatus.UNAVAILABLE)
         logger.info("Nano Banana plugin shutdown")
         return True
 
     def health_check(self) -> ToolStatus:
         """Check if Nano Banana API is accessible."""
-        if self._handler is None:
+        if not self._handlers:
             return ToolStatus.UNAVAILABLE
 
         # API health is determined by API key availability
         try:
-            # The handler will check API key on first use
+            # The handlers will check API key on first use
             return ToolStatus.AVAILABLE
         except Exception:
             return ToolStatus.ERROR
 
     def get_supported_commands(self) -> List[str]:
         """Return list of supported Nano Banana commands."""
-        if self._handler:
-            return self._handler.get_supported_commands()
+        if self._handlers:
+            commands = []
+            for handler in self._handlers:
+                commands.extend(handler.get_supported_commands())
+            return commands
         return [
-            "text_to_image",
-            "image_to_image",
-            "edit_image",
-            "style_transfer",
-            "upscale_image",
-            "remove_background"
+            "nano_banana_text_to_image",
+            "nano_banana_image_to_image"
         ]
+
+    def _get_handler_for_command(self, command_type: str):
+        """Find the appropriate handler for a given command type."""
+        for handler in self._handlers:
+            if command_type in handler.get_supported_commands():
+                return handler
+        return None
 
     def validate_command(self, command_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Validate Nano Banana command parameters."""
-        if not self._handler:
-            return {'valid': False, 'errors': ['Handler not initialized']}
+        if not self._handlers:
+            return {'valid': False, 'errors': ['Handlers not initialized']}
+
+        handler = self._get_handler_for_command(command_type)
+        if not handler:
+            return {'valid': False, 'errors': [f'No handler found for {command_type}']}
 
         try:
-            validated = self._handler.validate_command(command_type, params)
+            validated = handler.validate_command(command_type, params)
             return {
                 'valid': validated.is_valid,
-                'errors': validated.errors
+                'errors': validated.validation_errors
             }
         except Exception as e:
             logger.error(f"Validation error for {command_type}: {e}")
@@ -99,18 +113,26 @@ class Plugin(BasePlugin):
 
     def execute_command(self, command_type: str, params: Dict[str, Any]) -> CommandResult:
         """Execute Nano Banana command."""
-        if not self._handler:
+        if not self._handlers:
             return CommandResult(
                 success=False,
                 error="Plugin not initialized",
                 error_code="PLUGIN_NOT_INITIALIZED"
             )
 
+        handler = self._get_handler_for_command(command_type)
+        if not handler:
+            return CommandResult(
+                success=False,
+                error=f"No handler found for command: {command_type}",
+                error_code="HANDLER_NOT_FOUND"
+            )
+
         try:
             # Execute command using the handler
             # Note: Handler expects a connection object for Unreal commands
             # For Nano Banana, we pass None as connection since it uses HTTP API
-            result = self._handler.execute_command(None, command_type, params)
+            result = handler.execute_command(None, command_type, params)
 
             # Convert handler result to CommandResult
             if isinstance(result, dict):

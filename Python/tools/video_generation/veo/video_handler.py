@@ -154,7 +154,7 @@ class VideoGenerationHandler(BaseCommandHandler):
             if not params.get("prompt"):
                 errors.append("prompt is required")
 
-            # Support both target_image_uid (new) and image_url (legacy)
+            # Support both target_image_uid and image_url parameter names
             if params.get("target_image_uid"):
                 params["image_url"] = params["target_image_uid"]
                 logger.info(f"Using target_image_uid as image_url: {params['image_url']}")

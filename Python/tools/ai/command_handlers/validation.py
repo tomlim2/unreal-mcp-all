@@ -170,7 +170,7 @@ def validate_sky_command(command_type: str, params: Dict[str, Any]) -> Validated
                 except ValueError:
                     pass  # Error already captured by validate_time_of_day
         elif "time" in params:
-            # Support legacy parameter name
+            # Support alternative parameter name
             errors.extend(validate_time_of_day(params["time"]))
             # Convert string HHMM to number and normalize parameter name
             time_value = params.pop("time")
@@ -198,7 +198,7 @@ def validate_sky_command(command_type: str, params: Dict[str, Any]) -> Validated
             else:
                 errors.append("color_temperature must be a number or string description")
         elif "temperature" in params:
-            # Support legacy parameter name
+            # Support alternative parameter name
             if isinstance(params["temperature"], (int, float)):
                 errors.extend(validate_color_temperature(params["temperature"]))
             params["color_temperature"] = params.pop("temperature")

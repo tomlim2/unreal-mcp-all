@@ -158,7 +158,7 @@ Response:
 {
   "explanation": "Generating new image of futuristic cityscape at sunset",
   "commands": [{
-    "type": "text_to_image",
+    "type": "nano_banana_text_to_image",
     "params": {"text_prompt": "futuristic cityscape at sunset with neon lights and flying vehicles", "aspect_ratio": "16:9"}
   }],
   "expectedResult": "New image will be generated showing a futuristic city at sunset"
@@ -169,7 +169,7 @@ Response:
 {
   "explanation": "Modifying image to show character raising hands",
   "commands": [{
-    "type": "image_to_image",
+    "type": "nano_banana_image_to_image",
     "params": {"style_prompt": "character raising both hands up"}
   }],
   "expectedResult": "Character will be shown with hands raised"

@@ -44,7 +44,7 @@ def handle_tools_list(handler, request_data: dict, trace_id: str) -> Dict[str, A
         if not config.features.enable_plugin_system:
             return {
                 'plugin_system_enabled': False,
-                'message': 'Plugin system not enabled, using legacy handlers'
+                'message': 'Plugin system not enabled, using command handlers'
             }
 
         registry = get_registry()
@@ -94,7 +94,7 @@ def handle_tools_health(handler, request_data: dict, trace_id: str) -> Dict[str,
         if not config.features.enable_plugin_system:
             return {
                 'plugin_system_enabled': False,
-                'message': 'Plugin system not enabled, using legacy handlers'
+                'message': 'Plugin system not enabled, using command handlers'
             }
 
         registry = get_registry()

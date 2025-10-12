@@ -1,8 +1,8 @@
 """
-Compatibility shim for legacy roblox_errors imports.
+Compatibility shim for roblox_errors imports.
 
 This file maintains backward compatibility for existing code while redirecting
-to the new core.errors system. Use core.errors directly for new code.
+to the core.errors system. Use core.errors directly for new code.
 """
 
 import logging
@@ -33,7 +33,7 @@ RobloxErrorCodes = _RobloxErrorCodes
 
 
 class RobloxErrorHandler:
-    """Legacy compatibility wrapper for error helper functions."""
+    """Compatibility wrapper for error helper functions."""
 
     @staticmethod
     def user_not_found(user_input: str):

@@ -1,10 +1,10 @@
 {
   "tool_id": "nano_banana",
   "display_name": "Nano Banana",
-  "version": "1.0.0",
-  "description": "AI-powered image generation, editing, and style transfer using Nano Banana API",
+  "version": "2.0.0",
+  "description": "AI-powered image generation and transformation using Gemini 2.5 Flash Image (fal.ai style)",
   "author": "MegaMelange Team",
-  "requires_connection": true,
+  "requires_connection": false,
   "icon": "🍌",
   "pricing_tier": "premium",
   "capabilities": [
@@ -12,12 +12,9 @@
     "image_editing",
     "image_style_transfer"
   ],
-  "api_endpoint": "https://nanobanana.app/api",
+  "api_endpoint": "https://generativelanguage.googleapis.com",
   "supported_commands": [
-    "generate_image",
-    "edit_image",
-    "style_transfer",
-    "upscale_image",
-    "remove_background"
+    "nano_banana_text_to_image",
+    "nano_banana_image_to_image"
   ]
 }

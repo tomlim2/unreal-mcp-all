@@ -506,7 +506,7 @@ class PathManager:
 
     def sync_resource_directories(self) -> bool:
         """
-        Synchronize resource directories between legacy and centralized locations.
+        Synchronize resource directories between original and centralized locations.
 
         Returns:
             bool: True if sync succeeded, False otherwise

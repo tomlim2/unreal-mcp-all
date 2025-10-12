@@ -8,28 +8,22 @@ from typing import Dict, List, Any, Optional
 
 @dataclass
 class ProcessingRequest:
-    """Request parameters for natural language processing."""
+    """Request parameters for natural language processing (simple images array)."""
 
     user_input: str
     context: str = "Assume as you are a creative cinematic director"
     session_id: Optional[str] = None
     llm_model: Optional[str] = None
-    target_image_uid: Optional[str] = None
-    main_image_data: Optional[Dict[str, Any]] = None
-    main_prompt: Optional[str] = None
-    reference_prompts: Optional[List[str]] = None
-    reference_images: Optional[List[Dict[str, Any]]] = None
+    images: Optional[List[Dict[str, Any]]] = None  # Simple array of images
 
     def __post_init__(self):
         """Validate request parameters."""
         if not self.user_input or not self.user_input.strip():
             raise ValueError("user_input cannot be empty")
 
-        if self.reference_prompts is None:
-            self.reference_prompts = []
-
-        if self.reference_images is None:
-            self.reference_images = []
+        # Initialize images as empty list if None
+        if self.images is None:
+            self.images = []
 
 
 @dataclass
