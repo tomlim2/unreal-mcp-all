@@ -35,7 +35,6 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
     handleMainImageUpload,
     removeMainImageUpload,
     handleSelectSessionImage,
-    handleSelectUpload,
     getSelectedImage,
     setSelectedImageIndex
   } = useImageSelection(sessionImages);
@@ -57,7 +56,7 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
         revokePreviewUrl(mainImageUpload.preview);
       }
       referenceImages.forEach(ref => {
-        if (ref.preview) {
+        if (ref?.preview) {
           revokePreviewUrl(ref.preview);
         }
       });
@@ -181,15 +180,7 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
             onRemoveMainImageUpload={removeMainImageUpload}
             onSetSelectedImageIndex={setSelectedImageIndex}
             onSelectSessionImage={handleSelectSessionImage}
-            onSelectUpload={handleSelectUpload}
             submitting={submitting}
-          />
-
-          {/* Main Prompt Section */}
-          <MainPromptSection
-            value={mainPrompt}
-            onChange={setMainPrompt}
-            disabled={submitting}
           />
 
           {/* Reference Images Section */}
@@ -199,6 +190,13 @@ export default function ImageGenerationModal({ config, onClose }: ImageGeneratio
             onFileUpload={handleFileUpload}
             onRemove={removeReferenceImage}
             submitting={submitting}
+          />
+
+          {/* Main Prompt Section */}
+          <MainPromptSection
+            value={mainPrompt}
+            onChange={setMainPrompt}
+            disabled={submitting}
           />
         </div>
 

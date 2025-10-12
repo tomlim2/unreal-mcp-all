@@ -59,12 +59,6 @@ export function useImageSelection(sessionImages: SessionImageInfo[]) {
     }
   };
 
-  // Handle selecting upload button
-  const handleSelectUpload = () => {
-    setSelectedImageIndex(-1);
-    mainImageInputRef.current?.click();
-  };
-
   // Get currently selected image for main display
   const getSelectedImage = (): SelectedImage => {
     if (selectedImageIndex === -1 && mainImageUpload) {
@@ -89,7 +83,6 @@ export function useImageSelection(sessionImages: SessionImageInfo[]) {
     handleMainImageUpload,
     removeMainImageUpload,
     handleSelectSessionImage,
-    handleSelectUpload,
     getSelectedImage,
     setSelectedImageIndex
   };

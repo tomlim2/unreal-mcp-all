@@ -12,6 +12,7 @@ interface MainImageDisplayProps {
   onClearUpload: () => void;
   onClearSession: () => void;
   onFileUpload?: (file: File) => void;
+  fileInputRef?: React.RefObject<HTMLInputElement>;
 }
 
 export function MainImageDisplay({
@@ -19,6 +20,7 @@ export function MainImageDisplay({
   onClearUpload,
   onClearSession,
   onFileUpload,
+  fileInputRef,
 }: MainImageDisplayProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -52,16 +54,25 @@ export function MainImageDisplay({
       }
     }
   };
+
+  const handleClick = () => {
+    if (!selectedImage) {
+      fileInputRef?.current?.click();
+    }
+  };
+
   if (!selectedImage) {
     return (
       <div
         className={`${styles.mainImagePlaceholder} ${styles.dragDropZone} ${isDragOver ? styles.dragOver : ''}`}
+        onClick={handleClick}
         onDragOver={handleDragOver}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <span>Select an image from below or upload a new one</span>
+        <div className={styles.uploadIcon}>+</div>
+        <span>Click or drag and drop to upload image</span>
       </div>
     );
   }
@@ -90,6 +101,7 @@ export function MainImageDisplay({
             src={selectedImage.preview}
             alt="Uploaded image to transform"
             className={styles.mainImage}
+            draggable={false}
           />
         </div>
       </div>
@@ -122,6 +134,7 @@ export function MainImageDisplay({
           src={selectedImage.url}
           alt={`Session image ${selectedImage.uid}`}
           className={styles.mainImage}
+          draggable={false}
         />
       </div>
     </div>

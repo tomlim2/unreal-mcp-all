@@ -35,8 +35,6 @@ export function MainImageSection({
 }: MainImageSectionProps) {
   return (
     <div className={styles.section}>
-      <h3>Target Image (Main Image to Transform)</h3>
-
       {/* Main Image Display */}
       <div className={styles.mainImageDisplay}>
         <MainImageDisplay
@@ -44,6 +42,7 @@ export function MainImageSection({
           onClearUpload={onRemoveMainImageUpload}
           onClearSession={() => onSetSelectedImageIndex(-1)}
           onFileUpload={onMainImageUpload}
+          fileInputRef={mainImageInputRef}
         />
       </div>
 
@@ -51,7 +50,6 @@ export function MainImageSection({
       <ImageSlider
         sessionImages={sessionImages}
         selectedIndex={selectedImageIndex}
-        onSelectUpload={onSelectUpload}
         onSelectImage={onSelectSessionImage}
       />
 
