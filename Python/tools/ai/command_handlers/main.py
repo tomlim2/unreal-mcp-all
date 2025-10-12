@@ -291,9 +291,9 @@ def get_command_registry() -> CommandRegistry:
     
     Returns the singleton CommandRegistry with all default handlers registered.
     Handlers are registered once during module import.
-    
+
     Returns:
-        CommandRegistry: Global registry instance with remaining legacy handlers
+        CommandRegistry: Global registry instance with all registered handlers
         (Screenshot, Video Generation, Roblox, Asset Import)
     """
     return _command_registry

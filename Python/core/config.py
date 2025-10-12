@@ -29,7 +29,7 @@ class FeatureFlags:
     # Core Features
     enable_plugin_system: bool = False  # Use new plugin-based tool system
     enable_orchestrator: bool = False   # Use multi-tool orchestrator
-    enable_legacy_handlers: bool = True  # Keep old command handler system
+    enable_command_handlers: bool = True  # Enable command handler system
 
     # Tool Features
     enable_nano_banana: bool = True     # Nano Banana image API
@@ -63,7 +63,7 @@ class Config:
             # Core Features
             enable_plugin_system=self._get_bool_env('FEATURE_PLUGIN_SYSTEM', False),
             enable_orchestrator=self._get_bool_env('FEATURE_ORCHESTRATOR', False),
-            enable_legacy_handlers=self._get_bool_env('FEATURE_LEGACY_HANDLERS', True),
+            enable_command_handlers=self._get_bool_env('FEATURE_COMMAND_HANDLERS', True),
 
             # Tool Features
             enable_nano_banana=self._get_bool_env('FEATURE_NANO_BANANA', True),
@@ -122,9 +122,9 @@ class Config:
         """Check if running in new plugin mode."""
         return self._feature_flags.enable_plugin_system
 
-    def is_legacy_mode(self) -> bool:
-        """Check if legacy handlers are enabled."""
-        return self._feature_flags.enable_legacy_handlers
+    def is_command_handlers_enabled(self) -> bool:
+        """Check if command handlers are enabled."""
+        return self._feature_flags.enable_command_handlers
 
     def get_enabled_tools(self) -> list[str]:
         """Get list of enabled tool IDs."""
@@ -145,7 +145,7 @@ class Config:
         logger.info("Creative Hub Configuration")
         logger.info("=" * 60)
         logger.info(f"Plugin System: {'ENABLED' if self.features.enable_plugin_system else 'DISABLED'}")
-        logger.info(f"Legacy Handlers: {'ENABLED' if self.features.enable_legacy_handlers else 'DISABLED'}")
+        logger.info(f"Command Handlers: {'ENABLED' if self.features.enable_command_handlers else 'DISABLED'}")
         logger.info(f"Orchestrator: {'ENABLED' if self.features.enable_orchestrator else 'DISABLED'}")
         logger.info(f"Enabled Tools: {', '.join(self.get_enabled_tools())}")
         logger.info(f"HTTP Port: {self.get('http_port')}")

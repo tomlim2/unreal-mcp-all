@@ -81,6 +81,43 @@ class ImageProcessor:
             )
 
     @classmethod
+    def encode_image_to_base64(cls, image_data: Dict[str, Any]) -> str:
+        """
+        Convert image data to base64 string.
+
+        Args:
+            image_data: Dict with 'data' key (bytes or base64 string)
+
+        Returns:
+            Base64 encoded string
+        """
+        if isinstance(image_data['data'], bytes):
+            return base64.b64encode(image_data['data']).decode('utf-8')
+        return image_data['data']  # Already base64 string
+
+    @classmethod
+    def calculate_image_size_mb(cls, image_data: Any) -> float:
+        """
+        Calculate image data size in MB.
+
+        Args:
+            image_data: bytes or base64 string
+
+        Returns:
+            Size in megabytes
+        """
+        if isinstance(image_data, bytes):
+            return len(image_data) / (1024 * 1024)
+
+        # Base64 string - decode to get actual size
+        try:
+            decoded = base64.b64decode(image_data)
+            return len(decoded) / (1024 * 1024)
+        except:
+            # Estimate: base64 is ~33% larger than binary
+            return (len(image_data) * 0.75) / (1024 * 1024)
+
+    @classmethod
     def process_main_image(
         cls,
         main_image_request: Optional[Dict[str, Any]] = None,

@@ -526,7 +526,7 @@ class PathManager:
 
     def sync_resource_directories(self) -> bool:
         """
-        Synchronize resource directories between legacy and centralized locations.
+        Synchronize resource directories between original and centralized locations.
 
         Returns:
             bool: True if sync succeeded, False otherwise
@@ -580,6 +580,65 @@ class PathManager:
         except Exception as e:
             logger.error(f"Failed to ensure directory structure: {e}")
             return False
+
+    def save_generated_image(
+        self,
+        image_data: bytes,
+        filename: str,
+        source: str = "nano_banana"
+    ) -> str:
+        """
+        Save generated image to data_storage/assets/images/generated/.
+
+        Centralized image storage method for all image generation tools.
+
+        Args:
+            image_data: Raw image bytes to save
+            filename: Target filename (e.g., "img_001_20250112.png")
+            source: Source identifier (nano_banana, veo, etc.) for logging
+
+        Returns:
+            str: Absolute path to saved file
+
+        Raises:
+            AppError: If unable to determine path or save file
+        """
+        try:
+            from core.errors import AppError, ErrorCategory
+
+            # Get generated images directory path
+            generated_dir = self.get_generated_images_path()
+            if not generated_dir:
+                raise AppError(
+                    code="IMG_PATH_ERROR",
+                    message="Unable to determine generated images directory path",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    suggestion="Check data_storage configuration"
+                )
+
+            # Create directory if needed
+            generated_path = Path(generated_dir)
+            generated_path.mkdir(parents=True, exist_ok=True)
+
+            # Save file
+            file_path = generated_path / filename
+            with open(file_path, 'wb') as f:
+                f.write(image_data)
+
+            logger.info(f"Generated image saved: {filename} (source: {source}, size: {len(image_data)} bytes)")
+            return str(file_path)
+
+        except AppError:
+            raise  # Re-raise AppError as-is
+        except Exception as e:
+            from core.errors import AppError, ErrorCategory
+            logger.error(f"Failed to save generated image: {e}")
+            raise AppError(
+                code="IMG_SAVE_FAILED",
+                message=f"Failed to save generated image: {str(e)}",
+                category=ErrorCategory.INTERNAL_SERVER,
+                suggestion="Check file permissions and storage space"
+            )
 
     def get_path_info(self) -> Dict[str, Any]:
         """

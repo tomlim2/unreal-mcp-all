@@ -164,7 +164,7 @@ def _extract_from_partial_response(partial_response: str) -> dict:
             }
             
             # Extract common parameters based on command type
-            if command_type == "image_to_image":
+            if command_type == "nano_banana_image_to_image":
                 # Extract style_prompt
                 style_match = re.search(r'"style_prompt":\s*"([^"]*)', partial_response)
                 if style_match:
@@ -254,14 +254,14 @@ def _auto_assign_latest_image_if_needed(command, session_context):
     command_type = command.get("type")
 
     # Image-related commands (commands that require source images)
-    image_commands = ["image_to_image", "generate_video_from_image"]
+    image_commands = ["nano_banana_image_to_image", "generate_video_from_image"]
 
     # Text-to-image commands (commands that DON'T require source images)
-    text_to_image_commands = ["text_to_image"]
+    text_to_image_commands = ["nano_banana_text_to_image"]
 
     # Check if image parameter already provided
     has_image = ("image_url" in params or "image_uid" in params or
-                 "target_image_uid" in params or "main_image_data" in params)
+                 "images" in params and params.get("images"))
 
     # Skip auto-assignment for text-to-image commands (they don't need source images)
     if command_type in text_to_image_commands:
@@ -287,7 +287,7 @@ def _auto_assign_latest_image_if_needed(command, session_context):
         # Double-check: ensure we only use image UIDs, never video UIDs
         if latest_uid and latest_uid.startswith('img_'):
             # Assign latest image UID to appropriate parameter
-            if command_type == "image_to_image":
+            if command_type == "nano_banana_image_to_image":
                 params["target_image_uid"] = latest_uid
                 logger.info(f"✅ Auto-assigned latest image UID for {command_type}: {latest_uid}")
             elif command_type == "generate_video_from_image":
@@ -350,67 +350,55 @@ def _sanitize_commands_for_response(commands: List[Dict[str, Any]]) -> List[Dict
         cmd_copy = cmd.copy()
         if "params" in cmd_copy:
             params_copy = cmd_copy["params"].copy()
-            # Replace large binary data with summary
-            if "main_image_data" in params_copy and isinstance(params_copy["main_image_data"], dict):
-                img_data = params_copy["main_image_data"]
-                data_size = len(img_data.get('data', b'')) if isinstance(img_data.get('data'), bytes) else len(str(img_data.get('data', '')))
-                params_copy["main_image_data"] = {
-                    "mime_type": img_data.get("mime_type"),
-                    "data": f"<bytes:{data_size} bytes>"
-                }
-            if "reference_images" in params_copy and isinstance(params_copy["reference_images"], list):
-                params_copy["reference_images"] = f"<{len(params_copy['reference_images'])} reference images>"
+            # Replace large binary data in images array with summary
+            if "images" in params_copy and isinstance(params_copy["images"], list):
+                sanitized_images = []
+                for img in params_copy["images"]:
+                    if isinstance(img, dict) and 'data' in img:
+                        data_size = len(img.get('data', b'')) if isinstance(img.get('data'), bytes) else len(str(img.get('data', '')))
+                        sanitized_images.append({
+                            "mime_type": img.get("mime_type"),
+                            "data": f"<bytes:{data_size} bytes>"
+                        })
+                    else:
+                        sanitized_images.append(img)  # UID reference, keep as-is
+                params_copy["images"] = sanitized_images
             cmd_copy["params"] = params_copy
         sanitized.append(cmd_copy)
     return sanitized
 
 
-def _process_images_for_commands(commands: List[Dict[str, Any]], target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> None:
+def _process_images_for_commands(commands: List[Dict[str, Any]], images: Optional[List[Dict[str, Any]]] = None) -> None:
     """
-    Inject image data into commands that support image processing.
+    Inject images array directly into commands (http_bridge already converted UIDs).
+
+    Images array semantics:
+    - I2I: images[0] = main, images[1,2,3] = references
+    - T2I: images[0,1,2] = references only
 
     Args:
         commands: List of AI-generated commands to process
-        target_image_uid: Optional UID for main target image (existing screenshot)
-        main_image_data: Optional user-uploaded main image (in-memory only, no UID)
-        reference_images: Optional list of reference images (in-memory only, no UID)
+        images: Simple array of image data dicts (UID conversion done by http_bridge)
+            [{'data': base64, 'mime_type': 'image/png'}, ...]
     """
-    if not target_image_uid and not main_image_data and not reference_images:
+    if not images or len(images) == 0:
         return
 
-    # Commands that support image processing
-    image_commands = {
-        'image_to_image',
-        'text_to_image',  # Also supports reference images for style
-        'compose_images',
-        'blend_images',
-        'transfer_style'
-    }
+    # Commands that support image processing (nano banana only)
+    image_gen_commands = {'nano_banana_image_to_image', 'nano_banana_text_to_image'}
 
     for command in commands:
         command_type = command.get('type')
 
-        if command_type in image_commands:
-            if 'params' not in command:
-                command['params'] = {}
+        if command_type not in image_gen_commands:
+            continue
 
-            # Special case: text_to_image does NOT use main_image_data or target_image_uid
-            # It only uses reference_images for style guidance
-            if command_type != 'text_to_image':
-                # Priority 1: Add user-uploaded main image (in-memory, no UID) - takes precedence over auto-fetched UID
-                if main_image_data:
-                    command['params']['main_image_data'] = main_image_data
-                    logger.info(f"Added user-uploaded main image ({main_image_data.get('mime_type')}, {len(main_image_data.get('data', b''))//1024}KB) to command {command_type}")
-                # Priority 2: Add target image UID if provided (existing screenshot or auto-fetched)
-                elif target_image_uid:
-                    command['params']['target_image_uid'] = target_image_uid
-                    logger.info(f"Added target image UID {target_image_uid} to command {command_type}")
+        if 'params' not in command:
+            command['params'] = {}
 
-            # Add reference images if provided (in-memory only, no UID)
-            # For text_to_image, reference images are used for style guidance only
-            if reference_images and len(reference_images) > 0:
-                command['params']['reference_images'] = reference_images
-                logger.info(f"Added {len(reference_images)} reference images to command {command_type}")
+        # Simply pass through the images array (already in correct format)
+        command['params']['images'] = images
+        logger.info(f"{command_type}: Added {len(images)} images to params")
 
 
 def _setup_session_and_model(request: ProcessingRequest):
@@ -522,22 +510,6 @@ def _execute_commands(request: ProcessingRequest, commands: List[Dict[str, Any]]
                 command["params"]["session_id"] = request.session_id
                 logger.debug(f"Added session_id {request.session_id} to command {command.get('type')}")
 
-            # Add new prompt fields for enhanced reference images flow
-            if request.main_prompt is not None or request.reference_prompts is not None:
-                if "params" not in command:
-                    command["params"] = {}
-
-                if request.main_prompt is not None:
-                    command["params"]["main_prompt"] = request.main_prompt
-                    logger.info(f"🎯 Added main_prompt to {command.get('type')}: '{request.main_prompt}'")
-
-                if request.reference_prompts is not None and len(request.reference_prompts) > 0:
-                    # Filter out empty prompts
-                    non_empty_prompts = [p for p in request.reference_prompts if p and p.strip()]
-                    if non_empty_prompts:
-                        command["params"]["reference_prompts"] = non_empty_prompts
-                        logger.info(f"🎯 Added {len(non_empty_prompts)} reference_prompts to {command.get('type')}: {non_empty_prompts}")
-
             # Auto-assign latest image for image-related commands if needed
             _auto_assign_latest_image_if_needed(command, session_context)
 
@@ -576,7 +548,7 @@ def _execute_commands(request: ProcessingRequest, commands: List[Dict[str, Any]]
     return execution_results
 
 
-def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     try:
         # Create request object
         request = ProcessingRequest(
@@ -584,11 +556,7 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             context=context or "Assume as you are a creative cinematic director",
             session_id=session_id,
             llm_model=llm_model,
-            target_image_uid=target_image_uid,
-            main_image_data=main_image_data,
-            main_prompt=main_prompt,
-            reference_prompts=reference_prompts or [],
-            reference_images=reference_images or []
+            images=images
         )
 
         # Setup session and model
@@ -602,13 +570,22 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
                 "modelUsed": selected_model
             }
 
-        # Determine if this is a style or video request for preprocessing
+        # Determine if this is a style, video, or image generation request
         is_style_request = any(keyword in request.user_input.lower() for keyword in ['style', 'cyberpunk', 'anime', 'watercolor', 'punk', 'transform', 'make it'])
         is_video_request = any(keyword in request.user_input.lower() for keyword in ['video', 'animate', 'motion', 'movement', 'fly through', 'camera movement', 'flying camera', 'moving'])
 
-        # For style requests, extract only the style essence to reduce tokens
+        # Image generation requests (should preserve original prompt)
+        is_image_generation_request = any(keyword in request.user_input.lower() for keyword in [
+            'generate', 'create image', 'draw', 'text to image', 'text-to-image', 't2i',
+            'image to image', 'image-to-image', 'i2i', 'nano banana', 'nanobanana'
+        ])
+
+        # Image generation requests: preserve original prompt (no preprocessing)
         processed_input = request.user_input
-        if is_style_request and session_context and session_context.get_latest_image_path():
+        if is_image_generation_request:
+            logger.info(f"Image generation request detected - using original prompt without modification")
+        elif is_style_request and session_context and session_context.get_latest_image_path():
+            # For style requests, extract only the style essence to reduce tokens
             processed_input = _extract_style_essence(request.user_input, provider)
             logger.info(f"Style preprocessing: '{request.user_input}' → '{processed_input}'")
 
@@ -640,12 +617,10 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         parsed_response = _parse_ai_response(ai_response)
 
         # Process images for commands if images are provided
-        if (request.target_image_uid or request.main_image_data or request.reference_images) and parsed_response.get("commands"):
+        if request.images and parsed_response.get("commands"):
             _process_images_for_commands(
                 parsed_response["commands"],
-                request.target_image_uid,
-                request.main_image_data,
-                request.reference_images
+                request.images
             )
 
         # Execute commands
@@ -683,9 +658,24 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
         }
 
 # Main function for external use with session support
-def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, target_image_uid: str = None, main_image_data: Optional[Dict[str, Any]] = None, main_prompt: str = None, reference_prompts: List[str] = None, reference_images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-    """Process natural language input and return structured commands with optional session support."""
-    return _process_natural_language_impl(user_input, context, session_id, llm_model, target_image_uid, main_image_data, main_prompt, reference_prompts, reference_images)
+def process_natural_language(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """
+    Process natural language input with simple images array.
+
+    Args:
+        user_input: Natural language command
+        context: Optional context string
+        session_id: Optional session ID
+        llm_model: Optional LLM model override
+        images: Optional images array (http_bridge converts UIDs to data):
+            - T2I: images[0,1,2] = reference images
+            - I2I: images[0] = main, images[1,2,3] = references
+            Each image: {'data': base64_string, 'mime_type': 'image/png'}
+
+    Returns:
+        Dict with explanation, commands, and execution results
+    """
+    return _process_natural_language_impl(user_input, context, session_id, llm_model, images)
 
 def build_system_prompt_with_session(context: str, session_context: SessionContext = None, is_style_request: bool = False) -> str:
     """Build system prompt with session context information."""
@@ -705,7 +695,7 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
         
         if recent_commands:
             # Check if recent commands were primarily 2D image editing
-            image_commands = ['image_to_image']
+            image_commands = ['nano_banana_image_to_image']
             recent_image_commands = [cmd for cmd in recent_commands if cmd.get('type') in image_commands]
             
             if len(recent_image_commands) >= len(recent_commands) // 2:  # 50% or more were image commands
@@ -750,8 +740,8 @@ def execute_command_direct(command: Dict[str, Any]) -> Any:
     # AI Image Generation/Editing: Uses external APIs (Gemini)
     # Roblox: Avatar downloads (uses Roblox API + local file storage)
     no_unreal_required_commands = [
-        'text_to_image',  # Text-to-image generation
-        'image_to_image',      # Image-to-image transformation
+        'nano_banana_text_to_image',  # Text-to-image generation
+        'nano_banana_image_to_image',      # Image-to-image transformation
         'download_roblox_obj',
         'get_roblox_download_status',
         'cancel_roblox_download',

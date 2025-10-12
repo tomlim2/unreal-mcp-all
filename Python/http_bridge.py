@@ -2,11 +2,9 @@
 """
 HTTP Bridge for Unreal MCP Server - Entry Point
 
-This file now serves as a simple entry point that delegates to the modular
-api.http.server implementation. The legacy MCPBridgeHandler is preserved only
-for asset serving (screenshots, videos, 3D objects).
-
-For the full legacy implementation, see: http_bridge_legacy_backup.py
+This file serves as a simple entry point that delegates to the modular
+api.http.server implementation. The MCPBridgeHandler handles asset serving
+(screenshots, videos, 3D objects).
 """
 
 import json
@@ -34,9 +32,9 @@ logger = logging.getLogger("MCPHttpBridge")
 
 class MCPBridgeHandler(BaseHTTPRequestHandler):
     """
-    Legacy handler preserved ONLY for asset serving (GET requests).
+    Asset serving handler for GET requests.
 
-    This class is kept minimal - only the do_GET method for serving:
+    Handles serving of:
     - Screenshots (/screenshots/*)
     - Videos (/videos/*)
     - 3D Objects (/objects/*)
@@ -172,13 +170,12 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(error_response).encode('utf-8'))
 
 
-# Main entry point now uses new modular server
 def main():
-    """Main entry point - delegates to new modular HTTP server"""
+    """Main entry point - delegates to modular HTTP server"""
     try:
-        from api.http.server import main as new_server_main
-        logger.info("Starting HTTP Bridge with new modular architecture...")
-        return new_server_main()
+        from api.http.server import main as server_main
+        logger.info("Starting HTTP Bridge with modular architecture...")
+        return server_main()
     except Exception as e:
         logger.error(f"Failed to start HTTP Bridge: {e}")
         return 1
