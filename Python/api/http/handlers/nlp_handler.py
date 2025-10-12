@@ -71,27 +71,23 @@ def handle_nlp_request(handler, request_data: dict, trace_id: str) -> Optional[D
         # Prepare reference images for NLP (strict validation)
         nlp_reference_images = prepare_reference_images_for_nlp(reference_images)
 
-        # Extract and format prompts
-        main_prompt, reference_prompts = extract_prompts(request_data)
+        # Build images array for NLP (I2I: [main, refs...], T2I: [refs...])
+        images = _build_images_array(target_uid, main_image_data, nlp_reference_images)
 
         # Log NLP call details
-        _log_nlp_call_debug(nlp_reference_images, trace_id)
+        _log_nlp_call_debug(images, trace_id)
 
-        # Call NLP service
+        # Call NLP service with images array
         from tools.ai.nlp import process_natural_language
 
         result = process_natural_language(
             user_input, context, session_id, llm_model,
-            target_image_uid=target_uid,
-            main_image_data=main_image_data,
-            main_prompt=main_prompt,
-            reference_prompts=reference_prompts,
-            reference_images=nlp_reference_images
+            images=images
         )
 
-        # Verify reference images made it to commands (debug)
-        if nlp_reference_images and result.get('commands'):
-            _verify_reference_images_in_commands(result['commands'], nlp_reference_images)
+        # Verify images made it to commands (debug)
+        if images and result.get('commands'):
+            _verify_images_in_commands(result['commands'], images)
 
         # Build response
         response = build_nlp_response(result, user_input, session_id, trace_id)
@@ -117,12 +113,12 @@ def handle_nlp_request(handler, request_data: dict, trace_id: str) -> Optional[D
         return error_response
 
 
-def _log_nlp_call_debug(nlp_reference_images: Optional[list], trace_id: str):
+def _log_nlp_call_debug(images: Optional[list], trace_id: str):
     """
     Write NLP call details to debug log file.
 
     Args:
-        nlp_reference_images: Prepared reference images for NLP
+        images: Images array for NLP (I2I: [main, refs...], T2I: [refs...])
         trace_id: Request trace ID
 
     Writes to: http_bridge_debug.log
@@ -130,32 +126,90 @@ def _log_nlp_call_debug(nlp_reference_images: Optional[list], trace_id: str):
     import datetime
 
     current_timestamp = datetime.datetime.now().isoformat()
-    ref_count = len(nlp_reference_images) if nlp_reference_images else 0
+    image_count = len(images) if images else 0
 
     with open('http_bridge_debug.log', 'a') as f:
-        f.write(f"[{current_timestamp}] [{trace_id}] Calling NLP with {ref_count} reference images\n")
+        f.write(f"[{current_timestamp}] [{trace_id}] Calling NLP with {image_count} images\n")
 
-        if nlp_reference_images:
-            for i, ref in enumerate(nlp_reference_images):
-                data_len = len(ref.get('data', ''))
-                mime_type = ref.get('mime_type')
-                f.write(f"  Ref {i}: {data_len} chars, type={mime_type}\n")
+        if images:
+            for i, img in enumerate(images):
+                data_len = len(img.get('data', ''))
+                mime_type = img.get('mime_type')
+                f.write(f"  Image [{i}]: {data_len} chars, type={mime_type}\n")
 
 
-def _verify_reference_images_in_commands(commands: list, nlp_reference_images: list):
+def _verify_images_in_commands(commands: list, images: list):
     """
-    Verify reference images were injected into commands (debug logging).
+    Verify images were injected into commands (debug logging).
 
     Args:
         commands: Generated commands from NLP
-        nlp_reference_images: Reference images passed to NLP
+        images: Images array passed to NLP
 
-    Logs warnings if reference images are missing from commands.
+    Logs warnings if images are missing from command params.
     """
     for i, command in enumerate(commands):
         cmd_params = command.get('params', {})
-        if 'reference_images' in cmd_params:
-            ref_count = len(cmd_params['reference_images'])
-            logger.debug(f"Command {i} has {ref_count} reference images ✅")
+        if 'images' in cmd_params:
+            img_count = len(cmd_params['images'])
+            logger.debug(f"Command {i} has {img_count} images ✅")
         else:
-            logger.warning(f"Command {i} missing reference_images ❌")
+            logger.warning(f"Command {i} missing images array ❌")
+
+
+def _build_images_array(
+    target_uid: Optional[str],
+    main_image_data: Optional[Dict],
+    reference_images: Optional[list]
+) -> Optional[list]:
+    """
+    Build images array for NLP from processed image data.
+
+    Logic:
+        - I2I: images[0] = main (from target_uid or main_image_data)
+               images[1,2,3] = references
+        - T2I: images[0,1,2] = references (no main image)
+
+    Args:
+        target_uid: Optional screenshot UID
+        main_image_data: Optional uploaded main image
+        reference_images: Optional list of reference images
+
+    Returns:
+        List of image dicts: [{'data': base64, 'mime_type': str}, ...] or None
+    """
+    from core.resources.images import load_image_from_uid
+
+    images = []
+
+    # Check if we have main image (I2I mode)
+    has_main_image = target_uid or main_image_data
+
+    if target_uid:
+        # Load from UID
+        logger.debug(f"Loading main image from UID: {target_uid}")
+        main_img = load_image_from_uid(target_uid)
+        images.append(main_img)
+    elif main_image_data:
+        # Use uploaded main image
+        logger.debug("Using uploaded main image")
+        images.append(main_image_data)
+
+    # Add reference images
+    if reference_images:
+        logger.debug(f"Adding {len(reference_images)} reference images")
+        images.extend(reference_images)
+
+    # Log final array structure
+    if images:
+        mode = "I2I" if has_main_image else "T2I"
+        logger.info(f"Built {mode} images array with {len(images)} images")
+        if has_main_image:
+            logger.debug(f"  [0] = main image")
+            for i in range(1, len(images)):
+                logger.debug(f"  [{i}] = reference {i}")
+        else:
+            for i in range(len(images)):
+                logger.debug(f"  [{i}] = reference {i+1}")
+
+    return images if images else None

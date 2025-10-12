@@ -25,11 +25,7 @@ export function ReferenceImagesSection({
 }: ReferenceImagesSectionProps) {
   return (
     <div className={styles.section}>
-      <h3>Reference Images (max {MAX_REFERENCE_IMAGES})</h3>
-      <p className={styles.description}>
-        Upload reference images to influence the visual style of the generated image.
-      </p>
-
+      <h3>Reference Images</h3>
       <div className={styles.referenceGrid}>
         {[0, 1, 2].map((index) => (
           <ReferenceImageSlot

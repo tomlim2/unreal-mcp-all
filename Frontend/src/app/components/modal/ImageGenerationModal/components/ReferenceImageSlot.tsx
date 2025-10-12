@@ -59,24 +59,20 @@ export function ReferenceImageSlot({
   return (
     <div className={styles.referenceSlot}>
       {image ? (
-        <>
-          <div
-            className={`${styles.uploadArea} ${styles.dragDropZone} ${isDragOver ? styles.dragOver : ''}`}
-            onDragOver={handleDragOver}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className={styles.uploadedImage}>
-              <img
-                src={image.preview}
-                alt={`Reference ${index + 1}`}
-                className={styles.referencePreview}
-              />
-            </div>
-          </div>
-          <div className={styles.referenceImageInfo}>
-            <span className={styles.referenceImageName}>Reference {index + 1}</span>
+        <div
+          className={`${styles.uploadArea} ${styles.dragDropZone} ${isDragOver ? styles.dragOver : ''}`}
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className={styles.uploadedImage}>
+            <img
+              src={image.preview}
+              alt={`Reference ${index + 1}`}
+              className={styles.referencePreview}
+              draggable={false}
+            />
             <button
               className={styles.referenceRemoveButton}
               onClick={() => onRemove(index)}
@@ -86,7 +82,7 @@ export function ReferenceImageSlot({
               ×
             </button>
           </div>
-        </>
+        </div>
       ) : (
         <div
           className={`${styles.uploadArea} ${styles.dragDropZone} ${isDragOver ? styles.dragOver : ''}`}
