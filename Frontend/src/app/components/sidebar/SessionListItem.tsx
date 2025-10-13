@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Session } from "../services";
 import styles from "./SessionListItem.module.css";
 
 interface SessionListItemProps {

@@ -112,7 +112,8 @@ export interface CreateSessionWithImageResponse {
   image_uid?: string;
   image_url?: string;
   redirect_url: string;
-  nlp_result?: any;
+  error?: string;
+  nlp_result?: unknown;
 }
 
 // API Service Interface

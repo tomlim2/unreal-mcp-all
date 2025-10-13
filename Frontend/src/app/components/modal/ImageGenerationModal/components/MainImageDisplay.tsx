@@ -12,7 +12,7 @@ interface MainImageDisplayProps {
   onClearUpload: () => void;
   onClearSession: () => void;
   onFileUpload?: (file: File) => void;
-  fileInputRef?: React.RefObject<HTMLInputElement>;
+  fileInputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export function MainImageDisplay({

@@ -12,12 +12,11 @@ interface MainImageSectionProps {
   selectedImage: SelectedImage;
   sessionImages: SessionImageInfo[];
   selectedImageIndex: number;
-  mainImageInputRef: React.RefObject<HTMLInputElement>;
+  mainImageInputRef: React.RefObject<HTMLInputElement | null>;
   onMainImageUpload: (file: File | null) => void;
   onRemoveMainImageUpload: () => void;
   onSetSelectedImageIndex: (index: number) => void;
   onSelectSessionImage: (index: number) => void;
-  onSelectUpload: () => void;
   submitting: boolean;
 }
 
@@ -30,7 +29,6 @@ export function MainImageSection({
   onRemoveMainImageUpload,
   onSetSelectedImageIndex,
   onSelectSessionImage,
-  onSelectUpload,
   submitting
 }: MainImageSectionProps) {
   return (

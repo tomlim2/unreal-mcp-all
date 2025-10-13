@@ -16,13 +16,15 @@ interface VideoResultData {
   cost?: { display?: string; value?: number };
   processing?: { model?: string };
   prompt?: string;
+  uids?: { video?: string };
+  filename?: string;
 }
 
 interface MessageItemVideoResultProps {
   result: {
     command: string;
     success: boolean;
-    result?: VideoResultData;
+    result?: unknown;
     error?: string;
   };
   resultIndex: number;
@@ -60,20 +62,20 @@ export default function MessageItemVideoResult({
   const [videoLoadError, setVideoLoadError] = useState(false);
 
   if (result.success) {
-    const resultData = result.result;
+    const resultData = (result.result ?? {}) as Partial<VideoResultData>;
 
     // Check for new hierarchical schema (video.url)
-    const hasNewVideoUrl = resultData?.video?.url && typeof resultData.video.url === "string";
+  const hasNewVideoUrl = !!(resultData?.video?.url && typeof resultData.video.url === "string");
 
     // Check for legacy schema (video_url)
-    const hasLegacyVideoUrl = resultData?.video_url && typeof resultData.video_url === "string";
+  const hasLegacyVideoUrl = !!(resultData?.video_url && typeof resultData.video_url === "string");
 
     if (!hasNewVideoUrl && !hasLegacyVideoUrl) {
       return <div></div>; // Return empty div if no video
     }
 
     // Get video URL from either new hierarchical or legacy format
-    const videoUrl = resultData?.video?.url || resultData?.video_url;
+  const videoUrl = (resultData?.video?.url as string) || (resultData?.video_url as string);
 
     // Get video metadata
     const videoMetadata = resultData?.video?.metadata;

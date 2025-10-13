@@ -17,7 +17,7 @@ interface Object3DResult {
 }
 
 interface MessageItem3DResultProps {
-  result: Object3DResult;
+  result: { command: string; success: boolean; result?: unknown; error?: string };
   resultIndex: number;
 }
 
@@ -26,15 +26,16 @@ export default function MessageItem3DResult({
   resultIndex
 }: MessageItem3DResultProps) {
   const [showPreview, setShowPreview] = useState(false);
+  const data = (result.result ?? {}) as Object3DResult;
 
   // Check for 3D object in new format
-  const object3D = result.object_3d;
-  const objectUid = object3D?.uid || result.fbx_uid || result.obj_uid;
+  const object3D = data.object_3d;
+  const objectUid = object3D?.uid || data.fbx_uid || data.obj_uid;
   const objectUrl = object3D?.url ||
                     (objectUid ? `/api/3d-object/${objectUid}` : null);
   const format = object3D?.format ||
-                 (result.fbx_uid ? 'fbx' : null) ||
-                 (result.obj_uid ? 'obj' : null);
+                 (data.fbx_uid ? 'fbx' : null) ||
+                 (data.obj_uid ? 'obj' : null);
 
   if (!objectUrl && !objectUid) {
     return null;

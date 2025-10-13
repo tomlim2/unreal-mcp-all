@@ -54,7 +54,7 @@ export default function Modal({ modalState }: ModalProps) {
       case 'custom':
         return <CustomModal config={modalState.config} />;
       case 'image-generation':
-        return <ImageGenerationModal config={modalState.config} onClose={modalState.config.onClose} />;
+        return <ImageGenerationModal config={modalState.config} onClose={modalState.config.onClose ?? (() => {})} />;
       default:
         return null;
     }
@@ -63,8 +63,8 @@ export default function Modal({ modalState }: ModalProps) {
   return createPortal(
     <ModalOverlay
       size={modalState.config.size}
-      closable={modalState.config.closable}
-      backdrop={modalState.config.backdrop}
+      closable={'closable' in modalState.config ? modalState.config.closable : true}
+      backdrop={'backdrop' in modalState.config ? modalState.config.backdrop : true}
       onClose={modalState.config.onClose}
     >
       {renderModalContent()}

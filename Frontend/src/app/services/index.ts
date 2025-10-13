@@ -4,5 +4,6 @@ export type {
   Session,
   AIResponse,
   SessionContext,
-  TransformRequest
+  TransformRequest,
+  CreateSessionWithImageRequest,
 } from './types';

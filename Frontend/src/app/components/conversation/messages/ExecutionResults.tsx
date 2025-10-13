@@ -4,7 +4,6 @@ import styles from './MessageItem.module.css';
 import MessageItemImageResult from './MessageItemImageResult';
 import MessageItemVideoResult from './MessageItemVideoResult';
 import MessageItem3DResult from './MessageItem3DResult';
-import ErrorDisplay from './ErrorDisplay';
 import FbxResultDisplay from './FbxResultDisplay';
 
 interface ExecutionResultData {
@@ -37,15 +36,25 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
 
     const resultData = result.result as Record<string, unknown>;
 
-    // Check for image URLs
-    const hasNewImageUrl = resultData?.image?.url;
-    const hasLegacyImageUrl = resultData?.image_url;
-    const hasImageUrl = hasNewImageUrl || hasLegacyImageUrl;
+    // Check for image URLs safely
+    const imageUnknown = (resultData && 'image' in resultData) ? (resultData['image'] as unknown) : undefined;
+    const newImageUrlUnknown = (imageUnknown && typeof imageUnknown === 'object' && imageUnknown !== null)
+      ? (imageUnknown as Record<string, unknown>)['url']
+      : undefined;
+    const legacyImageUrlUnknown = (resultData && 'image_url' in resultData)
+      ? (resultData['image_url'] as unknown)
+      : undefined;
+    const hasImageUrl = (typeof newImageUrlUnknown === 'string') || (typeof legacyImageUrlUnknown === 'string');
 
-    // Check for video URLs
-    const hasNewVideoUrl = resultData?.video?.url;
-    const hasLegacyVideoUrl = resultData?.video_url;
-    const hasVideoUrl = hasNewVideoUrl || hasLegacyVideoUrl;
+    // Check for video URLs safely
+    const videoUnknown = (resultData && 'video' in resultData) ? (resultData['video'] as unknown) : undefined;
+    const newVideoUrlUnknown = (videoUnknown && typeof videoUnknown === 'object' && videoUnknown !== null)
+      ? (videoUnknown as Record<string, unknown>)['url']
+      : undefined;
+    const legacyVideoUrlUnknown = (resultData && 'video_url' in resultData)
+      ? (resultData['video_url'] as unknown)
+      : undefined;
+    const hasVideoUrl = (typeof newVideoUrlUnknown === 'string') || (typeof legacyVideoUrlUnknown === 'string');
 
     // Apply filters
     if (excludeImages && hasImageUrl) {
@@ -79,13 +88,23 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
         const errorSuggestion = resultData?.suggestion as string | undefined;
 
         // Check if result has image or video
-        const hasNewImageUrl = resultData?.image?.url;
-        const hasLegacyImageUrl = resultData?.image_url;
-        const hasImageUrl = hasNewImageUrl || hasLegacyImageUrl;
+        const imageUnknown = resultData && 'image' in resultData ? (resultData['image'] as unknown) : undefined;
+        const newImageUrlUnknown = (imageUnknown && typeof imageUnknown === 'object' && imageUnknown !== null)
+          ? (imageUnknown as Record<string, unknown>)['url']
+          : undefined;
+        const legacyImageUrlUnknown = resultData && 'image_url' in resultData
+          ? (resultData['image_url'] as unknown)
+          : undefined;
+        const hasImageUrl = (typeof newImageUrlUnknown === 'string') || (typeof legacyImageUrlUnknown === 'string');
 
-        const hasNewVideoUrl = resultData?.video?.url;
-        const hasLegacyVideoUrl = resultData?.video_url;
-        const hasVideoUrl = hasNewVideoUrl || hasLegacyVideoUrl;
+        const videoUnknown = resultData && 'video' in resultData ? (resultData['video'] as unknown) : undefined;
+        const newVideoUrlUnknown = (videoUnknown && typeof videoUnknown === 'object' && videoUnknown !== null)
+          ? (videoUnknown as Record<string, unknown>)['url']
+          : undefined;
+        const legacyVideoUrlUnknown = resultData && 'video_url' in resultData
+          ? (resultData['video_url'] as unknown)
+          : undefined;
+        const hasVideoUrl = (typeof newVideoUrlUnknown === 'string') || (typeof legacyVideoUrlUnknown === 'string');
 
         const hasMedia = hasImageUrl || hasVideoUrl;
 

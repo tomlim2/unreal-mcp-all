@@ -72,7 +72,7 @@ export default function ModalProvider({ children }: ModalProviderProps) {
         id,
         type: 'alert',
         config: { ...config, onClose: () => closeModal(id) },
-        resolve
+        resolve: () => resolve()
       };
       setModals(prev => [...prev, modalState]);
     });
@@ -106,14 +106,14 @@ export default function ModalProvider({ children }: ModalProviderProps) {
             closeModal(id);
           }
         },
-        resolve
+        resolve: (value: unknown) => resolve(Boolean(value))
       };
       setModals(prev => [...prev, modalState]);
     });
   }, [closeModal]);
 
   // Show form modal
-  const showForm = useCallback((config: FormModalConfig): Promise<any> => {
+  const showForm = useCallback(<T = unknown>(config: FormModalConfig<T>): Promise<T | undefined> => {
     return new Promise((resolve, reject) => {
       const id = generateId();
       const modalState: ModalState = {
@@ -121,14 +121,14 @@ export default function ModalProvider({ children }: ModalProviderProps) {
         type: 'form',
         config: {
           ...config,
-          onSubmit: async (data: any) => {
+          onSubmit: async (data: unknown) => {
             try {
               if (config.onSubmit) {
-                await config.onSubmit(data);
+                await config.onSubmit(data as T);
               }
-              resolve(data);
+              resolve(data as T);
               closeModal(id);
-            } catch (error) {
+            } catch (error: unknown) {
               reject(error);
             }
           },
@@ -137,7 +137,7 @@ export default function ModalProvider({ children }: ModalProviderProps) {
             closeModal(id);
           }
         },
-        resolve,
+        resolve: (value: unknown) => resolve(value as T | undefined),
         reject
       };
       setModals(prev => [...prev, modalState]);
@@ -176,17 +176,18 @@ export default function ModalProvider({ children }: ModalProviderProps) {
     return {
       close: () => closeModal(id),
       updateProgress: (progress: number) => {
-        setModals(prev => prev.map(modal => 
-          modal.id === id 
-            ? { ...modal, config: { ...modal.config, progress } as LoadingModalConfig }
-            : modal
-        ));
+        setModals(prev => prev.map(modal => {
+          if (modal.id === id && modal.type === 'loading') {
+            return { ...modal, config: { ...modal.config, progress } };
+          }
+          return modal;
+        }));
       }
     };
   }, [closeModal]);
 
   // Show settings modal
-  const showSettings = useCallback((config: SettingsModalConfig): Promise<any> => {
+  const showSettings = useCallback(<T = unknown>(config: SettingsModalConfig<T>): Promise<T | undefined> => {
     return new Promise((resolve) => {
       const id = generateId();
       const modalState: ModalState = {
@@ -194,11 +195,11 @@ export default function ModalProvider({ children }: ModalProviderProps) {
         type: 'settings',
         config: {
           ...config,
-          onSave: async (data: any) => {
+          onSave: async (data: unknown) => {
             if (config.onSave) {
-              await config.onSave(data);
+              await config.onSave(data as T);
             }
-            resolve(data);
+            resolve(data as T);
             closeModal(id);
           },
           onClose: () => {
@@ -206,7 +207,7 @@ export default function ModalProvider({ children }: ModalProviderProps) {
             closeModal(id);
           }
         },
-        resolve
+        resolve: (value: unknown) => resolve(value as T | undefined)
       };
       setModals(prev => [...prev, modalState]);
     });
@@ -244,7 +245,7 @@ export default function ModalProvider({ children }: ModalProviderProps) {
             closeModal(id);
           }
         },
-        resolve
+        resolve: (value: unknown) => resolve((value as ImageGenerationData) ?? null)
       };
       setModals(prev => [...prev, modalState]);
     });
@@ -255,7 +256,7 @@ export default function ModalProvider({ children }: ModalProviderProps) {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && modals.length > 0) {
         const topModal = modals[modals.length - 1];
-        if (topModal.config.closable !== false) {
+        if (!('closable' in topModal.config) || topModal.config.closable !== false) {
           closeModal(topModal.id);
         }
       }

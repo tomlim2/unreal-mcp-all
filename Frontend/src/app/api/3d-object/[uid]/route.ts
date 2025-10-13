@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { uid: string } }
+  request: Request,
+  context: { params: Promise<{ uid: string }> }
 ) {
   try {
-    const { uid } = params;
+    const { uid } = await context.params;
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
 
     // Proxy request to Python backend

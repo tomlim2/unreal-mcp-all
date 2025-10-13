@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
+import type { TransformRequest } from "../../services";
 import { useModalContext } from "../modal/ModalProvider";
 import styles from "./ChatInput.module.css";
 
@@ -10,15 +11,7 @@ interface ChatInputProps {
 	sessionId: string | null;
 	llmFromDb: 'gemini' | 'gemini-2' | 'claude';
 	onSubmit: (prompt: string, model?: string) => Promise<unknown>;
-	onTransformSubmit?: (data: {
-		prompt: string;
-		main_prompt?: string;
-		reference_prompts?: string[];
-		model: string;
-		sessionId: string;
-		mainImageData?: any;
-		referenceImageData?: any;
-	}) => Promise<unknown>;
+	onTransformSubmit?: (data: Omit<TransformRequest, 'sessionId'> & { sessionId: string }) => Promise<unknown>;
 	onRefreshContext: () => void;
 	allowModelSwitching?: boolean; // New prop to control model switcher
 }
@@ -261,8 +254,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 					try {
 						await onTransformSubmit({
 							prompt: data.prompt,
-							main_prompt: data.main_prompt,
-							reference_prompts: data.reference_prompts,
 							model: selectedLlm,
 							sessionId: sessionId || '',  // Pass empty string for first page
 							mainImageData: data.mainImageData,

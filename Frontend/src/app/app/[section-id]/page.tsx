@@ -1,53 +1,15 @@
-'use client';
+import SectionPageClient from "./SectionPageClient";
 
-import { use, useRef, useEffect } from "react";
-import ChatInput, { ChatInputHandle } from "../../components/chat/ChatInput";
-import ConversationHistory from "../../components/conversation/ConversationHistory";
-import { useConversationContext } from "./layout";
-
-export default function SectionPage({
+export default async function SectionPage({
   params,
 }: {
   params: Promise<{ 'section-id': string }>;
 }) {
-  const resolvedParams = use(params);
-  const chatInputRef = useRef<ChatInputHandle>(null);
-  
-  const {
-    messageInfo,
-    contextError,
-    chatLoading,
-    chatError,
-    handleChatSubmit,
-    handleTransformSubmit,
-    refreshContext
-  } = useConversationContext();
+  const resolvedParams = await params;
+  return <SectionPageClient sectionId={resolvedParams['section-id']} />;
+}
 
-  // Force focus on page load
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      chatInputRef.current?.focusInput();
-    }, 200);
-    return () => clearTimeout(timer);
-  }, []);
-  return (
-    <>
-      <ConversationHistory 
-        context={messageInfo}
-        error={contextError}
-        isNewSessionPage={false}
-      />
-      <ChatInput
-        ref={chatInputRef}
-        loading={chatLoading}
-        error={chatError}
-        sessionId={resolvedParams['section-id']}
-        llmFromDb={messageInfo?.llm_model || 'gemini-2'}
-        onSubmit={handleChatSubmit}
-        onTransformSubmit={handleTransformSubmit}
-        onRefreshContext={refreshContext}
-        allowModelSwitching={false}
-      />
-    </>
-  );
+// For static export, declare that there are no pre-rendered params.
+export function generateStaticParams() {
+  return [] as { 'section-id': string }[];
 }

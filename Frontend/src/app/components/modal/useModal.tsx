@@ -14,6 +14,7 @@ export default function useModal(): UseModalReturn {
     showLoading: context.showLoading,
     showSettings: context.showSettings,
     showModal: context.showModal,
+    showImageGeneration: context.showImageGeneration,
     closeModal: context.closeModal,
     closeAll: context.closeAll
   };

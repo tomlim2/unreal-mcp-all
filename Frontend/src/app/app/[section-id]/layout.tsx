@@ -1,40 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect, createContext, useContext, ReactNode, useMemo, use } from "react";
+import { useState, useRef, useEffect, ReactNode, useMemo, use } from "react";
 import { useRouter } from "next/navigation";
 import { createApiService, SessionContext, TransformRequest } from "../../services";
 import { useSessionContext } from "../layout";
 import { useSessionImagesStore } from "../../stores/sessionImagesStore";
 import styles from "../../components/SessionManagerPanel.module.css";
-
-// Conversation Context Types
-interface ConversationContextType {
-  // Conversation data
-  messageInfo: SessionContext | null;
-  contextLoading: boolean;
-  contextError: string | null;
-
-  // Chat state
-  chatLoading: boolean;
-  chatError: string | null;
-
-  // Operations
-  handleChatSubmit: (prompt: string, llmModel?: string) => Promise<void>;
-  handleTransformSubmit: (data: Omit<TransformRequest, 'sessionId'> & { sessionId: string }) => Promise<void>;
-  refreshContext: () => void;
-}
-
-// Create Conversation Context
-const ConversationContext = createContext<ConversationContextType | null>(null);
-
-// Custom hook to use conversation context
-export const useConversationContext = () => {
-  const context = useContext(ConversationContext);
-  if (!context) {
-    throw new Error('useConversationContext must be used within a ConversationProvider');
-  }
-  return context;
-};
+import { ConversationContext, type ConversationContextType } from "./conversationContext";
 
 // Conversation Provider Component
 function ConversationProvider({
