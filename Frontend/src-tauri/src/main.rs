@@ -3,7 +3,7 @@
 
 use std::process::{Child, Command};
 use std::sync::Mutex;
-use tauri::{Manager, State};
+use tauri::Manager;
 
 // Backend process state
 struct BackendProcess(Mutex<Option<Child>>);
