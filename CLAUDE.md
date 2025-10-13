@@ -487,9 +487,12 @@ Use `script-set-ports.bat` for automated port assignment.
 export UNREAL_TCP_HOST=192.168.1.100
 export UNREAL_TCP_PORT=55557
 
-# Frontend requires API key
-OPENAI_API_KEY=your_openai_key_here  # .env.local
-ANTHROPIC_API_KEY=your_anthropic_key  # Python .env
+# API Keys (REQUIRED)
+GOOGLE_API_KEY=your_google_key_here  # Python .env (REQUIRED for NLP + Image Gen)
+
+# API Keys (Optional)
+ANTHROPIC_API_KEY=your_anthropic_key  # Python .env (optional - alternative NLP)
+OPENAI_API_KEY=your_openai_key_here  # .env.local (optional - future use)
 
 # Project Path Configuration (NEW - for screenshot serving)
 UNREAL_PROJECT_PATH=E:\CINEVStudio\CINEVStudio  # Windows example

@@ -106,8 +106,9 @@ Choose your preferred interface for controlling Unreal Engine with AI:
 1. **Prerequisites**
    - Python 3.12+ and `uv` package manager
    - Node.js 18+ and npm
-   - OpenAI API key (for web frontend)
-   - Anthropic API key (for MCP server)
+   - **Google API key** (REQUIRED - for NLP and image generation)
+   - Anthropic API key (optional - alternative NLP model)
+   - OpenAI API key (optional - future features)
    - Unreal Engine 5.3+
 
 2. **One-Click Setup**
@@ -131,14 +132,15 @@ Choose your preferred interface for controlling Unreal Engine with AI:
 
 1. **Prerequisites**
    - Node.js 18+ and npm
-   - OpenAI API key
+   - **Google API key** (REQUIRED - for NLP and image generation)
+   - Anthropic or OpenAI key (optional)
    - Unreal Engine 5.3+
 
 2. **Setup Frontend**
    ```bash
    cd Frontend
    npm install
-   cp .env.example .env.local  # Add your OPENAI_API_KEY
+   cp .env.example .env.local  # Optional: Add OPENAI_API_KEY for future features
    npm run dev
    ```
 

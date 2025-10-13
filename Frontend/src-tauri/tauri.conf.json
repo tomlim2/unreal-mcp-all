@@ -1,0 +1,60 @@
+{
+  "productName": "MegaMelange",
+  "version": "1.0.0",
+  "identifier": "com.megamelange.app",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../out"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "longDescription": "AI-Powered Creative Hub for Unreal Engine. Control Unreal Engine with natural language, generate AI images, and create stunning visuals.",
+    "shortDescription": "AI Creative Hub for Unreal Engine"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MegaMelange - AI Creative Hub",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "minWidth": 1024,
+        "minHeight": 768
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http://localhost:8080 https:; connect-src 'self' http://localhost:8080 https://api.anthropic.com https://generativelanguage.googleapis.com;"
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true,
+      "scope": [
+        {
+          "name": "backend",
+          "cmd": "MegaMelangeBackend",
+          "args": true,
+          "sidecar": true
+        }
+      ]
+    },
+    "store": {
+      "path": ".megamelange.dat"
+    }
+  }
+}

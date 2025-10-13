@@ -16,6 +16,14 @@ dist/
 wheels/
 *.egg-info
 
+# PyInstaller build artifacts
+*.spec
+!build_backend.spec
+Python/build/
+Python/dist/
+Python/*.spec
+!Python/build_backend.spec
+
 # Virtual environments
 .venv
 
@@ -159,6 +167,11 @@ test_*.py
 # next.js
 /.next/
 /out/
+Frontend/out/
+
+# Tauri build artifacts
+Frontend/src-tauri/target/
+Frontend/src-tauri/Cargo.lock
 
 # production
 /build
