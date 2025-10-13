@@ -18,10 +18,8 @@ const bodoniModa = Bodoni_Moda({
 
 export default function RootLayout({
   children,
-  params,
 }: Readonly<{
   children: React.ReactNode;
-  params?: Promise<any>;
 }>) {
   return (
     <html lang="en">

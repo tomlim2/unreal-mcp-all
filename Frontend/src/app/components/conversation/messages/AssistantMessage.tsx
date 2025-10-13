@@ -9,6 +9,11 @@ interface ExecutionResultData {
   success: boolean;
   result?: unknown;
   error?: string;
+  // Optional diagnostics from backend (match ExecutionResults.tsx)
+  error_code?: string;
+  error_details?: Record<string, unknown>;
+  suggestion?: string;
+  category?: string;
 }
 
 interface ChatMessage {
@@ -38,7 +43,58 @@ interface AssistantMessageProps {
 
 // Token Analysis Panel Component
 function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
-  const [tokenInfo, setTokenInfo] = useState<any>(null);
+  // Types for hierarchical execution result payloads
+  interface ImageMetadata {
+    size?: { processed?: string; original?: string };
+    file_size?: { display?: string };
+    // Allow additional vendor-specific fields
+    [key: string]: unknown;
+  }
+
+  interface VideoMetadata {
+    duration?: { display?: string };
+    generation?: { resolution?: string; aspect_ratio?: string; prompt?: string };
+    [key: string]: unknown;
+  }
+
+  interface HierarchicalResult {
+    image?: { metadata?: ImageMetadata };
+    video?: { metadata?: VideoMetadata };
+    cost?: { tokens?: number; value?: number };
+  }
+
+  type FullTokenInfo = {
+    userInput: {
+      characters: number;
+      estimatedTokens: number;
+      hasNonAscii: boolean;
+      language: string;
+    };
+    imageProcessing: {
+      commandCount: number;
+      estimatedTokens: number;
+      commands: string[];
+      metadata: ImageMetadata | null;
+    };
+    videoProcessing: {
+      commandCount: number;
+      commands: string[];
+      metadata: VideoMetadata | null;
+      cost: number;
+    };
+    totalEstimate: number;
+    costs: {
+      nlp: number;
+      image: number;
+      video: number;
+      total: number;
+      modelName: string;
+    };
+  };
+
+  type TokenInfo = FullTokenInfo | { error: string };
+
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
   const calculateCosts = (
@@ -70,14 +126,17 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
         output: 0.00125 / 1000, // $1.25 per 1M tokens
         name: "Claude-3-Haiku",
       },
-    };
+    } as const;
+
+    type ModelKey = keyof typeof MODEL_PRICING;
+    const isModelKey = (key: string): key is ModelKey => key in MODEL_PRICING;
 
     // Image processing pricing (Gemini image generation - 2025 pricing)
     const GEMINI_IMAGE_GENERATION = 0.03 / 1000; // $30.00 per 1M tokens (image generation)
 
     // Get model pricing, default to gemini-2 if unknown
-    const modelKey = modelUsed || "gemini-2";
-    const pricing = MODEL_PRICING[modelKey] || MODEL_PRICING["gemini-2"];
+  const modelKeyStr = modelUsed ?? "gemini-2";
+  const pricing = MODEL_PRICING[isModelKey(modelKeyStr) ? modelKeyStr : "gemini-2"];
 
     // Estimate input/output split (rough approximation)
     const inputTokens = Math.ceil(tokens * 0.7); // 70% input
@@ -125,20 +184,21 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       );
 
       let imageTokenEstimate = 0;
-      let imageMetadata = null;
+  let imageMetadata: ImageMetadata | null = null;
 
       if (imageCommands.length > 0) {
         // Look for actual image metadata in execution results
-        const imageResults = (message.execution_results || []).find(
-          (result) =>
-            result.result &&
-            typeof result.result === "object" &&
-            ((result.result as any).image?.metadata ||
-              (result.result as any).cost?.tokens)
-        );
+        const imageResults = (message.execution_results || []).find((res) => {
+          const rr = res?.result as unknown;
+          if (rr && typeof rr === "object") {
+            const hr = rr as Partial<HierarchicalResult>;
+            return Boolean(hr.image?.metadata || hr.cost?.tokens);
+          }
+          return false;
+        });
 
-        if (imageResults && (imageResults.result as any)) {
-          const resultData = imageResults.result as any;
+        if (imageResults && imageResults.result && typeof imageResults.result === "object") {
+          const resultData = imageResults.result as Partial<HierarchicalResult>;
 
           // Handle hierarchical schema (only supported format)
           if (resultData.image?.metadata) {
@@ -160,21 +220,22 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       }
 
       // Process video commands (Veo-3)
-      let videoMetadata = null;
+  let videoMetadata: VideoMetadata | null = null;
       let backendVideoCost = 0;
 
       if (videoCommands.length > 0) {
         // Look for actual video metadata in execution results
-        const videoResults = (message.execution_results || []).find(
-          (result) =>
-            result.result &&
-            typeof result.result === "object" &&
-            ((result.result as any).video?.metadata ||
-              (result.result as any).cost?.value)
-        );
+        const videoResults = (message.execution_results || []).find((res) => {
+          const rr = res?.result as unknown;
+          if (rr && typeof rr === "object") {
+            const hr = rr as Partial<HierarchicalResult>;
+            return Boolean(hr.video?.metadata || hr.cost?.value);
+          }
+          return false;
+        });
 
-        if (videoResults && (videoResults.result as any)) {
-          const resultData = videoResults.result as any;
+        if (videoResults && videoResults.result && typeof videoResults.result === "object") {
+          const resultData = videoResults.result as Partial<HierarchicalResult>;
 
           // Handle hierarchical schema
           if (resultData.video?.metadata) {
@@ -204,7 +265,7 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       );
 
       if (imageResults) {
-        const resultData = imageResults.result as any;
+        const resultData = imageResults.result as Partial<HierarchicalResult>;
 
         // Hierarchical format has direct cost value
         if (resultData.cost?.value) {
@@ -243,7 +304,7 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
       });
     } catch (error) {
       console.error("Token analysis failed:", error);
-      setTokenInfo({ error: error.message });
+      setTokenInfo({ error: error instanceof Error ? error.message : String(error) });
     } finally {
       setLoading(false);
     }
@@ -262,32 +323,33 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
           <span className={styles.codeBlockTitle}>Token Analysis</span>
           <button
             onClick={() => {
-              if (!tokenInfo || tokenInfo.error) return;
+              if (!tokenInfo || ("error" in tokenInfo)) return;
 
               let analysisText = "# Token Analysis\n\n";
 
               // Usage Summary
               analysisText += `## Usage Summary\n`;
-              analysisText += `- Total Tokens: ${tokenInfo.totalEstimate.toLocaleString()}\n`;
-              analysisText += `- Total Cost: $${tokenInfo.costs.total.toFixed(
+              const info = tokenInfo as FullTokenInfo;
+              analysisText += `- Total Tokens: ${info.totalEstimate.toLocaleString()}\n`;
+              analysisText += `- Total Cost: $${info.costs.total.toFixed(
                 6
               )}\n\n`;
 
               // Breakdown by Category
               analysisText += `## Breakdown by Category\n`;
               analysisText += `1. **NLP (Text Processing)**\n`;
-              analysisText += `   - Tokens: ${tokenInfo.userInput.estimatedTokens}\n`;
-              analysisText += `   - Model: ${tokenInfo.costs.modelName}\n`;
-              analysisText += `   - Cost: $${tokenInfo.costs.nlp.toFixed(
+              analysisText += `   - Tokens: ${info.userInput.estimatedTokens}\n`;
+              analysisText += `   - Model: ${info.costs.modelName}\n`;
+              analysisText += `   - Cost: $${info.costs.nlp.toFixed(
                 6
               )}\n\n`;
 
-              if (tokenInfo.imageProcessing.commandCount > 0) {
+              if (info.imageProcessing.commandCount > 0) {
                 analysisText += `2. **Image (Visual Processing)**\n`;
-                analysisText += `   - Tokens: ${tokenInfo.imageProcessing.estimatedTokens.toLocaleString()}\n`;
+                analysisText += `   - Tokens: ${info.imageProcessing.estimatedTokens.toLocaleString()}\n`;
                 analysisText += `   - Service: Nano Banana\n`;
-                if (tokenInfo.imageProcessing.metadata) {
-                  const meta = tokenInfo.imageProcessing.metadata;
+                if (info.imageProcessing.metadata) {
+                  const meta = info.imageProcessing.metadata;
                   // Handle hierarchical format only
                   let sizeInfo = "";
                   if (meta.size) {
@@ -302,16 +364,16 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
 
                   analysisText += `   - Image Details: ${sizeInfo} • ${fileSize}\n`;
                 }
-                analysisText += `   - Cost: $${tokenInfo.costs.image.toFixed(
+                analysisText += `   - Cost: $${info.costs.image.toFixed(
                   6
                 )}\n\n`;
               }
 
-              if (tokenInfo.videoProcessing.commandCount > 0) {
+              if (info.videoProcessing.commandCount > 0) {
                 analysisText += `3. **Video (Veo-3 Generation)**\n`;
                 analysisText += `   - Service: Google Veo-3\n`;
-                if (tokenInfo.videoProcessing.metadata) {
-                  const meta = tokenInfo.videoProcessing.metadata;
+                if (info.videoProcessing.metadata) {
+                  const meta = info.videoProcessing.metadata;
                   const duration = meta.duration?.display || "8s";
                   const resolution = meta.generation?.resolution || "720p";
                   const aspectRatio = meta.generation?.aspect_ratio || "16:9";
@@ -321,129 +383,89 @@ function TokenAnalysisPanel({ message }: { message: ChatMessage }) {
                     analysisText += `   - Prompt: ${meta.generation.prompt}\n`;
                   }
                 }
-                analysisText += `   - Cost: $${tokenInfo.costs.video.toFixed(
+                analysisText += `   - Cost: $${info.costs.video.toFixed(
                   6
                 )}\n\n`;
               }
 
               // High usage warning
-              if (tokenInfo.totalEstimate > 800) {
-                analysisText += `⚠️ High usage (${tokenInfo.totalEstimate} tokens) - may consume daily quota quickly\n\n`;
+              if (info.totalEstimate > 800) {
+                analysisText += `⚠️ High usage (${info.totalEstimate} tokens) - may consume daily quota quickly\n\n`;
               }
 
               navigator.clipboard.writeText(analysisText);
             }}
             className={styles.copyButton}
-            disabled={!tokenInfo || tokenInfo.error}
+            disabled={!tokenInfo || ("error" in tokenInfo)}
             title="Copy Analysis"
           >
             📋
           </button>
         </div>
 
-        {tokenInfo?.error ? (
+        {tokenInfo && ("error" in tokenInfo) ? (
           <div className={styles.debugError}>Error: {tokenInfo.error}</div>
         ) : tokenInfo ? (
           <div className={styles.debugJson}>
             {/* Usage Summary */}
-            <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>Total Tokens:</span>
-              <span>{tokenInfo.totalEstimate.toLocaleString()}</span>
-            </div>
-            <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>Total Cost:</span>
-              <span className={styles.totalCost}>
-                ${tokenInfo.costs?.total.toFixed(6) || "0.000000"}
-              </span>
-            </div>
-
-            {/* Breakdown by Category */}
-            <div className={styles.debugMetric}>
-              <span className={styles.debugLabel}>
-                1. NLP (Text Processing):
-              </span>
-              <span>
-                {tokenInfo.userInput.estimatedTokens} tokens •{" "}
-                {tokenInfo.costs?.modelName || "Unknown"} • $
-                {tokenInfo.costs?.nlp.toFixed(6) || "0.000000"}
-              </span>
-            </div>
-
-            {tokenInfo.imageProcessing.commandCount > 0 && (
-              <div className={styles.debugMetric}>
-                <span className={styles.debugLabel}>
-                  2. Image (Visual Processing):
-                </span>
-                <div>
-                  <div>
-                    {tokenInfo.imageProcessing.estimatedTokens.toLocaleString()}{" "}
-                    tokens • Nano Banana • $
-                    {tokenInfo.costs?.image.toFixed(6) || "0.000000"}
+            {(() => {
+              const info = tokenInfo as FullTokenInfo;
+              return (
+                <>
+                  <div className={styles.debugMetric}>
+                    <span className={styles.debugLabel}>Total Tokens:</span>
+                    <span>{info.totalEstimate.toLocaleString()}</span>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {tokenInfo.videoProcessing.commandCount > 0 && (
-              <div className={styles.debugMetric}>
-                <span className={styles.debugLabel}>
-                  3. Video (Veo-3 Generation):
-                </span>
-                <div>
-                  <div>
-                    Google Veo-3 • $
-                    {tokenInfo.costs?.video.toFixed(6) || "0.000000"}
+                  <div className={styles.debugMetric}>
+                    <span className={styles.debugLabel}>Total Cost:</span>
+                    <span className={styles.totalCost}>
+                      ${info.costs.total.toFixed(6)}
+                    </span>
                   </div>
-                  {tokenInfo.videoProcessing.metadata && (
-                    <div>
-                      <small>
-                        {tokenInfo.videoProcessing.metadata.generation
-                          ?.resolution || "720p"}{" "}
-                        •
-                        {tokenInfo.videoProcessing.metadata.duration?.display ||
-                          "8s"}{" "}
-                        •
-                        {tokenInfo.videoProcessing.metadata.generation
-                          ?.aspect_ratio || "16:9"}
-                      </small>
+                  <div className={styles.debugMetric}>
+                    <span className={styles.debugLabel}>1. NLP (Text Processing):</span>
+                    <span>
+                      {info.userInput.estimatedTokens} tokens • {info.costs.modelName} • ${info.costs.nlp.toFixed(6)}
+                    </span>
+                  </div>
+
+                  {info.imageProcessing.commandCount > 0 && (
+                    <div className={styles.debugMetric}>
+                      <span className={styles.debugLabel}>2. Image (Visual Processing):</span>
+                      <div>
+                        <div>
+                          {info.imageProcessing.estimatedTokens.toLocaleString()} tokens • Nano Banana • ${info.costs.image.toFixed(6)}
+                        </div>
+                      </div>
                     </div>
                   )}
-                </div>
-              </div>
-            )}
 
-            {tokenInfo.nanoBanana && (
-              <div className={styles.debugMetric}>
-                <span className={styles.debugLabel}>Nano Banana:</span>
-                <span
-                  className={
-                    tokenInfo.nanoBanana.available
-                      ? styles.statusGreen
-                      : styles.statusRed
-                  }
-                >
-                  {tokenInfo.nanoBanana.available
-                    ? "Available"
-                    : "Not Available"}
-                  {tokenInfo.nanoBanana.error &&
-                    ` (${tokenInfo.nanoBanana.error})`}
-                </span>
-              </div>
-            )}
+                  {info.videoProcessing.commandCount > 0 && (
+                    <div className={styles.debugMetric}>
+                      <span className={styles.debugLabel}>3. Video (Veo-3 Generation):</span>
+                      <div>
+                        <div>
+                          Google Veo-3 • ${info.costs.video.toFixed(6)}
+                        </div>
+                        {info.videoProcessing.metadata && (
+                          <div>
+                            <small>
+                              {info.videoProcessing.metadata.generation?.resolution || "720p"} ({info.videoProcessing.metadata.generation?.aspect_ratio || "16:9"}) • {info.videoProcessing.metadata.duration?.display || "8s"}
+                            </small>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-            {tokenInfo.totalEstimate > 800 && (
-              <div className={styles.debugTip}>
-                High token usage - may quickly consume daily quota on free tier
-              </div>
-            )}
-
-            {tokenInfo.costs && tokenInfo.costs.total > 0.001 && (
-              <div className={styles.debugTip}>
-                Cost per interaction: ${tokenInfo.costs.total.toFixed(6)} (~$
-                {(tokenInfo.costs.total * 1000).toFixed(3)} per 1000
-                interactions)
-              </div>
-            )}
+                  {info.totalEstimate > 800 && (
+                    <div className={styles.debugTip}>
+                      High token usage - may quickly consume daily quota on free tier
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         ) : (
           <div className={styles.debugLoading}>Analyzing tokens...</div>
@@ -466,7 +488,7 @@ export default function AssistantMessage({
     return true; // Assistant messages open by default
   }, []);
 
-  const [isExpanded, setIsExpanded] = useState(getDefaultExpanded());
+  const [isExpanded, setIsExpanded] = useState<boolean>(getDefaultExpanded());
   const [activeTab, setActiveTab] = useState<"closed-debug" | "open-debug">("closed-debug");
 
   // Find the actual user input from the previous message
@@ -489,7 +511,7 @@ export default function AssistantMessage({
     <div key={keyPrefix} className={`${styles.message} ${styles.assistant}`}>
       <div
         className={`${styles.messageHeader} ${styles.clickable}`}
-        onClick={() => setIsExpanded(!isExpanded)}
+  onClick={() => setIsExpanded((prev) => !prev)}
         title={isExpanded ? "Click to collapse" : "Click to expand"}
         style={{
           cursor: "pointer",
@@ -533,25 +555,22 @@ export default function AssistantMessage({
           {/* Tab Navigation */}
           <div className={styles.tabContainer}>
             <div className={styles.tabButtons}>
-              {activeTab === "open-debug" ? (
-                <button
-                  className={`${styles.tabButton} ${
-                    activeTab === "closed-debug" ? styles.activeTab : ""
-                  }`}
-                  onClick={() => setActiveTab("closed-debug")}
-                >
-                  Close Debug
-                </button>
-              ) : (
-                <button
-                  className={`${styles.tabButton} ${
-                    activeTab === "open-debug" ? styles.activeTab : ""
-                  }`}
-                  onClick={() => setActiveTab("open-debug")}
-                >
-                  Open Debug
-                </button>
-              )}
+              <button
+                className={`${styles.tabButton} ${
+                  activeTab === "closed-debug" ? styles.activeTab : ""
+                }`}
+                onClick={() => setActiveTab("closed-debug")}
+              >
+                Close Debug
+              </button>
+              <button
+                className={`${styles.tabButton} ${
+                  activeTab === "open-debug" ? styles.activeTab : ""
+                }`}
+                onClick={() => setActiveTab("open-debug")}
+              >
+                Open Debug
+              </button>
             </div>
           </div>
           {activeTab === "open-debug" && (
@@ -576,10 +595,10 @@ export default function AssistantMessage({
                           command: result.command,
                           success: result.success,
                           error: result.error || null,
-                          error_code: result.error_code || null,
-                          category: result.category || null,
-                          error_details: result.error_details || null,
-                          suggestion: result.suggestion || null,
+                          error_code: result.error_code,
+                          category: result.category,
+                          error_details: result.error_details,
+                          suggestion: result.suggestion,
                           result: result.result || null,
                         })),
                         session_id: sessionId || "no_session",
@@ -611,10 +630,10 @@ export default function AssistantMessage({
                           command: result.command,
                           success: result.success,
                           error: result.error || null,
-                          error_code: result.error_code || null,
-                          category: result.category || null,
-                          error_details: result.error_details || null,
-                          suggestion: result.suggestion || null,
+                          error_code: result.error_code,
+                          category: result.category,
+                          error_details: result.error_details,
+                          suggestion: result.suggestion,
                           result: result.result || null,
                         })
                       ),

@@ -35,10 +35,10 @@ export interface ConfirmModalConfig extends BaseModalConfig {
 }
 
 // Form modal types
-export interface FormModalConfig extends BaseModalConfig {
+export interface FormModalConfig<T = unknown> extends BaseModalConfig {
   title: string;
   component: ReactNode;
-  onSubmit?: (data: any) => void | Promise<void>;
+  onSubmit?: (data: T) => void | Promise<void>;
   submitText?: string;
   cancelText?: string;
   loading?: boolean;
@@ -68,11 +68,11 @@ export interface SettingsTab {
   component: ReactNode;
 }
 
-export interface SettingsModalConfig extends BaseModalConfig {
+export interface SettingsModalConfig<T = unknown> extends BaseModalConfig {
   title: string;
   tabs: SettingsTab[];
   defaultTab?: string;
-  onSave?: (data: any) => void | Promise<void>;
+  onSave?: (data: T) => void | Promise<void>;
   onReset?: () => void;
 }
 
@@ -104,6 +104,7 @@ export interface ImageGenerationData {
 export interface ImageGenerationModalConfig extends BaseModalConfig {
   sessionId: string; // Required: must have active session
   onSubmit: (data: ImageGenerationData) => void | Promise<void>;
+  onClose?: (data?: ImageGenerationData) => void;
 }
 
 // Modal state types
@@ -117,23 +118,73 @@ export type ModalType =
   | 'custom'
   | 'image-generation';
 
-export interface ModalState {
-  id: string;
-  type: ModalType;
-  config: AlertModalConfig | ConfirmModalConfig | FormModalConfig | ImageModalConfig | LoadingModalConfig | SettingsModalConfig | CustomModalConfig | ImageGenerationModalConfig;
-  resolve?: (value: any) => void;
-  reject?: (reason: any) => void;
-}
+export type ModalState =
+  | {
+      id: string;
+      type: 'alert';
+      config: AlertModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    }
+  | {
+      id: string;
+      type: 'confirm';
+      config: ConfirmModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    }
+  | {
+      id: string;
+      type: 'form';
+      config: FormModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    }
+  | {
+      id: string;
+      type: 'image';
+      config: ImageModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    }
+  | {
+      id: string;
+      type: 'loading';
+      config: LoadingModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    }
+  | {
+      id: string;
+      type: 'settings';
+      config: SettingsModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    }
+  | {
+      id: string;
+      type: 'custom';
+      config: CustomModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    }
+  | {
+      id: string;
+      type: 'image-generation';
+      config: ImageGenerationModalConfig;
+      resolve?: (value: unknown) => void;
+      reject?: (reason: unknown) => void;
+    };
 
 // Modal context types
 export interface ModalContextType {
   modals: ModalState[];
   showAlert: (config: Omit<AlertModalConfig, 'type'> & { type: AlertType }) => Promise<void>;
   showConfirm: (config: Omit<ConfirmModalConfig, 'onConfirm'> & { onConfirm?: () => void | Promise<void> }) => Promise<boolean>;
-  showForm: (config: FormModalConfig) => Promise<any>;
+  showForm: <T = unknown>(config: FormModalConfig<T>) => Promise<T | undefined>;
   showImage: (config: ImageModalConfig) => void;
   showLoading: (config: LoadingModalConfig) => { close: () => void; updateProgress: (progress: number) => void };
-  showSettings: (config: SettingsModalConfig) => Promise<any>;
+  showSettings: <T = unknown>(config: SettingsModalConfig<T>) => Promise<T | undefined>;
   showModal: (config: CustomModalConfig) => void;
   showImageGeneration: (config: ImageGenerationModalConfig) => Promise<ImageGenerationData | null>;
   closeModal: (id: string) => void;

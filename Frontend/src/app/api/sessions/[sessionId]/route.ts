@@ -4,6 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 const MCP_HTTP_BRIDGE_PORT = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
 const MCP_HTTP_BRIDGE_URL = `http://127.0.0.1:${MCP_HTTP_BRIDGE_PORT}`;
 
+interface SessionInfo {
+  session_id: string;
+  [key: string]: unknown;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -30,11 +35,11 @@ export async function GET(
       throw new Error(`Python MCP server error: ${response.status}`);
     }
 
-    const result = await response.json();
+  const result = (await response.json()) as { sessions?: SessionInfo[] };
     
     // Find the specific session
     if (result.sessions && Array.isArray(result.sessions)) {
-      const session = result.sessions.find((s: any) => s.session_id === sessionId);
+      const session = result.sessions.find((s) => s.session_id === sessionId);
       if (session) {
         return NextResponse.json(session);
       } else {

@@ -6,13 +6,13 @@ import ChatInput from "../components/chat/ChatInput";
 import { useSessionContext } from "./layout";
 import ConversationHistory from "../components/conversation/ConversationHistory";
 import { createApiService } from "../services";
+import type { CreateSessionWithImageRequest } from "../services";
 import styles from "../components/SessionManagerPanel.module.css";
 
 export default function AppHome() {
   const router = useRouter();
   const apiService = useMemo(() => createApiService(), []);
   const {
-    sessionsLoaded,
     handleCreateSession,
     fetchSessions,
     error,
@@ -42,15 +42,7 @@ export default function AppHome() {
     console.log('No context to refresh on /app page');
   };
 
-  const handleTransformSubmit = async (data: {
-    prompt: string;
-    main_prompt?: string;
-    reference_prompts?: string[];
-    model: string;
-    sessionId: string;
-    mainImageData?: any;
-    referenceImageData?: any;
-  }) => {
+  const handleTransformSubmit = async (data: Pick<CreateSessionWithImageRequest, 'prompt' | 'main_prompt' | 'reference_prompts' | 'model'> & { sessionId: string; mainImageData?: unknown; referenceImageData?: unknown }) => {
     try {
       // Call new atomic endpoint: create session + generate image
       const result = await apiService.createSessionWithImage({
@@ -59,8 +51,34 @@ export default function AppHome() {
         text_prompt: data.main_prompt || data.prompt,
         aspect_ratio: "16:9",
         model: data.model,
-        mainImageData: data.mainImageData,
-        referenceImageData: data.referenceImageData,
+        mainImageData: ((): CreateSessionWithImageRequest['mainImageData'] => {
+          const v = data.mainImageData as unknown;
+          if (v && typeof v === 'object' && 'data' in (v as Record<string, unknown>) && 'mime_type' in (v as Record<string, unknown>)) {
+            const r = v as { data: unknown; mime_type: unknown };
+            if (typeof r.data === 'string' && typeof r.mime_type === 'string') {
+              return { data: r.data, mime_type: r.mime_type };
+            }
+          }
+          return undefined;
+        })(),
+        referenceImageData: ((): CreateSessionWithImageRequest['referenceImageData'] => {
+          const arr = data.referenceImageData as unknown;
+          if (Array.isArray(arr)) {
+            const converted = arr
+              .map((v) => {
+                if (v && typeof v === 'object' && 'data' in (v as Record<string, unknown>) && 'mime_type' in (v as Record<string, unknown>)) {
+                  const r = v as { data: unknown; mime_type: unknown };
+                  if (typeof r.data === 'string' && typeof r.mime_type === 'string') {
+                    return { data: r.data, mime_type: r.mime_type };
+                  }
+                }
+                return undefined;
+              })
+              .filter((x): x is { data: string; mime_type: string } => Boolean(x));
+            return converted.length > 0 ? converted : undefined;
+          }
+          return undefined;
+        })(),
         reference_prompts: data.reference_prompts
       });
 
@@ -86,9 +104,7 @@ export default function AppHome() {
       )}
       <ConversationHistory
         context={null}
-        loading={false}
         error={null}
-        sessionsLoaded={sessionsLoaded}
         isNewSessionPage={true}
       />
       <ChatInput

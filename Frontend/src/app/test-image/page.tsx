@@ -4,7 +4,17 @@ import { useState } from 'react';
 
 export default function TestImagePage() {
   const [imageStatus, setImageStatus] = useState('loading');
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  type ErrorDetails = {
+    type: string;
+    target: {
+      src: string;
+      complete: boolean;
+      naturalWidth: number;
+      naturalHeight: number;
+    } | null;
+    timestamp: string;
+  } | null;
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails>(null);
   
   const imageUrl = '/api/screenshot/155e75cd-aaf2-4154-bce2-37f2399e65ac';
   

@@ -4,6 +4,18 @@ import { NextRequest, NextResponse } from 'next/server';
 const MCP_HTTP_BRIDGE_PORT = process.env.NEXT_PUBLIC_HTTP_BRIDGE_PORT || '8080';
 const MCP_HTTP_BRIDGE_URL = `http://127.0.0.1:${MCP_HTTP_BRIDGE_PORT}`;
 
+type McpRequestBody = {
+  prompt: string;
+  context?: string;
+  llm_model?: string;
+  session_id?: string;
+  main_prompt?: string;
+  reference_prompts?: string[];
+  target_image_uid?: string;
+  mainImageData?: unknown;
+  referenceImageData?: unknown[];
+};
+
 export async function POST(request: NextRequest) {
   try {
     const {
@@ -23,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare request body for Python MCP server
-    const requestBody: Record<string, any> = {
+    const requestBody: McpRequestBody = {
       prompt,
       context: context || 'User is working with Unreal Engine project',
       llm_model,

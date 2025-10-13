@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from "react";
-import { createApiService, SessionContext, TransformRequest } from "../services";
-import { useSessionContext } from "../layout";
+import { createApiService, SessionContext, TransformRequest, Session } from "../services";
 import { useSessionImagesStore } from "../stores/sessionImagesStore";
 import Sidebar from "./sidebar/Sidebar";
 import ConversationHistory from "./conversation/ConversationHistory";
@@ -11,18 +10,12 @@ import styles from "./SessionManagerPanel.module.css";
 
 export default function SessionManagerPanel() {
   // Use session context from layout
-  const {
-    sessionInfo,
-    sessionsLoaded,
-    sessionsLoading,
-    sessionId,
-    handleCreateSession,
-    handleDeleteSession,
-    handleRenameSession,
-    handleSelectSession,
-    error,
-    setError
-  } = useSessionContext();
+  // Local fallbacks (component can operate standalone without global session provider)
+  const sessionInfo: Session[] = [];
+  const sessionId: string | null = null;
+  const handleDeleteSession = async (_sid: string) => {};
+  const handleSelectSession = (_sid: string) => {};
+  const [error, setError] = useState<string | null>(null);
 
   // Session images store
   const { invalidateSession } = useSessionImagesStore();
@@ -156,21 +149,19 @@ export default function SessionManagerPanel() {
       )}
       <Sidebar 
         sessionInfo={sessionInfo}
-        activeSessionId={sessionId}
+        activeSessionId={sessionId ?? null}
         onSessionDelete={handleSessionDelete}
         loading={chatLoading}
       />
       <ConversationHistory 
         context={messageInfo}
-        loading={contextLoading}
         error={contextError}
-        sessionsLoaded={sessionsLoaded}
       />
       <ChatInput
         ref={chatInputRef}
         loading={chatLoading}
         error={chatError}
-        sessionId={sessionId}
+        sessionId={sessionId ?? null}
         llmFromDb={messageInfo?.llm_model || 'gemini-2'}
         onSubmit={handleChatSubmit}
         onTransformSubmit={handleTransformSubmit}

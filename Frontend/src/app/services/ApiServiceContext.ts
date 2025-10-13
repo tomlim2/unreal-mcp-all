@@ -192,7 +192,7 @@ export function createApiService(): ApiService {
     transform: async (data: TransformRequest): Promise<AIResponse> => {
       try {
         // Prepare request body
-        const requestBody: Record<string, any> = {
+        const requestBody: Record<string, unknown> = {
           prompt: data.prompt,
           context: 'User is working with Unreal Engine project with dynamic sky system',
           llm_model: data.model,

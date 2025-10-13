@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import styles from "./MessageItem.module.css";
 
 interface MessageItemImageResultProps {
@@ -33,12 +34,19 @@ function getFullImageUrl(imageUrl: string): string {
 
 export default function MessageItemImageResult({
   result,
-  resultIndex,
+  resultIndex: _resultIndex,
 }: MessageItemImageResultProps) {
   const [imageLoadError, setImageLoadError] = useState(false);
 
   if (result.success) {
-    const resultData = result.result as any;
+    // Narrow result payload to expected image result shape
+    interface ResultPayload {
+      image?: { url?: string; metadata?: { style?: { prompt?: string } } };
+      image_url?: string;
+      style_prompt?: string;
+      intensity?: unknown;
+    }
+    const resultData = (result.result ?? {}) as ResultPayload;
     
     // Check for new hierarchical schema (image.url)
     const hasNewImageUrl = resultData?.image?.url && typeof resultData.image.url === "string";
@@ -51,7 +59,7 @@ export default function MessageItemImageResult({
     }
 
     // Get image URL from either new hierarchical or legacy format
-    const imageUrl = resultData?.image?.url || resultData?.image_url;
+  const imageUrl = resultData.image?.url || resultData.image_url;
     
     // Check if this is a styled image result (new hierarchical or legacy)
     const isStyledImage = resultData?.image?.metadata?.style?.prompt || resultData?.style_prompt || resultData?.intensity;
@@ -60,22 +68,23 @@ export default function MessageItemImageResult({
       <div className={styles.screenshotContainer}>
         {!imageLoadError ? (
           <>
-            <img
-              src={getFullImageUrl(imageUrl)}
+            <Image
+              src={getFullImageUrl(imageUrl as string)}
               alt={isStyledImage ? "Styled Screenshot" : "Screenshot"}
               className={styles.screenshot}
-              onError={(e) => {
-                const fullUrl = getFullImageUrl(imageUrl);
-                const filename = imageUrl.split("/").pop();
+              width={1280}
+              height={720}
+              unoptimized
+              onError={() => {
+                const fullUrl = getFullImageUrl(imageUrl as string);
+                const filename = (imageUrl as string).split("/").pop();
 
-                // Only log in development, reduce console noise in production
                 if (process.env.NODE_ENV === "development") {
                   console.warn("Screenshot not available:", filename);
                   console.debug("Full URL attempted:", fullUrl);
                 }
 
                 setImageLoadError(true);
-                e.preventDefault();
               }}
             />
           </>
@@ -84,7 +93,7 @@ export default function MessageItemImageResult({
             <div className={styles.errorText}>
 			  <small>
                 The image file &quot;
-                {imageUrl.split("/").pop()}
+                {(imageUrl ? imageUrl.split("/").pop() : "unknown")}
                 &quot; could not be loaded
               </small>
 			  <br />
