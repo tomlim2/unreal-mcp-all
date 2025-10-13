@@ -125,7 +125,10 @@ if not exist "../Frontend" (
     echo # HTTP Bridge Port - must match the port used by Python HTTP bridge
     echo NEXT_PUBLIC_HTTP_BRIDGE_PORT=%HTTP_BRIDGE_PORT%
     echo.
-    echo # OpenAI API Key ^(required for web interface^)
+    echo # Google API Key ^(REQUIRED - for NLP and image generation^)
+    echo # Configure this in Python/.env, not here
+    echo.
+    echo # OpenAI API Key ^(optional - future features only^)
     echo # OPENAI_API_KEY=your_openai_api_key_here
     ) > ../Frontend\.env.local
     

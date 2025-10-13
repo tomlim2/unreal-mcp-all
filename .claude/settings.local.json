@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(./INSTALL_AND_BUILD.bat)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
