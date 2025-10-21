@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "prebundle": "node scripts/tauri-prebundle.cjs",
     "start": "next start",
     "lint": "next lint",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "npm run build && npm run prebundle && tauri build"
   },
   "dependencies": {
     "next": "15.4.6",

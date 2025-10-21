@@ -531,7 +531,6 @@
 .screenshotContainer {
   margin-top: 12px;
   width: 100%;
-  min-height: 80px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
