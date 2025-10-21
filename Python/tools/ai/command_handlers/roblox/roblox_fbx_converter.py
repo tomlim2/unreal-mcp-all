@@ -121,8 +121,9 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
         processed = params.copy()
 
         # Add default blender path if not provided
+        # First check environment variable, then use generic "blender" command
         if "blender_path" not in processed or not processed["blender_path"]:
-            processed["blender_path"] = r"D:\steam\steamapps\common\Blender\blender.exe"
+            processed["blender_path"] = os.getenv("BLENDER_PATH", "blender")
 
         return processed
 
