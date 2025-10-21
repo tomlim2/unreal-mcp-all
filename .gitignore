@@ -1,5 +1,7 @@
 # Unreal MCP
 Python/unreal_mcp.log
+*.log
+http_bridge_debug.log
 
 # AI-related files
 CLAUDE.local.md
@@ -7,6 +9,10 @@ CLAUDE.local.md
 # Code-copy related files
 .codeignore
 *codeclip*
+
+# Claude Code
+.claude/
+**/shell-snapshots/
 
 # Python-generated files
 __pycache__/
@@ -92,6 +98,18 @@ Packaged/
 *.7z
 *.tar.gz
 
+# Deployment packages
+MegaMelange-v*/
+dist-package/
+
+# API Keys and Secrets
+config.json
+Python/.env
+Frontend/.env.local
+# But keep example files
+!config.json.example
+!**/config.json.example
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -158,20 +176,22 @@ UNREAL/SOURCE/
 
 # testing
 /coverage
-
-# Python test files
-Python/tests/
-*test*.py
-test_*.py
+.pytest_cache/
+*.coverage
+htmlcov/
 
 # next.js
 /.next/
 /out/
 Frontend/out/
+Frontend/.next/
+Frontend/build/
+Frontend/standalone/
 
 # Tauri build artifacts
 Frontend/src-tauri/target/
 Frontend/src-tauri/Cargo.lock
+Frontend/src-tauri/WixTools/
 
 # production
 /build
@@ -186,7 +206,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# But keep example files
+!.env.example
 
 # vercel
 .vercel
