@@ -27,7 +27,7 @@ class FeatureFlags:
     """Feature flags for gradual migration to Creative Hub architecture."""
 
     # Core Features
-    enable_plugin_system: bool = False  # Use new plugin-based tool system
+    enable_plugin_system: bool = True   # Use new plugin-based tool system
     enable_orchestrator: bool = False   # Use multi-tool orchestrator
     enable_command_handlers: bool = True  # Enable command handler system
 
@@ -61,7 +61,7 @@ class Config:
         """Load feature flags from environment variables."""
         return FeatureFlags(
             # Core Features
-            enable_plugin_system=self._get_bool_env('FEATURE_PLUGIN_SYSTEM', False),
+            enable_plugin_system=self._get_bool_env('FEATURE_PLUGIN_SYSTEM', True),
             enable_orchestrator=self._get_bool_env('FEATURE_ORCHESTRATOR', False),
             enable_command_handlers=self._get_bool_env('FEATURE_COMMAND_HANDLERS', True),
 
