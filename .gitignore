@@ -17,7 +17,7 @@ CLAUDE.local.md
 # Python-generated files
 __pycache__/
 __pycache__.meta
-build/
+Python/build/
 dist/
 wheels/
 *.egg-info
@@ -42,12 +42,12 @@ Python/*.spec
 .vscode/
 
 # Unreal Engine generated files
-Binaries/
-Build/
-DerivedDataCache/
-Intermediate/
-Saved/
-Content/StarterContent/
+MCPGameProject/Binaries/
+MCPGameProject/Build/
+MCPGameProject/DerivedDataCache/
+MCPGameProject/Intermediate/
+MCPGameProject/Saved/
+MCPGameProject/Content/StarterContent/
 
 # Visual Studio files
 .vs/
@@ -194,7 +194,7 @@ Frontend/src-tauri/Cargo.lock
 Frontend/src-tauri/WixTools/
 
 # production
-/build
+Frontend/build/
 
 # misc
 *.pem
