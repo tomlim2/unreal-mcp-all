@@ -285,7 +285,7 @@ class NanoBananaBaseHandler(BaseCommandHandler):
 
         try:
             # Build generation prompt
-            generation_prompt = self._build_text_to_image_prompt(prompt, aspect_ratio, images)
+            generation_prompt = self._build_text_to_image_prompt(prompt, aspect_ratio)
 
             # Generate image
             result_path = self._nano_banana_t2i(
