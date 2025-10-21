@@ -140,10 +140,18 @@ class PathManager:
             base_path = self.config.megamelange_base_path
             logger.info(f"Using configured MegaMelange path: {base_path}")
         else:
-            # Method 2: Use centralized data_storage path
-            python_dir = Path(__file__).parent.parent.parent  # Go up to Python/
-            base_path = str(python_dir / "data_storage" / "sessions")
-            logger.info(f"Using centralized data_storage sessions path: {base_path}")
+            # Method 2: Use centralized data_storage path with PyInstaller compatibility
+            import sys
+            if getattr(sys, 'frozen', False):
+                # Running as compiled executable (PyInstaller)
+                executable_dir = Path(sys.executable).parent
+                base_path = str(executable_dir / "data_storage" / "sessions")
+                logger.info(f"Using executable-based sessions path (frozen): {base_path}")
+            else:
+                # Running as Python script
+                python_dir = Path(__file__).parent.parent.parent  # Go up to Python/
+                base_path = str(python_dir / "data_storage" / "sessions")
+                logger.info(f"Using script-based sessions path (dev): {base_path}")
 
         # Validate and optionally create the path
         if self.config.create_directories:
@@ -228,12 +236,20 @@ class PathManager:
 
         if self.config.resource_base_path:
             base_path = self.config.resource_base_path
-            logger.debug(f"Using configured resource base path: {base_path}")
+            logger.info(f"Using configured resource base path: {base_path}")
         else:
-            # Default to Python/data_storage
-            python_dir = Path(__file__).parent.parent.parent  # Go up to Python/
-            base_path = str(python_dir / "data_storage")
-            logger.debug(f"Using default data storage path: {base_path}")
+            # For PyInstaller compatibility: use executable directory
+            import sys
+            if getattr(sys, 'frozen', False):
+                # Running as compiled executable (PyInstaller)
+                executable_dir = Path(sys.executable).parent
+                base_path = str(executable_dir / "data_storage")
+                logger.info(f"Using executable-based data storage path (frozen): {base_path}")
+            else:
+                # Running as Python script
+                python_dir = Path(__file__).parent.parent.parent  # Go up to Python/
+                base_path = str(python_dir / "data_storage")
+                logger.info(f"Using script-based data storage path (dev): {base_path}")
 
         if self.config.create_directories:
             Path(base_path).mkdir(parents=True, exist_ok=True)

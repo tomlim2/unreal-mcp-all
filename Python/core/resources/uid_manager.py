@@ -362,11 +362,24 @@ def get_uid_manager() -> UIDManager:
     with _manager_lock:
         if _global_uid_manager is None:
             # Store UID state in data_storage directory for centralized management
-            python_dir = Path(__file__).parent.parent.parent
-            storage_path = python_dir / "data_storage" / "uid" / "uid_state.json"
+            import sys
+            if getattr(sys, 'frozen', False):
+                # Running as compiled executable (PyInstaller)
+                executable_dir = Path(sys.executable).parent
+                storage_path = executable_dir / "data_storage" / "uid" / "uid_state.json"
+                logger.info(f"Using executable-based UID storage (frozen): {storage_path}")
+            else:
+                # Running as Python script
+                python_dir = Path(__file__).parent.parent.parent
+                storage_path = python_dir / "data_storage" / "uid" / "uid_state.json"
+                logger.info(f"Using script-based UID storage (dev): {storage_path}")
+
+            # Ensure UID storage directory exists
+            storage_path.parent.mkdir(parents=True, exist_ok=True)
+
             _global_uid_manager = UIDManager(str(storage_path))
             logger.info(f"Initialized global UID manager: {storage_path}")
-        
+
         return _global_uid_manager
 
 
