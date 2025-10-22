@@ -2,6 +2,9 @@
 title MegaMelange - Simple Package Build
 color 0B
 
+REM Change to project root directory (parent of build/)
+cd /d "%~dp0\.."
+
 echo ========================================
 echo MegaMelange Simple Package Build
 echo ========================================

@@ -1,4 +1,8 @@
 @echo off
+
+REM Change to project root directory (parent of build/)
+cd /d "%~dp0\.."
+
 echo ========================================
 echo MegaMelange Standalone App - Installation and Build
 echo ========================================
