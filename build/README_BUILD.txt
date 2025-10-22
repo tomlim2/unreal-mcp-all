@@ -22,11 +22,11 @@ If not, restart terminal and try again.
 
 STEP 3: Build the App
 ---------------------------------------
-Double-click: START_BUILD.bat
+Double-click: build\START_BUILD.bat
 
 Or in terminal:
    cd D:\vs\unreal-mcp\unreal-mcp
-   START_BUILD.bat
+   build\START_BUILD.bat
 
 Build time: 15-25 minutes (first time)
 

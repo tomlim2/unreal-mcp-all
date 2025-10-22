@@ -83,6 +83,7 @@ package.bat
 
 ## Related Documentation
 
-- Build guide: `BUILD_NOW.txt`
-- Build documentation: `README_BUILD.txt`
+- **Manual Build Guide:** `MANUAL_BUILD_GUIDE.md` - Beginner-friendly guide for manual building
+- Build quick start: `BUILD_NOW.txt` (Korean)
+- Build instructions: `README_BUILD.txt`
 - Developer guide: `../docs/CLAUDE.md`

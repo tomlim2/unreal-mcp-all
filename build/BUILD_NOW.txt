@@ -14,13 +14,13 @@
 ------------------------
 방법 1 (추천):
    1. 파일 탐색기 열기
-   2. D:\vs\unreal-mcp\unreal-mcp 폴더로 이동
+   2. D:\vs\unreal-mcp\unreal-mcp\build 폴더로 이동
    3. START_BUILD.bat 더블클릭
 
 방법 2 (터미널):
    # 새 PowerShell 또는 CMD 열기
    cd D:\vs\unreal-mcp\unreal-mcp
-   .\START_BUILD.bat
+   .\build\START_BUILD.bat
 
 ⏱️ 예상 시간
 ------------------------

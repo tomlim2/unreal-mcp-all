@@ -8,15 +8,13 @@ echo            and RESTARTED all terminal windows!
 echo.
 pause
 
-REM Change to project directory
-cd /d "%~dp0"
-
 echo.
 echo Starting build process...
 echo This will take 15-25 minutes.
 echo.
 
-call INSTALL_AND_BUILD.bat
+REM Call INSTALL_AND_BUILD.bat from build/ folder
+call "%~dp0INSTALL_AND_BUILD.bat"
 
 if errorlevel 1 (
     echo.
@@ -47,4 +45,5 @@ echo   Frontend\src-tauri\target\release\bundle\msi\
 echo.
 echo Press any key to open the release folder...
 pause >nul
-explorer "Frontend\src-tauri\target\release"
+REM Open release folder (navigate from build/ to project root)
+explorer "%~dp0..\Frontend\src-tauri\target\release"
