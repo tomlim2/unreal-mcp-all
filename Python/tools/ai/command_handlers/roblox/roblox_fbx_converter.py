@@ -200,14 +200,14 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
                         username = metadata.get("user_info", {}).get("name", "Unknown")
                         error = RobloxError(
                             code=RobloxErrorCodes.AVATAR_PROCESSING_FAILED,
-                            message=f"Only R6 avatars are supported for FBX conversion",
+                            message=f"We support R6 avatar only",
                             details={
                                 "obj_uid": obj_uid,
                                 "username": username,
                                 "avatar_type": avatar_type,
                                 "supported_types": ["R6"]
                             },
-                            suggestion=f"This avatar uses {avatar_type} body type. Currently only R6 avatars can be converted to FBX format with rigging for Unreal Engine."
+                            suggestion=f"This avatar uses {avatar_type} body type. We support R6 avatar only."
                         )
                         return error.to_dict()
 

@@ -66,7 +66,7 @@ def main():
     
     # Check if avatar is R6
     if avatar_type != "R6":
-        exit_with_error(f"Avatar type is not R6. Found: {avatar_type}")
+        exit_with_error(f"We support R6 avatar only. Found: {avatar_type}")
     
     log(f"Username: {username}, User ID: {user_id}, Avatar Type: {avatar_type}")
     log(f"Output directory: {output_fbx_dir}")
