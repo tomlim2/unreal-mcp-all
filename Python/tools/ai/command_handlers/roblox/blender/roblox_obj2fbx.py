@@ -66,7 +66,7 @@ def main():
     
     # Check if avatar is R6
     if avatar_type != "R6":
-        exit_with_error(f"Avatar type is not R6. Found: {avatar_type}")
+        exit_with_error(f"We support R6 avatar only. Found: {avatar_type}")
     
     log(f"Username: {username}, User ID: {user_id}, Avatar Type: {avatar_type}")
     log(f"Output directory: {output_fbx_dir}")
@@ -178,7 +178,7 @@ def main():
         filepath=output_fbx_path,
         use_selection=False,
         use_active_collection=False,
-        global_scale=1.0,
+        global_scale=.3,
         apply_unit_scale=True,
         apply_scale_options='FBX_SCALE_NONE',
         use_space_transform=True,
