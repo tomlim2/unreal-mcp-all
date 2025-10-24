@@ -178,7 +178,7 @@ def main():
         filepath=output_fbx_path,
         use_selection=False,
         use_active_collection=False,
-        global_scale=.3,
+        global_scale=0.3,
         apply_unit_scale=True,
         apply_scale_options='FBX_SCALE_NONE',
         use_space_transform=True,
