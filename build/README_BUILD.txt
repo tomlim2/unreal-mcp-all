@@ -54,7 +54,4 @@ Build errors
     - BUILD_STANDALONE_APP.md
     - QUICK_START.md
 
-Need help?
---> GitHub: https://github.com/chongdashu/unreal-mcp/issues
-
 ========================================

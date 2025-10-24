@@ -437,8 +437,7 @@ If you encounter issues not covered here:
 
 1. **Check logs:** Look for error messages in terminal
 2. **Search docs:** See docs/CLAUDE.md for architecture details
-3. **GitHub Issues:** https://github.com/chongdashu/unreal-mcp/issues
-4. **Discord:** (Add community Discord link here)
+3. **Discord:** (Add community Discord link here)
 
 ---
 
