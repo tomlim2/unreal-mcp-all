@@ -64,9 +64,9 @@ def main():
     except KeyError as e:
         exit_with_error(f"Missing required field in metadata.json: {str(e)}")
     
-    # Check if avatar is R6
-    if avatar_type != "R6":
-        exit_with_error(f"We support R6 avatar only. Found: {avatar_type}")
+    # Check if avatar is R15
+    if avatar_type != "R15":
+        exit_with_error(f"We support R15 avatar only. Found: {avatar_type}")
     
     log(f"Username: {username}, User ID: {user_id}, Avatar Type: {avatar_type}")
     log(f"Output directory: {output_fbx_dir}")
@@ -79,7 +79,7 @@ def main():
 
     # Define paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    base_blend_path = os.path.join(script_dir, "Roblox_Base_R6_For_Unreal.blend")
+    base_blend_path = os.path.join(script_dir, "Roblox_Base_R15_For_Unreal.blend")
 
     output_blend_path = os.path.join(output_fbx_dir, f"{output_name}.blend")
     output_fbx_path = os.path.join(output_fbx_dir, f"{output_name}.fbx")
@@ -178,7 +178,7 @@ def main():
         filepath=output_fbx_path,
         use_selection=False,
         use_active_collection=False,
-        global_scale=1.0,
+        global_scale=0.3,
         apply_unit_scale=True,
         apply_scale_options='FBX_SCALE_NONE',
         use_space_transform=True,
@@ -186,10 +186,10 @@ def main():
         object_types={'ARMATURE', 'MESH', 'EMPTY'},
         use_mesh_modifiers=True,
         use_mesh_modifiers_render=True,
-        mesh_smooth_type='OFF',
+        mesh_smooth_type='FACE',
         use_subsurf=False,
         use_mesh_edges=False,
-        use_tspace=False,
+        use_tspace=True,
         use_custom_props=False,
         add_leaf_bones=False,
         primary_bone_axis='Y',

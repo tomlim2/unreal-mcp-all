@@ -362,7 +362,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
         """
         # Get the conversion script path
         script_dir = Path(__file__).parent / "blender"
-        conversion_script = script_dir / "roblox_obj2fbx.py"
+        conversion_script = script_dir / "roblox_base_r6_obj2fbx.py"
         base_blend_file = script_dir / "Roblox_Base_R6_For_Unreal.blend"
 
         if not conversion_script.exists():
