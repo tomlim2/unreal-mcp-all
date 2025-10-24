@@ -8,6 +8,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-yellow)](https://www.python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-15.4%2B-green)](https://nextjs.org)
 [![Status](https://img.shields.io/badge/Status-Experimental-red)](https://github.com/chongdashu/unreal-mcp)
+[![Download](https://img.shields.io/badge/Download-v1.0.0-brightgreen)](https://github.com/tomlim2/unreal-mcp-all/releases/latest)
 
 </div>
 
@@ -21,6 +22,14 @@ This project is currently in an **EXPERIMENTAL** state. The API, functionality, 
 - Features may be incomplete or unstable
 - Documentation may be outdated or missing
 - Production use is not recommended at this time
+
+## 🚀 Get Started in 3 Steps
+
+1. **[Download MegaMelange v1.0.0](https://github.com/tomlim2/unreal-mcp-all/releases/latest)** - Pre-built, ready to run
+2. **Configure** - Add your Google API key to `config.json`
+3. **Run** - Double-click `START.bat` and open http://localhost:34115
+
+Full installation instructions available in the [Installation](#-installation) section below.
 
 ## 🌟 Overview
 
@@ -97,11 +106,42 @@ All capabilities are accessible through natural language commands, making profes
 - **docs/** - Project documentation and schemas
 - **tests/** - Integration and connection tests
 
+## 📦 Installation
+
+### Recommended: Download Pre-built Release
+
+The easiest way to get started is to download the pre-built release:
+
+1. **Download** the latest release from [GitHub Releases](https://github.com/tomlim2/unreal-mcp-all/releases)
+   - Download `MegaMelange-v1.0.0.zip`
+   - Extract to your preferred location
+
+2. **Configure API Keys**
+   - Open `config.json` in a text editor
+   - Add your **Google API Key** (REQUIRED - get from https://aistudio.google.com/apikey)
+   - Add your Unreal Engine project path (REQUIRED for Unreal features)
+   - Optional: Add Anthropic/OpenAI API keys
+
+3. **Run the Application**
+   - Double-click `START.bat`
+   - Browser will open automatically at http://localhost:34115
+   - Start controlling Unreal Engine with natural language!
+
+**Requirements:**
+- Windows 10/11
+- Node.js 18+ (for frontend server)
+- Unreal Engine 5.3+ (for Unreal features)
+- Google API Key (REQUIRED)
+
+### Alternative: Build from Source
+
+For developers who want to modify or contribute to the project:
+
 ## 🚀 Quick Start Guide
 
-Choose your preferred interface for controlling Unreal Engine with AI:
+Choose your preferred setup method:
 
-### Option A: Automated Setup (Windows - Recommended)
+### Option A: Automated Setup (Windows - For Development)
 
 1. **Prerequisites**
    - Python 3.12+ and `uv` package manager
