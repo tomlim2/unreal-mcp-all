@@ -614,7 +614,6 @@ MIT License - See [LICENSE](LICENSE) for details
 ## 💬 Support & Community
 
 - **GitHub Issues**: [Report bugs or request features](https://github.com/tomlim2/unreal-mcp-all/issues)
-- **Twitter**: [@chongdashu](https://twitter.com/chongdashu)
 - **Documentation**: See `docs/` folder in your local installation
 
 ---
