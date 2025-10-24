@@ -3,6 +3,9 @@ Python/unreal_mcp.log
 *.log
 http_bridge_debug.log
 
+# Documentation (kept locally, not in repo)
+docs/
+
 # AI-related files
 CLAUDE.local.md
 
