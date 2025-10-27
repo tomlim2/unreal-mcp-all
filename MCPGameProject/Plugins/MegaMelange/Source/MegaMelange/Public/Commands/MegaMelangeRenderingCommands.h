@@ -1,0 +1,18 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Json.h"
+
+/**
+ * Handler class for Rendering-related MCP commands
+ */
+class MEGAMELANGE_API FMegaMelangeRenderingCommands
+{
+public:
+    FMegaMelangeRenderingCommands();
+    TSharedPtr<FJsonObject> HandleCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
+
+private:
+    // Screenshot command handlers
+    TSharedPtr<FJsonObject> HandleTakeScreenshot(const TSharedPtr<FJsonObject>& Params);
+};
