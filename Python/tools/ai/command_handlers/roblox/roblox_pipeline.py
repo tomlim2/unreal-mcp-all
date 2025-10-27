@@ -132,6 +132,14 @@ class RobloxPipelineHandler(BaseCommandHandler):
                 download_params
             )
 
+            if download_result is None:
+                raise AppError(
+                    code="PIPELINE_DOWNLOAD_FAILED",
+                    message="Download handler returned no result",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    details={"stage": "download", "user_input": user_input}
+                )
+
             if not download_result.get("success"):
                 raise AppError(
                     code="PIPELINE_DOWNLOAD_FAILED",
@@ -141,6 +149,14 @@ class RobloxPipelineHandler(BaseCommandHandler):
                 )
 
             obj_uid = download_result.get("uid")
+            if not obj_uid:
+                raise AppError(
+                    code="PIPELINE_DOWNLOAD_FAILED",
+                    message="Download succeeded but no UID returned",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    details={"stage": "download", "user_input": user_input}
+                )
+
             logger.info(f"Download queued: {obj_uid}")
 
             # Step 2: Wait for download completion (with polling)
@@ -151,6 +167,14 @@ class RobloxPipelineHandler(BaseCommandHandler):
 
             while elapsed_time < max_wait_time:
                 job_status = get_job_status(obj_uid)
+
+                if job_status is None:
+                    raise AppError(
+                        code="PIPELINE_STATUS_CHECK_FAILED",
+                        message="Failed to check job status",
+                        category=ErrorCategory.INTERNAL_SERVER,
+                        details={"stage": "download_poll", "obj_uid": obj_uid}
+                    )
 
                 if job_status.get("status") == "completed":
                     logger.info(f"Download completed: {obj_uid}")
@@ -190,6 +214,14 @@ class RobloxPipelineHandler(BaseCommandHandler):
                 conversion_params
             )
 
+            if fbx_result is None:
+                raise AppError(
+                    code="PIPELINE_FBX_CONVERSION_FAILED",
+                    message="FBX converter returned no result",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    details={"stage": "conversion", "obj_uid": obj_uid}
+                )
+
             if not fbx_result.get("success"):
                 raise AppError(
                     code="PIPELINE_FBX_CONVERSION_FAILED",
@@ -199,6 +231,14 @@ class RobloxPipelineHandler(BaseCommandHandler):
                 )
 
             fbx_uid = fbx_result.get("fbx_uid")
+            if not fbx_uid:
+                raise AppError(
+                    code="PIPELINE_FBX_CONVERSION_FAILED",
+                    message="Conversion succeeded but no FBX UID returned",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    details={"stage": "conversion", "obj_uid": obj_uid}
+                )
+
             logger.info(f"Conversion completed: {fbx_uid}")
 
             # Step 4: Import FBX to Unreal Engine
@@ -234,6 +274,14 @@ class RobloxPipelineHandler(BaseCommandHandler):
                 "import_object3d_by_uid",
                 processed_import_params
             )
+
+            if import_result is None:
+                raise AppError(
+                    code="PIPELINE_IMPORT_FAILED",
+                    message="Import handler returned no result",
+                    category=ErrorCategory.INTERNAL_SERVER,
+                    details={"stage": "import", "obj_uid": obj_uid, "fbx_uid": fbx_uid}
+                )
 
             if not import_result.get("success"):
                 raise AppError(
