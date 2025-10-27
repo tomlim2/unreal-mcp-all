@@ -248,7 +248,8 @@ class PathManager:
             else:
                 # Running as Python script
                 python_dir = Path(__file__).parent.parent.parent  # Go up to Python/
-                base_path = str(python_dir / "data_storage")
+                # Use realpath to get correct case on Windows
+                base_path = os.path.realpath(str(python_dir / "data_storage"))
                 logger.info(f"Using script-based data storage path (dev): {base_path}")
 
         if self.config.create_directories:

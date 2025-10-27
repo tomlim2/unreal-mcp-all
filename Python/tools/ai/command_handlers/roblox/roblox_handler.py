@@ -172,10 +172,10 @@ class RobloxCommandHandler(BaseCommandHandler):
 
     def _execute_download(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute Roblox avatar download command synchronously.
+        Execute Roblox avatar download command asynchronously.
 
-        Blocks until download completes and returns complete result with
-        username and folder_path (like FBX converter).
+        Starts download job in background and returns UID immediately.
+        Use get_job_status() to poll for completion.
         """
         user_input = params["user_input"]
         session_id = params.get("session_id")
@@ -201,18 +201,19 @@ class RobloxCommandHandler(BaseCommandHandler):
                 else:
                     logger.info(f"Generated new UID {uid} for user '{user_input}' (no existing downloads)")
 
-            # Create and execute download job SYNCHRONOUSLY (blocks until complete)
-            job = RobloxDownloadJob(uid, user_input, session_id)
-            result = asyncio.run(job.execute())
+            # Submit download job for async processing
+            from .roblox_job import submit_download_job
+            job = submit_download_job(uid, user_input, session_id)
 
-            # Log completion
-            if result.success:
-                logger.info(f"Roblox download completed: {uid} for user '{result.username}' (ID: {result.user_id})")
-            else:
-                logger.error(f"Roblox download failed: {uid} for user '{user_input}'")
+            # Return immediately with UID (job runs in background)
+            logger.info(f"Roblox download started: {uid} for user '{user_input}'")
 
-            # Return complete result (includes username, folder_path, obj_uid)
-            return result.to_dict()
+            return {
+                "success": True,
+                "uid": uid,
+                "status": "queued",
+                "message": f"Download queued for user '{user_input}'"
+            }
 
         except Exception as e:
             # Handle errors
