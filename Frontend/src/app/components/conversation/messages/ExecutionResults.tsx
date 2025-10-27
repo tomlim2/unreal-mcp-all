@@ -4,7 +4,6 @@ import styles from './MessageItem.module.css';
 import MessageItemImageResult from './MessageItemImageResult';
 import MessageItemVideoResult from './MessageItemVideoResult';
 import MessageItem3DResult from './MessageItem3DResult';
-import FbxResultDisplay from './FbxResultDisplay';
 
 interface ExecutionResultData {
   command: string;
@@ -77,16 +76,6 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
       {filteredResults.map((result, resultIndex) => {
         const resultData = result.result as Record<string, unknown> | undefined;
 
-        // Check for Roblox FBX conversion result
-        const isFbxConversion = result.command === 'convert_roblox_obj_to_fbx';
-        const fbxUid = resultData?.fbx_uid as string | undefined;
-        const objUid = resultData?.obj_uid as string | undefined;
-        const conversionMessage = resultData?.message as string | undefined;
-
-        // Check for error details
-        const errorMessage = result.error || (resultData?.error as string | undefined);
-        const errorSuggestion = resultData?.suggestion as string | undefined;
-
         // Check if result has image or video
         const imageUnknown = resultData && 'image' in resultData ? (resultData['image'] as unknown) : undefined;
         const newImageUrlUnknown = (imageUnknown && typeof imageUnknown === 'object' && imageUnknown !== null)
@@ -126,31 +115,11 @@ export default function ExecutionResults({ executionResults, excludeImages = fal
               <span className={styles.commandName}>{result.command}</span>
             </div>
 
-            {/* Roblox FBX Conversion */}
-            {isFbxConversion && (
-              <FbxResultDisplay
-                success={result.success}
-                fbxUid={fbxUid}
-                objUid={objUid}
-                conversionMessage={conversionMessage}
-                errorMessage={errorMessage}
-                errorCode={result.error_code}
-                category={result.category}
-                errorDetails={result.error_details}
-                suggestion={errorSuggestion || result.suggestion}
-              />
-            )}
-
             {/* Message display (success only - errors shown in debug panel) */}
-            {!isFbxConversion && (
-              <>
-                {/* Success state - show message if available */}
-                {result.success && resultData?.message && (
-                  <div className={styles.successMessage}>
-                    {resultData.message as string}
-                  </div>
-                )}
-              </>
+            {result.success && resultData?.message && (
+              <div className={styles.successMessage}>
+                {resultData.message as string}
+              </div>
             )}
 
             <MessageItemImageResult result={result} resultIndex={resultIndex} />

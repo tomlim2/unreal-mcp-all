@@ -84,10 +84,19 @@ def main():
     output_blend_path = os.path.join(output_fbx_dir, f"{output_name}.blend")
     output_fbx_path = os.path.join(output_fbx_dir, f"{output_name}.fbx")
 
-    # Copy texture to output directory
-    texture_source = os.path.join(obj_dir, "textures", "texture_001.png")
-    if not os.path.exists(texture_source):
-        exit_with_error("Check the texture - texture_001.png not found")
+    # Find texture file in textures directory (using original hash filename)
+    textures_dir = os.path.join(obj_dir, "textures")
+    if not os.path.exists(textures_dir):
+        exit_with_error("Textures directory not found")
+
+    # Find first PNG file in textures directory
+    texture_files = [f for f in os.listdir(textures_dir) if f.lower().endswith('.png')]
+    if not texture_files:
+        exit_with_error("No PNG texture files found in textures directory")
+
+    # Use the first texture file (typically there's only one for Roblox avatars)
+    texture_source = os.path.join(textures_dir, texture_files[0])
+    log(f"Found texture: {texture_files[0]}")
 
     texture_dest = os.path.join(output_fbx_dir, f"T_Roblox_{output_name}.png")
     shutil.copy2(texture_source, texture_dest)
