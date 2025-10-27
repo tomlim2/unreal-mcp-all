@@ -18,7 +18,7 @@ from enum import Enum
 from core.errors import RobloxError, RobloxErrorCodes
 from .roblox_errors import RobloxErrorHandler, log_roblox_error
 from .scripts.roblox_obj_downloader import RobloxAvatar3DDownloader
-from core.resources.uid_manager import get_uid_manager, generate_object_uid
+from core.resources.uid_manager import get_uid_manager
 from core.utils.path_manager import get_path_manager
 
 logger = logging.getLogger("UnrealMCP.Roblox.Job")
@@ -234,7 +234,12 @@ class RobloxDownloadJob:
             logger.debug(f"Setup storage for {self.uid}: {self.download_folder}")
 
         except Exception as e:
-            raise storage_error("storage setup", str(self.download_folder))
+            raise RobloxError(
+                code=RobloxErrorCodes.DOWNLOAD_FAILED,
+                message="Failed to setup storage directory",
+                details={"path": str(self.download_folder), "error": str(e)},
+                suggestion="Check file system permissions"
+            )
 
     async def _resolve_user(self) -> int:
         """Resolve user input to user ID."""
@@ -257,7 +262,12 @@ class RobloxDownloadJob:
             user_id = self.downloader.resolve_user_input(self.user_input)
 
             if user_id is None:
-                raise user_not_found(self.user_input)
+                raise RobloxError(
+                    code=RobloxErrorCodes.USER_NOT_FOUND,
+                    message=f"User not found: {self.user_input}",
+                    details={"user_input": self.user_input},
+                    suggestion="Check the username or user ID and try again"
+                )
 
             logger.info(f"Resolved user '{self.user_input}' to ID: {user_id}")
             return user_id
@@ -288,7 +298,12 @@ class RobloxDownloadJob:
             )
 
             if metadata is None:
-                raise avatar_3d_unavailable(user_id)
+                raise RobloxError(
+                    code=RobloxErrorCodes.AVATAR_3D_UNAVAILABLE,
+                    message=f"3D avatar not available for user ID: {user_id}",
+                    details={"user_id": user_id},
+                    suggestion="This user may not have a 3D avatar enabled. Try a different user."
+                )
 
             logger.info(f"Fetched 3D metadata for user {user_id}")
             return metadata
@@ -340,7 +355,12 @@ class RobloxDownloadJob:
                     self._update_progress("Downloaded MTL material", 2, 2, 70.0)
 
             if not model_files:
-                raise download_failed("model files", "No OBJ or MTL files available")
+                raise RobloxError(
+                    code=RobloxErrorCodes.DOWNLOAD_FAILED,
+                    message="Failed to download model files",
+                    details={"reason": "No OBJ or MTL files available in metadata"},
+                    suggestion="The avatar metadata may be incomplete. Try a different user."
+                )
 
             return model_files
 
@@ -371,15 +391,13 @@ class RobloxDownloadJob:
 
         try:
             texture_files = []
-            textures_folder = self.download_folder / "textures"
-            textures_folder.mkdir(exist_ok=True)
 
             for i, texture_hash in enumerate(textures):
                 if self._check_cancelled():
                     break
 
                 # Keep original hash as filename
-                texture_path = textures_folder / texture_hash
+                texture_path = self.download_folder / texture_hash
 
                 success = await asyncio.get_event_loop().run_in_executor(
                     None, self.downloader.download_file_from_hash,
@@ -467,7 +485,6 @@ class RobloxDownloadJob:
 
             if texture_files:
                 file_paths["textures"] = texture_files
-                file_paths["textures_folder"] = str(self.download_folder / "textures")
 
             # Generate download stats
             download_stats = {
