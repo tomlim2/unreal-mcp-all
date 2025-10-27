@@ -4,16 +4,15 @@ import { useState } from 'react';
 import styles from './MessageItem.module.css';
 
 interface Object3DResult {
-  object_3d?: {
-    uid?: string;
-    url?: string;
-    format?: string;
-    file_size?: number;
-    vertices?: number;
-    faces?: number;
-  };
   fbx_uid?: string;
   obj_uid?: string;
+  username?: string;
+  user_id?: number;
+  folder_path?: string;
+  avatar_type?: string;
+  file_paths?: {
+    folder?: string;
+  };
 }
 
 interface MessageItem3DResultProps {
@@ -28,36 +27,32 @@ export default function MessageItem3DResult({
   const [showPreview, setShowPreview] = useState(false);
   const data = (result.result ?? {}) as Object3DResult;
 
-  // Check for 3D object in new format
-  const object3D = data.object_3d;
-  const objectUid = object3D?.uid || data.fbx_uid || data.obj_uid;
-  const objectUrl = object3D?.url ||
-                    (objectUid ? `/api/3d-object/${objectUid}` : null);
-  const format = object3D?.format ||
-                 (data.fbx_uid ? 'fbx' : null) ||
-                 (data.obj_uid ? 'obj' : null);
+  // Extract 3D object data from flat structure
+  const objectUid = data.fbx_uid || data.obj_uid;
+  const format = data.fbx_uid ? 'fbx' : data.obj_uid ? 'obj' : null;
 
-  if (!objectUrl && !objectUid) {
+  if (!objectUid) {
     return null;
   }
 
-  const handleDownload = () => {
-    if (objectUrl) {
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = `${objectUid || 'model'}.${format || 'fbx'}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
+  const handleOpenFolder = async () => {
+    // Check both flat structure (folder_path) and nested structure (file_paths.folder)
+    const folderPath = data.folder_path || data.file_paths?.folder;
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'Unknown size';
-    const mb = bytes / (1024 * 1024);
-    return mb < 1
-      ? `${(bytes / 1024).toFixed(1)} KB`
-      : `${mb.toFixed(2)} MB`;
+    if (folderPath) {
+      try {
+        const response = await fetch('/api/open-folder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: folderPath })
+        });
+        if (!response.ok) {
+          console.error('Failed to open folder');
+        }
+      } catch (error) {
+        console.error('Error opening folder:', error);
+      }
+    }
   };
 
   return (
@@ -73,32 +68,25 @@ export default function MessageItem3DResult({
 
         <div className={styles.object3DInfo}>
           <div className={styles.object3DTitle}>
-            {objectUid || 'Untitled Model'}
+            {data.username || objectUid || 'Untitled Model'}
+            {data.avatar_type && data.avatar_type !== 'Unknown' && (
+              <span className={styles.object3DRigType}>
+                {data.avatar_type}
+              </span>
+            )}
             <span className={styles.object3DFormat}>
               .{format || 'fbx'}
             </span>
-          </div>
-
-          <div className={styles.object3DDetails}>
-            {object3D?.file_size && (
-              <span>{formatFileSize(object3D.file_size)}</span>
-            )}
-            {object3D?.vertices && (
-              <span>• {object3D.vertices.toLocaleString()} vertices</span>
-            )}
-            {object3D?.faces && (
-              <span>• {object3D.faces.toLocaleString()} faces</span>
-            )}
           </div>
         </div>
 
         <div className={styles.object3DActions}>
           <button
             className={styles.downloadButton}
-            onClick={handleDownload}
-            title="Download 3D object"
+            onClick={handleOpenFolder}
+            title="Open folder location"
           >
-            ⬇️ Download
+            📂 Open Folder
           </button>
           {/* Future: Add 3D preview button */}
           {/* <button

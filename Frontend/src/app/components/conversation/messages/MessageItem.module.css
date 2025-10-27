@@ -857,6 +857,18 @@
   gap: 0.5rem;
 }
 
+.object3DRigType {
+  font-size: 0.75rem;
+  color: var(--accent-success);
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  background: var(--bg-elevated-3);
+  border: 1px solid var(--accent-success);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .object3DFormat {
   font-size: 0.75rem;
   color: var(--text-tertiary);

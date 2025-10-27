@@ -265,19 +265,29 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
                 raise
 
             # Step 5: Register FBX UID with metadata
-            self._register_fbx_metadata(fbx_uid, obj_uid, obj_mapping, fbx_path)
+            username, user_id, avatar_type = self._register_fbx_metadata(fbx_uid, obj_uid, obj_mapping, fbx_path)
 
             logger.info(f"FBX UID registered: {fbx_uid}")
 
             # Step 6: Return success response using conversion_success helper
             logger.info(f"Conversion completed: {obj_uid} -> {fbx_uid}")
+
+            # Get folder path for the FBX
+            fbx_dir = str(Path(fbx_path).parent)
+
             return conversion_success(
                 source_uid=obj_uid,
                 target_uid=fbx_uid,
                 source_type="obj",
                 target_type="fbx",
                 message=f"Successfully converted {obj_uid} to FBX format",
-                additional_data={"fbx_path": fbx_path}
+                additional_data={
+                    "fbx_path": fbx_path,
+                    "folder_path": fbx_dir,
+                    "username": username,
+                    "user_id": user_id,
+                    "avatar_type": avatar_type
+                }
             )
 
         except RobloxError as e:
@@ -480,7 +490,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
                 self.uid_manager._fbx_counter -= 1
                 logger.info(f"Rolled back FBX counter to {self.uid_manager._fbx_counter}")
 
-    def _register_fbx_metadata(self, fbx_uid: str, obj_uid: str, obj_mapping: Dict[str, Any], fbx_path: str):
+    def _register_fbx_metadata(self, fbx_uid: str, obj_uid: str, obj_mapping: Dict[str, Any], fbx_path: str) -> tuple:
         """
         Register FBX UID with metadata and create metadata.json file.
 
@@ -489,6 +499,9 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
             obj_uid: Original OBJ UID
             obj_mapping: Original OBJ mapping
             fbx_path: Path to generated FBX file
+
+        Returns:
+            Tuple of (username, user_id, avatar_type)
         """
         import json
 
@@ -499,6 +512,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
 
         username = "unknown"
         user_id = 0
+        avatar_type = "Unknown"
 
         if obj_metadata_file.exists():
             try:
@@ -507,6 +521,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
                     user_info = obj_file_metadata.get("user_info", {})
                     username = user_info.get("name", "unknown")
                     user_id = user_info.get("id", 0)
+                    avatar_type = obj_file_metadata.get("avatar_type", "Unknown")
             except Exception as e:
                 logger.warning(f"Failed to read OBJ metadata: {e}")
 
@@ -552,6 +567,8 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
 
         logger.info(f"Registered FBX UID: {fbx_uid} for {username}_{user_id}")
         logger.info(f"Created metadata file: {metadata_file}")
+
+        return (username, user_id, avatar_type)
 
 
 # Convenience function

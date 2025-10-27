@@ -65,6 +65,19 @@ class JobResult:
         result = asdict(self)
         if self.error:
             result["error"] = self.error.to_dict()
+
+        # Add folder_path at root level for frontend compatibility
+        if self.file_paths and "folder" in self.file_paths:
+            result["folder_path"] = self.file_paths["folder"]
+
+        # Add obj_uid for OBJ downloads (frontend expects obj_uid for OBJ format)
+        if self.uid and self.uid.startswith("obj_"):
+            result["obj_uid"] = self.uid
+
+        # Add avatar_type at root level for frontend compatibility
+        if self.download_stats and "avatar_type" in self.download_stats:
+            result["avatar_type"] = self.download_stats["avatar_type"]
+
         return result
 
 
@@ -365,7 +378,8 @@ class RobloxDownloadJob:
                 if self._check_cancelled():
                     break
 
-                texture_path = textures_folder / f"texture_{i+1:03d}.png"
+                # Keep original hash as filename
+                texture_path = textures_folder / texture_hash
 
                 success = await asyncio.get_event_loop().run_in_executor(
                     None, self.downloader.download_file_from_hash,
@@ -431,6 +445,18 @@ class RobloxDownloadJob:
                 metadata, self.download_folder, extended_info
             )
 
+            # Read avatar_type from saved metadata
+            avatar_type = "Unknown"
+            metadata_file_path = self.download_folder / "metadata.json"
+            if metadata_file_path.exists():
+                try:
+                    import json
+                    with open(metadata_file_path, 'r', encoding='utf-8') as f:
+                        saved_metadata = json.load(f)
+                        avatar_type = saved_metadata.get("avatar_type", "Unknown")
+                except Exception as e:
+                    logger.warning(f"Failed to read avatar_type from metadata: {e}")
+
             # Prepare file paths
             file_paths = {
                 "folder": str(self.download_folder),
@@ -449,7 +475,7 @@ class RobloxDownloadJob:
                 "success_count": len(model_files) + len(texture_files) + 2,
                 "model_files": len(model_files),
                 "texture_files": len(texture_files),
-                "avatar_type": "Unknown",  # Could be extracted from metadata
+                "avatar_type": avatar_type,
                 "download_duration_seconds": time.time() - self.start_time
             }
 
