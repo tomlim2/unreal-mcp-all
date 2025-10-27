@@ -30,13 +30,13 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
 
     Features:
     - Resolves OBJ UID to file path
-    - Executes Blender conversion script
+    - Executes Blender conversion script (supports R6 and R15 avatars)
     - Generates FBX UID and registers it
     - Validates conversion results
     - Handles Blender execution errors
 
     Supported Commands:
-    - convert_roblox_obj_to_fbx: Convert OBJ UID to FBX UID
+    - convert_roblox_obj_to_fbx: Convert OBJ UID to FBX UID (R6 and R15)
     """
 
     def __init__(self):
@@ -196,18 +196,18 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
                     metadata = json.load(f)
                     avatar_type = metadata.get("avatar_type", "Unknown")
 
-                    if avatar_type != "R6":
+                    if avatar_type not in ["R6", "R15"]:
                         username = metadata.get("user_info", {}).get("name", "Unknown")
                         error = RobloxError(
                             code=RobloxErrorCodes.AVATAR_PROCESSING_FAILED,
-                            message=f"We support R6 avatar only",
+                            message=f"Unsupported avatar type: {avatar_type}",
                             details={
                                 "obj_uid": obj_uid,
                                 "username": username,
                                 "avatar_type": avatar_type,
-                                "supported_types": ["R6"]
+                                "supported_types": ["R6", "R15"]
                             },
-                            suggestion=f"This avatar uses {avatar_type} body type. We support R6 avatar only."
+                            suggestion=f"This avatar uses {avatar_type} body type. We support R6 and R15 avatars only."
                         )
                         return error.to_dict()
 
@@ -240,7 +240,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
 
             # Step 4: Execute Blender conversion script
             try:
-                fbx_path = self._run_blender_conversion(blender_path, obj_path, str(fbx_dir))
+                fbx_path = self._run_blender_conversion(blender_path, obj_path, str(fbx_dir), avatar_type)
 
                 if not fbx_path or not Path(fbx_path).exists():
                     # Rollback UID counter on failure
@@ -345,7 +345,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
         logger.warning(f"avatar.obj not found in {uid_dir}")
         return None
 
-    def _run_blender_conversion(self, blender_path: str, obj_path: str, output_dir: str) -> Optional[str]:
+    def _run_blender_conversion(self, blender_path: str, obj_path: str, output_dir: str, avatar_type: str) -> Optional[str]:
         """
         Run Blender conversion script.
 
@@ -353,6 +353,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
             blender_path: Path to Blender executable
             obj_path: Path to OBJ file
             output_dir: Directory where FBX should be created
+            avatar_type: Avatar type (R6 or R15)
 
         Returns:
             Path to generated FBX file
@@ -360,25 +361,37 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
         Raises:
             RobloxError: If Blender execution fails
         """
-        # Get the conversion script path
+        # Get the conversion script path based on avatar type
         script_dir = Path(__file__).parent / "blender"
-        conversion_script = script_dir / "roblox_base_r6_obj2fbx.py"
-        base_blend_file = script_dir / "Roblox_Base_R6_For_Unreal.blend"
+
+        if avatar_type == "R6":
+            conversion_script = script_dir / "roblox_base_r6_obj2fbx.py"
+            base_blend_file = script_dir / "Roblox_Base_R6_For_Unreal.blend"
+        elif avatar_type == "R15":
+            conversion_script = script_dir / "roblox_base_r15_obj2fbx.py"
+            base_blend_file = script_dir / "Roblox_Base_R15_For_Unreal.blend"
+        else:
+            raise RobloxError(
+                code=RobloxErrorCodes.AVATAR_PROCESSING_FAILED,
+                message=f"Unsupported avatar type: {avatar_type}",
+                details={"avatar_type": avatar_type},
+                suggestion="Only R6 and R15 avatars are supported"
+            )
 
         if not conversion_script.exists():
             raise RobloxError(
                 code=RobloxErrorCodes.AVATAR_PROCESSING_FAILED,
-                message="Blender conversion script not found",
-                details={"script_path": str(conversion_script)},
-                suggestion="Ensure the conversion script is in the correct location"
+                message=f"Blender conversion script not found for {avatar_type}",
+                details={"script_path": str(conversion_script), "avatar_type": avatar_type},
+                suggestion=f"Ensure the {avatar_type} conversion script is in the correct location"
             )
 
         if not base_blend_file.exists():
             raise RobloxError(
                 code=RobloxErrorCodes.AVATAR_PROCESSING_FAILED,
-                message="Base Blender file not found",
-                details={"blend_file": str(base_blend_file)},
-                suggestion="Ensure Roblox_Base_R6_For_Unreal.blend is in the blender directory"
+                message=f"Base Blender file not found for {avatar_type}",
+                details={"blend_file": str(base_blend_file), "avatar_type": avatar_type},
+                suggestion=f"Ensure Roblox_Base_{avatar_type}_For_Unreal.blend is in the blender directory"
             )
 
         # Build Blender command
@@ -392,6 +405,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
             output_dir
         ]
 
+        logger.info(f"Converting {avatar_type} avatar using Blender")
         logger.info(f"Running Blender command: {' '.join(cmd)}")
 
         try:
