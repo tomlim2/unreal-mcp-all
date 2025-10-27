@@ -168,16 +168,6 @@ class RobloxCommandHandler(BaseCommandHandler):
         if session_id is not None and not isinstance(session_id, str):
             errors.append("session_id must be a string if provided")
 
-        # Validate include_textures (optional, default True)
-        include_textures = params.get("include_textures", True)
-        if not isinstance(include_textures, bool):
-            errors.append("include_textures must be a boolean")
-
-        # Validate include_thumbnails (optional, default False)
-        include_thumbnails = params.get("include_thumbnails", False)
-        if not isinstance(include_thumbnails, bool):
-            errors.append("include_thumbnails must be a boolean")
-
         return errors
 
     def _execute_download(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -235,16 +225,13 @@ class RobloxCommandHandler(BaseCommandHandler):
 
 
 # Convenience functions for external use
-def download_roblox_avatar(user_input: str, session_id: Optional[str] = None,
-                          include_textures: bool = True, include_thumbnails: bool = False) -> Dict[str, Any]:
+def download_roblox_avatar(user_input: str, session_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Convenience function to download Roblox avatar.
 
     Args:
         user_input: Roblox username or user ID
         session_id: Optional session ID for organization
-        include_textures: Whether to download texture files
-        include_thumbnails: Whether to download 2D thumbnails
 
     Returns:
         Download response with UID and status
@@ -253,9 +240,7 @@ def download_roblox_avatar(user_input: str, session_id: Optional[str] = None,
 
     params = {
         "user_input": user_input,
-        "session_id": session_id,
-        "include_textures": include_textures,
-        "include_thumbnails": include_thumbnails
+        "session_id": session_id
     }
 
     # Validate and preprocess

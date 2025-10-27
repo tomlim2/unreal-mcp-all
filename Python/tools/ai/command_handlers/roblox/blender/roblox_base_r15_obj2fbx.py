@@ -26,15 +26,16 @@ def exit_with_success(fbx_path, blend_path):
 
 def main():
     # Parse command line arguments
-    # blender -b base.blend -P converter.py -- "path/to/avatar.obj" "output_fbx_dir"
+    # blender -b base.blend -P converter.py -- "path/to/avatar.obj" "output_fbx_dir" "texture_path"
     argv = sys.argv
     argv = argv[argv.index("--") + 1:] if "--" in argv else []
 
     if len(argv) < 2:
-        exit_with_error("Usage: blender -b base.blend -P converter.py -- <obj_path> <output_fbx_dir>")
+        exit_with_error("Usage: blender -b base.blend -P converter.py -- <obj_path> <output_fbx_dir> [texture_path]")
 
     obj_path = argv[0]
     output_fbx_dir = argv[1]
+    texture_path = argv[2] if len(argv) >= 3 else None
     
     # Validate OBJ path
     if not os.path.exists(obj_path):
@@ -84,23 +85,18 @@ def main():
     output_blend_path = os.path.join(output_fbx_dir, f"{output_name}.blend")
     output_fbx_path = os.path.join(output_fbx_dir, f"{output_name}.fbx")
 
-    # Find texture file in textures directory (using original hash filename)
-    textures_dir = os.path.join(obj_dir, "textures")
-    if not os.path.exists(textures_dir):
-        exit_with_error("Textures directory not found")
+    # Handle texture file
+    texture_dest = None
+    if texture_path and os.path.exists(texture_path):
+        # Copy texture to output directory with standardized name
+        texture_filename = os.path.basename(texture_path)
+        log(f"Using provided texture: {texture_filename}")
 
-    # Find first PNG file in textures directory
-    texture_files = [f for f in os.listdir(textures_dir) if f.lower().endswith('.png')]
-    if not texture_files:
-        exit_with_error("No PNG texture files found in textures directory")
-
-    # Use the first texture file (typically there's only one for Roblox avatars)
-    texture_source = os.path.join(textures_dir, texture_files[0])
-    log(f"Found texture: {texture_files[0]}")
-
-    texture_dest = os.path.join(output_fbx_dir, f"T_Roblox_{output_name}.png")
-    shutil.copy2(texture_source, texture_dest)
-    log(f"Texture copied to: {texture_dest}")
+        texture_dest = os.path.join(output_fbx_dir, f"T_Roblox_{output_name}.png")
+        shutil.copy2(texture_path, texture_dest)
+        log(f"Texture copied to: {texture_dest}")
+    else:
+        log("Warning: No texture provided or texture file not found. Continuing without texture...")
     
     # Load base blend file
     log(f"Loading base blend file: {base_blend_path}")
@@ -128,50 +124,53 @@ def main():
         exit_with_error("Material M_Roblox not found in base blend file")
     
     log("Found M_Roblox material")
-    
-    # Assign texture to material
-    if material.use_nodes:
+
+    # Assign texture to material (if available)
+    if texture_dest and material.use_nodes:
         nodes = material.node_tree.nodes
         links = material.node_tree.links
-        
+
         # Find Principled BSDF
         principled = None
         for node in nodes:
             if node.type == 'BSDF_PRINCIPLED':
                 principled = node
                 break
-        
+
         if not principled:
             exit_with_error("Principled BSDF not found in M_Roblox material")
-        
+
         # Find or create Image Texture node
         image_node = None
         for node in nodes:
             if node.type == 'TEX_IMAGE':
                 image_node = node
                 break
-        
+
         if not image_node:
             image_node = nodes.new(type='ShaderNodeTexImage')
             image_node.location = (-300, 300)
-        
+
         # Load texture image
         try:
             image = bpy.data.images.load(texture_dest)
             image_node.image = image
             log(f"Loaded texture: {texture_dest}")
         except Exception as e:
-            exit_with_error(f"Failed to load texture: {str(e)}")
-        
-        # Connect Image Texture to Principled BSDF
-        # Color -> Base Color
-        links.new(image_node.outputs['Color'], principled.inputs['Base Color'])
-        # Alpha -> Alpha
-        links.new(image_node.outputs['Alpha'], principled.inputs['Alpha'])
-        
-        log("Texture assigned to M_Roblox material")
-    else:
-        exit_with_error("M_Roblox material does not use nodes")
+            log(f"Warning: Failed to load texture: {str(e)}")
+            # Continue without texture rather than failing
+        else:
+            # Connect Image Texture to Principled BSDF only if image loaded successfully
+            # Color -> Base Color
+            links.new(image_node.outputs['Color'], principled.inputs['Base Color'])
+            # Alpha -> Alpha
+            links.new(image_node.outputs['Alpha'], principled.inputs['Alpha'])
+
+            log("Texture assigned to M_Roblox material")
+    elif not texture_dest:
+        log("No texture available - using material without texture")
+    elif not material.use_nodes:
+        log("Warning: M_Roblox material does not use nodes")
     
     # Delete the imported OBJ mesh
     bpy.data.objects.remove(imported_obj, do_unlink=True)

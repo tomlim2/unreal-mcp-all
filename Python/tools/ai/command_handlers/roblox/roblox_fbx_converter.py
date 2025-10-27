@@ -238,9 +238,12 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
 
             logger.info(f"Allocated FBX UID: {fbx_uid}, directory: {fbx_dir}")
 
-            # Step 4: Execute Blender conversion script
+            # Step 4: Find body texture from MTL file
+            body_texture_path = self._find_body_texture(obj_dir)
+
+            # Step 5: Execute Blender conversion script
             try:
-                fbx_path = self._run_blender_conversion(blender_path, obj_path, str(fbx_dir), avatar_type)
+                fbx_path = self._run_blender_conversion(blender_path, obj_path, str(fbx_dir), avatar_type, body_texture_path)
 
                 if not fbx_path or not Path(fbx_path).exists():
                     # Rollback UID counter on failure
@@ -262,14 +265,15 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
             except Exception as e:
                 # Rollback UID counter on any error
                 self._rollback_fbx_uid()
+                logger.error(f"Blender conversion failed: {e}")
                 raise
 
-            # Step 5: Register FBX UID with metadata
+            # Step 6: Register FBX UID with metadata
             username, user_id, avatar_type = self._register_fbx_metadata(fbx_uid, obj_uid, obj_mapping, fbx_path)
 
             logger.info(f"FBX UID registered: {fbx_uid}")
 
-            # Step 6: Return success response using conversion_success helper
+            # Step 7: Return success response using conversion_success helper
             logger.info(f"Conversion completed: {obj_uid} -> {fbx_uid}")
 
             # Get folder path for the FBX
@@ -355,7 +359,74 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
         logger.warning(f"avatar.obj not found in {uid_dir}")
         return None
 
-    def _run_blender_conversion(self, blender_path: str, obj_path: str, output_dir: str, avatar_type: str) -> Optional[str]:
+    def _find_body_texture(self, obj_dir: Path) -> Optional[str]:
+        """
+        Find the body texture by parsing the MTL file.
+
+        Roblox avatars use a specific material naming convention:
+        - Player1Mtl: Main body texture (used by all body parts: Player1-15 groups)
+        - Handle1-6Mtl: Accessory textures (not needed for body mesh)
+
+        This method extracts the texture hash from Player1Mtl's map_Kd directive.
+
+        Args:
+            obj_dir: Directory containing avatar.obj and avatar.mtl
+
+        Returns:
+            Path to body texture file, or None if not found
+        """
+        mtl_file = obj_dir / "avatar.mtl"
+
+        if not mtl_file.exists():
+            logger.warning(f"MTL file not found: {mtl_file}")
+            return None
+
+        try:
+            with open(mtl_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Find Player1Mtl material and its texture
+            # Player1Mtl is the material used by all body parts (head, torso, limbs)
+            in_player1_material = False
+            texture_hash = None
+
+            for line in lines:
+                line = line.strip()
+
+                # Check if we're entering Player1Mtl material definition
+                if line.startswith("newmtl Player1Mtl"):
+                    in_player1_material = True
+                    continue
+
+                # Check if we're entering a different material
+                if line.startswith("newmtl ") and not line.startswith("newmtl Player1Mtl"):
+                    in_player1_material = False
+                    continue
+
+                # If we're in Player1Mtl, look for the diffuse texture map
+                if in_player1_material and line.startswith("map_Kd "):
+                    texture_hash = line.split(None, 1)[1].strip()
+                    break
+
+            if not texture_hash:
+                logger.warning("Player1Mtl texture not found in MTL file")
+                return None
+
+            # Look for texture file in the obj_dir (textures are now in root folder)
+            texture_path = obj_dir / texture_hash
+
+            if texture_path.exists():
+                logger.info(f"Found body texture: {texture_path}")
+                return str(texture_path)
+            else:
+                logger.warning(f"Texture file not found: {texture_path}")
+                return None
+
+        except Exception as e:
+            logger.warning(f"Failed to parse MTL file: {e}")
+            return None
+
+    def _run_blender_conversion(self, blender_path: str, obj_path: str, output_dir: str, avatar_type: str, body_texture_path: Optional[str] = None) -> Optional[str]:
         """
         Run Blender conversion script.
 
@@ -364,6 +435,7 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
             obj_path: Path to OBJ file
             output_dir: Directory where FBX should be created
             avatar_type: Avatar type (R6 or R15)
+            body_texture_path: Optional path to body texture file
 
         Returns:
             Path to generated FBX file
@@ -414,6 +486,11 @@ class RobloxFBXConverterHandler(BaseCommandHandler):
             str(obj_path),
             output_dir
         ]
+
+        # Add texture path if available
+        if body_texture_path:
+            cmd.append(body_texture_path)
+            logger.info(f"Using body texture: {body_texture_path}")
 
         logger.info(f"Converting {avatar_type} avatar using Blender")
         logger.info(f"Running Blender command: {' '.join(cmd)}")

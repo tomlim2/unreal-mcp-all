@@ -402,7 +402,7 @@ class RobloxAvatar3DDownloader:
             "## 📁 Downloaded Files",
             "- avatar.obj: 3D mesh file (OBJ)",
             "- avatar.mtl: Material info file (MTL)",
-            "- textures/: Texture images",
+            "- [hash files]: Texture images (named by their content hash)",
             "- metadata.json: Complete metadata",
             "",
             "## 🎮 User Information",
