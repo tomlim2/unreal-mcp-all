@@ -40,13 +40,25 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    await execAsync(command);
+    try {
+      await execAsync(command);
+    } catch (error: any) {
+      // Windows Explorer often returns exit code 1 even on success
+      // So we ignore errors for Windows explorer command
+      if (os === 'win32' && error.code === 1) {
+        // Ignore - Windows Explorer opened successfully
+      } else {
+        // Real error - re-throw
+        throw error;
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error opening folder:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: 'Failed to open folder' },
+      { error: `Failed to open folder: ${errorMessage}` },
       { status: 500 }
     );
   }

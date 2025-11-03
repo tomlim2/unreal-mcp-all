@@ -177,7 +177,13 @@ class RobloxPipelineHandler(BaseCommandHandler):
                     )
 
                 if job_status.get("status") == "completed":
-                    logger.info(f"Download completed: {obj_uid}")
+                    # Extract display fields from completed job status (they're nested in "result")
+                    job_result = job_status.get("result", {})
+                    obj_username = job_result.get("username", "unknown")
+                    obj_user_id = job_result.get("user_id", 0)
+                    obj_avatar_type = job_result.get("avatar_type", "Unknown")
+                    obj_folder_path = job_result.get("folder_path")
+                    logger.info(f"Download completed: {obj_uid} for {obj_username}_{obj_user_id} ({obj_avatar_type})")
                     break
                 elif job_status.get("status") == "failed":
                     raise AppError(
@@ -239,7 +245,13 @@ class RobloxPipelineHandler(BaseCommandHandler):
                     details={"stage": "conversion", "obj_uid": obj_uid}
                 )
 
-            logger.info(f"Conversion completed: {fbx_uid}")
+            # Extract display fields from FBX conversion result (fallback to OBJ data if not available)
+            username = fbx_result.get("username") or obj_username
+            user_id = fbx_result.get("user_id") or obj_user_id
+            avatar_type = fbx_result.get("avatar_type") or obj_avatar_type
+            folder_path = fbx_result.get("folder_path") or obj_folder_path
+
+            logger.info(f"Conversion completed: {fbx_uid} for {username}_{user_id} ({avatar_type})")
 
             # Step 4: Import FBX to Unreal Engine
             logger.info("Step 4/4: Importing to Unreal Engine...")
@@ -294,14 +306,19 @@ class RobloxPipelineHandler(BaseCommandHandler):
             asset_path = import_result.get("asset_path", "Unknown")
             logger.info(f"Import completed: {asset_path}")
 
-            # Step 5: Return combined success result
+            # Step 5: Return combined success result with display fields
             return success_response(
                 message=f"Successfully downloaded and imported Roblox avatar for '{user_input}'",
                 data={
                     "obj_uid": obj_uid,
                     "fbx_uid": fbx_uid,
                     "asset_path": asset_path,
-                    "pipeline_complete": True
+                    "pipeline_complete": True,
+                    # Display fields for frontend
+                    "username": username,
+                    "user_id": user_id,
+                    "avatar_type": avatar_type,
+                    "folder_path": folder_path
                 }
             )
 
