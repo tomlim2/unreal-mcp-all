@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import styles from './MessageItem.module.css';
 
 interface Object3DResult {
@@ -10,9 +9,6 @@ interface Object3DResult {
   user_id?: number;
   folder_path?: string;
   avatar_type?: string;
-  file_paths?: {
-    folder?: string;
-  };
 }
 
 interface MessageItem3DResultProps {
@@ -24,10 +20,9 @@ export default function MessageItem3DResult({
   result,
   resultIndex
 }: MessageItem3DResultProps) {
-  const [showPreview, setShowPreview] = useState(false);
   const data = (result.result ?? {}) as Object3DResult;
 
-  // Extract 3D object data from flat structure
+  // Extract 3D object data
   const objectUid = data.fbx_uid || data.obj_uid;
   const format = data.fbx_uid ? 'fbx' : data.obj_uid ? 'obj' : null;
 
@@ -36,22 +31,28 @@ export default function MessageItem3DResult({
   }
 
   const handleOpenFolder = async () => {
-    // Check both flat structure (folder_path) and nested structure (file_paths.folder)
-    const folderPath = data.folder_path || data.file_paths?.folder;
+    if (!data.folder_path) {
+      console.error('No folder path available');
+      alert('Folder path not available');
+      return;
+    }
 
-    if (folderPath) {
-      try {
-        const response = await fetch('/api/open-folder', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: folderPath })
-        });
-        if (!response.ok) {
-          console.error('Failed to open folder');
-        }
-      } catch (error) {
-        console.error('Error opening folder:', error);
+    try {
+      const response = await fetch('/api/open-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: data.folder_path })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('Failed to open folder:', result);
+        alert(`Failed to open folder: ${result.error || 'Unknown error'}`);
       }
+    } catch (error) {
+      console.error('Error opening folder:', error);
+      alert(`Error opening folder: ${error}`);
     }
   };
 
@@ -61,19 +62,13 @@ export default function MessageItem3DResult({
         <div className={styles.object3DIcon}>
           {format === 'fbx' && '📦'}
           {format === 'obj' && '🔷'}
-          {format === 'gltf' && '🎁'}
-          {format === 'glb' && '🎁'}
-          {!format && '🗿'}
         </div>
 
         <div className={styles.object3DInfo}>
           <div className={styles.object3DTitle}>
-            {data.username || objectUid || 'Untitled Model'}
-            {data.avatar_type && data.avatar_type !== 'Unknown' && (
-              <span className={styles.object3DRigType}>
-                {data.avatar_type}
-              </span>
-            )}
+            {data.username && data.user_id && data.avatar_type
+              ? `${data.username}_${data.user_id}_${data.avatar_type}`
+              : data.username || objectUid || 'Untitled Model'}
             <span className={styles.object3DFormat}>
               .{format || 'fbx'}
             </span>
@@ -88,25 +83,8 @@ export default function MessageItem3DResult({
           >
             📂 Open Folder
           </button>
-          {/* Future: Add 3D preview button */}
-          {/* <button
-            className={styles.previewButton}
-            onClick={() => setShowPreview(!showPreview)}
-            title="Preview 3D object"
-          >
-            👁️ {showPreview ? 'Hide' : 'Preview'}
-          </button> */}
         </div>
       </div>
-
-      {showPreview && (
-        <div className={styles.object3DPreview}>
-          <div className={styles.previewPlaceholder}>
-            3D Preview (Coming Soon)
-            <p>Use external viewer or import into Unreal/Blender</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

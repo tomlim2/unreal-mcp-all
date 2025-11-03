@@ -7,12 +7,13 @@ with username and folder_path for immediate display. Aligned with FBX converter 
 
 import logging
 import asyncio
+import time
 from typing import Dict, Any, List, Optional
 
 from ..main import BaseCommandHandler
 from ..validation import ValidatedCommand
 from core.resources.uid_manager import generate_object_uid
-from core.errors import RobloxError, RobloxErrorCodes
+from core.errors import RobloxError, RobloxErrorCodes, download_failed
 from core.response import success_response
 from .roblox_errors import RobloxErrorHandler, log_roblox_error
 from .roblox_job import RobloxDownloadJob
@@ -202,27 +203,67 @@ class RobloxCommandHandler(BaseCommandHandler):
                     logger.info(f"Generated new UID {uid} for user '{user_input}' (no existing downloads)")
 
             # Submit download job for async processing
-            from .roblox_job import submit_download_job
+            from .roblox_job import submit_download_job, get_job_status
             job = submit_download_job(uid, user_input, session_id)
 
-            # Return immediately with UID (job runs in background)
             logger.info(f"Roblox download started: {uid} for user '{user_input}'")
 
+            # Poll for completion to get display data
+            max_wait_time = 300  # 5 minutes
+            poll_interval = 5  # 5 seconds
+            elapsed_time = 0
+
+            while elapsed_time < max_wait_time:
+                job_status = get_job_status(uid)
+
+                if job_status and job_status.get("status") == "completed":
+                    # Extract display fields from completed job (they're nested in "result")
+                    logger.info(f"Download completed: {uid}")
+                    job_result = job_status.get("result", {})
+                    result = {
+                        "success": True,
+                        "uid": uid,
+                        "obj_uid": uid,
+                        "status": "completed",
+                        "message": f"Downloaded Roblox avatar for user '{user_input}'",
+                        "username": job_result.get("username", "unknown"),
+                        "user_id": job_result.get("user_id", 0),
+                        "avatar_type": job_result.get("avatar_type", "Unknown"),
+                        "folder_path": job_result.get("folder_path")
+                    }
+                    return result
+                elif job_status and job_status.get("status") == "failed":
+                    error_msg = job_status.get("error", {}).get("message", "Download failed") if isinstance(job_status.get("error"), dict) else str(job_status.get("error", "Download failed"))
+                    raise download_failed(
+                        file_type="roblox_avatar",
+                        reason=error_msg
+                    )
+
+                # Still processing, wait and retry
+                time.sleep(poll_interval)
+                elapsed_time += poll_interval
+
+            # Timeout - return partial data
+            logger.warning(f"Download timeout for {uid}, returning queued status")
             return {
                 "success": True,
                 "uid": uid,
-                "status": "queued",
-                "message": f"Download queued for user '{user_input}'"
+                "obj_uid": uid,
+                "status": "timeout",
+                "message": f"Download is taking longer than expected for user '{user_input}'"
             }
 
+        except RobloxError:
+            # Re-raise RobloxError to be handled by nlp.py
+            raise
         except Exception as e:
-            # Handle errors
+            # Convert generic exception to RobloxError and raise
             error = RobloxErrorHandler.from_exception(e, "download execution")
             log_roblox_error(error, {
                 "user_input": user_input,
                 "session_id": session_id
             })
-            return error.to_dict()
+            raise error
 
 
 # Convenience functions for external use

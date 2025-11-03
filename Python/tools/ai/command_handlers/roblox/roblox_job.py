@@ -57,26 +57,18 @@ class JobResult:
     uid: str
     username: Optional[str] = None
     user_id: Optional[int] = None
-    file_paths: Optional[Dict[str, Any]] = None
-    download_stats: Optional[Dict[str, Any]] = None
+    folder_path: Optional[str] = None
+    avatar_type: Optional[str] = None
     error: Optional[RobloxError] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
         if self.error:
-            result["error"] = self.error.to_dict()
-
-        # Add folder_path at root level for frontend compatibility
-        if self.file_paths and "folder" in self.file_paths:
-            result["folder_path"] = self.file_paths["folder"]
+            result["error"] = self.error.to_response()
 
         # Add obj_uid for OBJ downloads (frontend expects obj_uid for OBJ format)
         if self.uid and self.uid.startswith("obj_"):
             result["obj_uid"] = self.uid
-
-        # Add avatar_type at root level for frontend compatibility
-        if self.download_stats and "avatar_type" in self.download_stats:
-            result["avatar_type"] = self.download_stats["avatar_type"]
 
         return result
 
@@ -219,7 +211,7 @@ class RobloxDownloadJob:
             status_data["result"] = self.result.to_dict()
 
         if self.error:
-            status_data["error"] = self.error.to_dict()
+            status_data["error"] = self.error.to_response()
 
         return status_data
 
@@ -475,34 +467,13 @@ class RobloxDownloadJob:
                 except Exception as e:
                     logger.warning(f"Failed to read avatar_type from metadata: {e}")
 
-            # Prepare file paths
-            file_paths = {
-                "folder": str(self.download_folder),
-                "metadata": str(self.download_folder / "metadata.json"),
-                "readme": str(self.download_folder / "README.md")
-            }
-            file_paths.update(model_files)
-
-            if texture_files:
-                file_paths["textures"] = texture_files
-
-            # Generate download stats
-            download_stats = {
-                "total_files": len(model_files) + len(texture_files) + 2,  # +2 for metadata and readme
-                "success_count": len(model_files) + len(texture_files) + 2,
-                "model_files": len(model_files),
-                "texture_files": len(texture_files),
-                "avatar_type": avatar_type,
-                "download_duration_seconds": time.time() - self.start_time
-            }
-
             return JobResult(
                 success=True,
                 uid=self.uid,
                 username=username,
                 user_id=user_id,
-                file_paths=file_paths,
-                download_stats=download_stats
+                folder_path=str(self.download_folder),
+                avatar_type=avatar_type
             )
 
         except Exception as e:
@@ -561,12 +532,12 @@ class RobloxDownloadJob:
     def _add_uid_mapping(self, result: JobResult):
         """Add UID mapping for completed download."""
         try:
-            if result.success and result.file_paths:
+            if result.success and result.folder_path:
                 metadata = {
                     "download_type": "roblox_3d_avatar",
                     "username": result.username,
                     "user_id": result.user_id,
-                    "download_stats": result.download_stats,
+                    "avatar_type": result.avatar_type,
                     "downloaded_at": datetime.now().isoformat()
                 }
 
