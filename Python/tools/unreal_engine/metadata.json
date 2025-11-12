@@ -24,18 +24,22 @@
     "delete_actor",
     "get_actors_in_level",
     "set_actor_transform",
+    "get_actor_properties",
+    "find_actors_by_name",
     "create_mm_control_light",
     "update_mm_control_light",
     "delete_mm_control_light",
+    "get_mm_control_lights",
     "set_cesium_latitude_longitude",
     "get_cesium_properties",
     "set_time_of_day",
     "set_color_temperature",
     "get_ultra_dynamic_sky",
-    "take_highresshot",
-    "set_material_parameter",
-    "apply_material_to_actor",
-    "set_camera_position",
-    "focus_camera_on_actor"
+    "get_ultra_dynamic_weather",
+    "set_current_weather_to_rain",
+    "take_screenshot",
+    "import_object3d_by_uid",
+    "get_selected_assets",
+    "rename_assets_batch"
   ]
 }

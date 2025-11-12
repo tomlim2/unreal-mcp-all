@@ -513,6 +513,28 @@ def _execute_commands(request: ProcessingRequest, commands: List[Dict[str, Any]]
             # Auto-assign latest image for image-related commands if needed
             _auto_assign_latest_image_if_needed(command, session_context)
 
+            # Auto-inject pending asset operations for rename_assets_batch if needed
+            if command.get("type") == "rename_assets_batch" and session_context:
+                logger.info(f"✓ Detected rename_assets_batch command, checking for pending operations")
+                if "params" not in command:
+                    command["params"] = {}
+                if "operations" not in command["params"] or not command["params"]["operations"]:
+                    # Inject operations from session
+                    pending_ops = session_context.metadata.get("pending_asset_operations")
+                    if pending_ops and isinstance(pending_ops, list) and len(pending_ops) > 0:
+                        command["params"]["operations"] = pending_ops
+                        logger.info(f"✓ Injected {len(pending_ops)} pending operations into rename_assets_batch command")
+                        logger.info(f"✓ First operation: {pending_ops[0]}")
+                        # Clear pending operations after use
+                        session_context.metadata.pop("pending_asset_operations", None)
+                        from core.session import get_session_manager
+                        session_manager = get_session_manager()
+                        session_manager.update_session(session_context)
+                    else:
+                        logger.warning(f"⚠ No pending operations found in session for rename_assets_batch!")
+                else:
+                    logger.info(f"✓ rename_assets_batch already has {len(command['params']['operations'])} operations")
+
             result = execute_command_direct(command)
             execution_results.append({
                 "command": command.get("type", "unknown"),
@@ -546,6 +568,85 @@ def _execute_commands(request: ProcessingRequest, commands: List[Dict[str, Any]]
             })
 
     return execution_results
+
+
+def _post_process_asset_preview(result: Dict[str, Any], user_input: str, execution_results: List[Dict], session_manager, session_id: str) -> Dict[str, Any]:
+    """
+    Post-process results to add asset rename preview if applicable.
+
+    Args:
+        result: The result dict with explanation, commands, etc.
+        user_input: Original user input
+        execution_results: List of execution result dicts
+        session_manager: Session manager instance
+        session_id: Session ID
+
+    Returns:
+        Modified result dict with preview appended if applicable
+    """
+    try:
+        # Check if any command was get_selected_assets
+        for exec_result in execution_results:
+            if exec_result.get("command") == "get_selected_assets" and exec_result.get("success"):
+                # Check if this was for asset fixing/renaming
+                from tools.ai.asset_preview import should_generate_preview, generate_asset_rename_preview
+
+                if should_generate_preview(user_input, "get_selected_assets"):
+                    # Extract assets from result
+                    result_data = exec_result.get("result", {})
+
+                    # Navigate the nested result structure
+                    if isinstance(result_data, dict):
+                        # Could be: {"status": "success", "result": {"success": true, "data": {"assets": [...]}}}
+                        # Or: {"success": true, "data": {"assets": [...]}}
+                        # Or: {"assets": [...]}
+
+                        assets = None
+                        if "result" in result_data:
+                            inner_result = result_data["result"]
+                            if isinstance(inner_result, dict):
+                                if "data" in inner_result:
+                                    assets = inner_result["data"].get("assets", [])
+                                elif "assets" in inner_result:
+                                    assets = inner_result.get("assets", [])
+                        elif "data" in result_data:
+                            assets = result_data["data"].get("assets", [])
+                        elif "assets" in result_data:
+                            assets = result_data.get("assets", [])
+
+                        if assets and len(assets) > 0:
+                            logger.info(f"Generating asset rename preview for {len(assets)} assets")
+
+                            # Generate preview
+                            preview_data = generate_asset_rename_preview(assets)
+
+                            # Append preview text to explanation
+                            result["explanation"] = result["explanation"] + "\n\n" + preview_data["preview_text"]
+
+                            # Store operations in session for next step (this replaces any old pending operations)
+                            if session_manager and session_id:
+                                session_context = session_manager.get_session(session_id)
+                                if session_context:
+                                    if preview_data["rename_count"] > 0:
+                                        session_context.metadata["pending_asset_operations"] = preview_data["operations"]
+                                        logger.info(f"✓ Stored {len(preview_data['operations'])} pending rename operations in session (replacing any old ones)")
+                                        logger.info(f"✓ Preview operations sample: {preview_data['operations'][0] if preview_data['operations'] else 'none'}")
+                                        logger.info(f"✓ User should say 'yes', 'okay', or 'apply' to execute rename_assets_batch")
+                                    else:
+                                        # Clear pending operations if no renames needed
+                                        session_context.metadata.pop("pending_asset_operations", None)
+                                        logger.info("Cleared pending operations - all assets already have correct naming")
+                                    session_manager.update_session(session_context)
+                        else:
+                            logger.warning("No assets found in get_selected_assets result")
+
+                break  # Only process first get_selected_assets command
+
+    except Exception as e:
+        logger.error(f"Error in asset preview post-processing: {e}")
+        # Don't fail the whole request, just skip preview generation
+
+    return result
 
 
 def _process_natural_language_impl(user_input: str, context: str = None, session_id: str = None, llm_model: str = None, images: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -637,6 +738,15 @@ def _process_natural_language_impl(user_input: str, context: str = None, session
             "modelUsed": selected_model
         }
 
+        # Post-process: Generate asset rename preview if needed
+        result = _post_process_asset_preview(
+            result,
+            request.user_input,
+            execution_results,
+            session_manager,
+            request.session_id
+        )
+
         # Update session with this interaction if session_id provided
         if session_manager and session_context:
             session_manager.add_interaction(request.session_id, request.user_input, result)
@@ -719,6 +829,17 @@ def build_system_prompt_with_session(context: str, session_context: SessionConte
             base_prompt += f"\nLatest image: {latest_image_uid} ({latest_filename}) - auto-used if image_url not specified"
         elif latest_filename:
             base_prompt += f"\nLatest image: {latest_filename} (no UID available)"
+
+        # Add pending asset operations if available
+        pending_ops = session_context.metadata.get("pending_asset_operations")
+        if pending_ops and isinstance(pending_ops, list) and len(pending_ops) > 0:
+            logger.info(f"✓ Found {len(pending_ops)} pending asset operations in session - adding to prompt")
+            logger.info(f"✓ First operation: {pending_ops[0]}")
+            base_prompt += f"\n\n**PENDING ASSET OPERATIONS ({len(pending_ops)} assets):**"
+            base_prompt += "\nIf user says 'yes', 'okay', 'apply', 'execute', 'do it', or 'confirm', YOU MUST generate:"
+            base_prompt += f'\n{{"type": "rename_assets_batch", "params": {{}}}}'
+            base_prompt += f"\nIMPORTANT: Generate the command with EMPTY params. Operations will be auto-injected from session."
+            base_prompt += f"\nDO NOT try to fill in the operations manually - just generate the command type."
 
     # Add context and conversational suffix
     base_prompt += f"\n\nContext: {context}"

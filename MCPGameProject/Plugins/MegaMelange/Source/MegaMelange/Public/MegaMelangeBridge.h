@@ -17,6 +17,7 @@ class FMegaMelangeBlueprintCommands;
 class FMegaMelangeBlueprintNodeCommands;
 class FMegaMelangeRenderingCommands;
 class FMegaMelangeObject3DCommands;
+class FMegaMelangeAssetCommands;
 
 /**
  * Editor subsystem for MCP Bridge
@@ -57,4 +58,5 @@ private:
 	TSharedPtr<FMegaMelangeBlueprintNodeCommands> BlueprintNodeCommands;
 	TSharedPtr<FMegaMelangeRenderingCommands> RenderingCommands;
 	TSharedPtr<FMegaMelangeObject3DCommands> Object3DCommands;
+	TSharedPtr<FMegaMelangeAssetCommands> AssetCommands;
 };
