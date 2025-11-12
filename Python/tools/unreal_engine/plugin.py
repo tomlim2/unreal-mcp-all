@@ -16,6 +16,7 @@ from .handlers.uds import UDSCommandHandler
 from .handlers.cesium import CesiumCommandHandler
 from .handlers.screenshot import ScreenshotCommandHandler
 from .handlers.import_object3d import Object3DImportHandler
+from .handlers.asset_rename import AssetRenameCommandHandler
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,8 @@ class Plugin(BasePlugin):
                 UDSCommandHandler(),
                 CesiumCommandHandler(),
                 ScreenshotCommandHandler(),
-                Object3DImportHandler()
+                Object3DImportHandler(),
+                AssetRenameCommandHandler()
             ]
 
             self.set_status(ToolStatus.AVAILABLE)

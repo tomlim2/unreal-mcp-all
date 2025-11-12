@@ -17,6 +17,7 @@
 #include "Commands/MegaMelangeBlueprintNodeCommands.h"
 #include "Commands/MegaMelangeRenderingCommands.h"
 #include "Commands/MegaMelangeObject3DCommands.h"
+#include "Commands/MegaMelangeAssetCommands.h"
 #include "Commands/MegaMelangeCommonUtils.h"
 
 // Default settings
@@ -42,6 +43,7 @@ void UMegaMelangeBridge::Initialize(FSubsystemCollectionBase& Collection)
 	BlueprintNodeCommands = MakeShared<FMegaMelangeBlueprintNodeCommands>();
 	RenderingCommands = MakeShared<FMegaMelangeRenderingCommands>();
 	Object3DCommands = MakeShared<FMegaMelangeObject3DCommands>();
+	AssetCommands = MakeShared<FMegaMelangeAssetCommands>();
 
 	// Start the server automatically
 	StartServer();
@@ -232,6 +234,12 @@ FString UMegaMelangeBridge::ExecuteCommand(const FString& CommandType, const TSh
 					 CommandType == TEXT("add_blueprint_variable"))
 			{
 				ResultJson = BlueprintNodeCommands->HandleCommand(CommandType, Params);
+			}
+			// Asset Commands
+			else if (CommandType == TEXT("get_selected_assets") ||
+					 CommandType == TEXT("rename_assets_batch"))
+			{
+				ResultJson = AssetCommands->HandleCommand(CommandType, Params);
 			}
 			else if (CommandType == TEXT("take_screenshot"))
 			{
