@@ -6,9 +6,17 @@ according to Unreal Engine naming conventions.
 """
 
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 logger = logging.getLogger("UnrealMCP")
+
+# Import model providers for LLM-based name cleanup
+try:
+    from tools.ai.model_providers import get_model_provider, get_default_model
+    LLM_AVAILABLE = True
+except ImportError:
+    logger.warning("Model providers not available - LLM-based name cleanup disabled")
+    LLM_AVAILABLE = False
 
 
 # Unreal Engine asset type prefixes
@@ -70,12 +78,13 @@ ASSET_PREFIXES = {
 }
 
 
-def generate_asset_rename_preview(assets: List[Dict[str, Any]]) -> Dict[str, Any]:
+def generate_asset_rename_preview(assets: List[Dict[str, Any]], user_constraints: Optional[str] = None) -> Dict[str, Any]:
     """
     Generate preview of asset rename operations.
 
     Args:
         assets: List of asset dicts with 'name', 'type', 'path' fields
+        user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
 
     Returns:
         Dict with:
@@ -87,6 +96,10 @@ def generate_asset_rename_preview(assets: List[Dict[str, Any]]) -> Dict[str, Any
     """
     preview_items = []
     operations = []
+
+    # Log constraints if provided
+    if user_constraints:
+        logger.info(f"Generating preview with user constraints: {user_constraints}")
 
     for asset in assets:
         current_name = asset.get("name", "")
@@ -101,8 +114,8 @@ def generate_asset_rename_preview(assets: List[Dict[str, Any]]) -> Dict[str, Any
         logger.info(f"  - package_path (PackagePath): {package_path}")
         logger.info(f"  - Full asset dict: {asset}")
 
-        # Generate proposed name
-        proposed_name = apply_naming_convention(current_name, asset_type)
+        # Generate proposed name with user constraints
+        proposed_name = apply_naming_convention(current_name, asset_type, user_constraints)
         needs_rename = current_name != proposed_name
 
         preview_items.append({
@@ -139,13 +152,14 @@ def generate_asset_rename_preview(assets: List[Dict[str, Any]]) -> Dict[str, Any
     }
 
 
-def apply_naming_convention(current_name: str, asset_type: str) -> str:
+def apply_naming_convention(current_name: str, asset_type: str, user_constraints: Optional[str] = None) -> str:
     """
     Apply Unreal Engine naming convention to asset name.
 
     Args:
         current_name: Current asset name
         asset_type: Asset type (e.g., "Texture2D", "Material")
+        user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
 
     Returns:
         Properly prefixed name
@@ -163,6 +177,9 @@ def apply_naming_convention(current_name: str, asset_type: str) -> str:
 
     # Remove any existing incorrect prefix
     clean_name = remove_existing_prefix(current_name)
+
+    # Use LLM to intelligently remove redundant suffixes with user constraints
+    clean_name = clean_name_with_llm(clean_name, expected_prefix, asset_type, user_constraints)
 
     # Apply correct prefix
     return expected_prefix + clean_name
@@ -183,6 +200,125 @@ def remove_existing_prefix(name: str) -> str:
     if len(parts) > 1 and len(parts[0]) <= 4 and parts[0].isupper():
         return parts[1]
     return name
+
+
+def _build_name_cleanup_prompt(current_name: str, expected_prefix: str, asset_type: str, user_constraints: Optional[str] = None) -> str:
+    """
+    Build prompt for LLM to intelligently clean up asset name.
+
+    Args:
+        current_name: Current asset name (after prefix removal)
+        expected_prefix: Expected prefix for this asset type
+        asset_type: Asset type (e.g., "MaterialInstanceConstant")
+        user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
+
+    Returns:
+        Formatted prompt string for LLM
+    """
+    # Build constraints section
+    constraints_text = ""
+    if user_constraints:
+        constraints_text = f"""
+
+**IMPORTANT USER CONSTRAINTS:**
+{user_constraints}
+
+- If user said "keep HDRI" or "HDRI 유지" → preserve HDRI in the name
+  Example: "HDRI_Attributes" → return "HDRI_Attributes" (keep HDRI)
+- If user said "keep [word]" → preserve that word in the name
+- User constraints take HIGHEST PRIORITY over standard cleanup rules
+"""
+
+    return f"""You are an Unreal Engine asset naming expert.
+
+Task: Clean up the asset name by removing ONLY redundant suffixes that duplicate the prefix meaning.
+
+Context:
+- Current name: "{current_name}"
+- Asset type: {asset_type}
+- New prefix to be added: "{expected_prefix}"
+{constraints_text}
+Rules:
+1. Remove suffixes that are redundant with the prefix meaning
+   - Example: "Cakes2_MI" with prefix "MI_" → return "Cakes2" (remove _MI, it's redundant)
+   - Example: "UV_Exterior_Inst" with prefix "MI_" → return "UV_Exterior" (remove Inst, MI already means Instance)
+   - Example: "WoodTexture_T" with prefix "T_" → return "WoodTexture" (remove _T)
+
+2. Keep suffixes that provide additional meaningful information
+   - Example: "Wood_Floor_Rough" with prefix "M_" → return "Wood_Floor_Rough" (keep Rough, it describes material property)
+   - Example: "Brick_Wall_02" with prefix "M_" → return "Brick_Wall_02" (keep 02, it's a variant number)
+   - Example: "Metal_Rusted" with prefix "M_" → return "Metal_Rusted" (keep Rusted, meaningful descriptor)
+
+3. Common redundant patterns to remove:
+   - "_MI", "_Mat", "_Material" when prefix is "M_" or "MI_"
+   - "_Tex", "_Texture" when prefix is "T_"
+   - "_Mesh" when prefix is "SM_" or "SK_"
+   - "_Inst", "_Instance" when prefix is "MI_"
+   - "_BP" when prefix is "BP_"
+
+4. Return ONLY the cleaned name without any prefix
+5. Do not add any explanation, just the cleaned name
+6. Preserve PascalCase and underscores in the cleaned name
+
+Current name: {current_name}
+Cleaned name:"""
+
+
+def clean_name_with_llm(name: str, expected_prefix: str, asset_type: str, user_constraints: Optional[str] = None) -> str:
+    """
+    Use LLM to intelligently clean up asset name by removing redundant suffixes.
+
+    Args:
+        name: Current asset name (after prefix removal)
+        expected_prefix: Expected prefix for this asset type
+        asset_type: Asset type
+        user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
+
+    Returns:
+        Cleaned name with redundant suffixes removed
+    """
+    # If LLM not available, return name as-is
+    if not LLM_AVAILABLE:
+        logger.debug(f"LLM not available, skipping intelligent cleanup for: {name}")
+        return name
+
+    try:
+        # Build prompt with user constraints
+        prompt = _build_name_cleanup_prompt(name, expected_prefix, asset_type, user_constraints)
+
+        # Get model provider
+        model = get_default_model()
+        provider = get_model_provider(model)
+
+        if not provider:
+            logger.warning(f"Could not get model provider, skipping LLM cleanup for: {name}")
+            return name
+
+        # Call LLM with minimal tokens
+        constraints_log = f" with constraints: {user_constraints}" if user_constraints else ""
+        logger.info(f"Calling LLM to clean up name: '{name}' (prefix: {expected_prefix}, type: {asset_type}){constraints_log}")
+
+        response = provider.generate_response(
+            messages=[{"role": "user", "content": prompt}],
+            system_prompt="You are an Unreal Engine naming expert. Return only the cleaned asset name without prefix or explanation.",
+            max_tokens=50,  # Small, we just need the cleaned name
+            temperature=0.0  # Deterministic
+        )
+
+        # Clean up response
+        cleaned_name = response.strip().strip('"').strip("'")
+
+        # Validation: ensure we got a reasonable result
+        if not cleaned_name or len(cleaned_name) > len(name) * 2:
+            logger.warning(f"LLM returned unexpected result: '{cleaned_name}', falling back to original: '{name}'")
+            return name
+
+        logger.info(f"LLM cleanup: '{name}' → '{cleaned_name}'")
+        return cleaned_name
+
+    except Exception as e:
+        logger.warning(f"LLM cleanup failed for '{name}': {e}, using original name")
+        return name
 
 
 def format_preview_text(preview_items: List[Dict[str, Any]]) -> str:
@@ -240,8 +376,15 @@ def should_generate_preview(user_input: str, command_type: str) -> bool:
 
     # Check if user input is about fixing/renaming assets
     rename_keywords = [
+        # English keywords
         "fix", "rename", "prefix", "casing", "capitalization",
-        "naming", "convention", "proper", "correct"
+        "naming", "convention", "proper", "correct",
+        # Korean keywords (including conjugations)
+        "접두어", "정리", "수정", "이름", "명명", "규칙",
+        "바꾸", "바꿔", "바꾸세요", "바꿔주세요", "바꿔줘",  # change (various forms)
+        "변경", "변경해", "변경해주세요",  # modify
+        "프로세스", "처리",  # process
+        "고치", "고쳐"  # fix
     ]
 
     user_lower = user_input.lower()

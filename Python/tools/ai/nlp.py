@@ -570,6 +570,59 @@ def _execute_commands(request: ProcessingRequest, commands: List[Dict[str, Any]]
     return execution_results
 
 
+def _extract_user_constraints(user_input: str) -> Optional[str]:
+    """
+    Extract user constraints/preferences from input for asset renaming.
+
+    Args:
+        user_input: Original user input string
+
+    Returns:
+        Extracted constraints as a string, or None if no constraints found
+    """
+    import re
+
+    # Common patterns for constraints
+    # English: "keep X", "preserve X", "maintain X", "don't change X", "don't remove X"
+    # Korean: "X 유지", "X는 유지", "X 보존", "X는 보존", "X 그대로"
+
+    constraints = []
+
+    # English patterns
+    english_patterns = [
+        r'keep\s+(\w+)',           # "keep HDRI"
+        r'preserve\s+(\w+)',       # "preserve brand"
+        r'maintain\s+(\w+)',       # "maintain prefix"
+        r'don\'t\s+(?:change|remove)\s+(\w+)',  # "don't change HDRI"
+    ]
+
+    # Korean patterns
+    korean_patterns = [
+        r'(\w+)(?:는|은)?\s*유지',  # "HDRI는 유지", "HDRI 유지"
+        r'(\w+)(?:는|은)?\s*보존',  # "HDRI는 보존"
+        r'(\w+)(?:는|은)?\s*그대로', # "HDRI는 그대로"
+    ]
+
+    # Check English patterns
+    for pattern in english_patterns:
+        matches = re.findall(pattern, user_input, re.IGNORECASE)
+        for match in matches:
+            constraints.append(f"keep {match}")
+
+    # Check Korean patterns
+    for pattern in korean_patterns:
+        matches = re.findall(pattern, user_input)
+        for match in matches:
+            constraints.append(f"keep {match}")
+
+    if constraints:
+        # Return unique constraints as a single string
+        unique_constraints = list(set(constraints))
+        return "; ".join(unique_constraints)
+
+    return None
+
+
 def _post_process_asset_preview(result: Dict[str, Any], user_input: str, execution_results: List[Dict], session_manager, session_id: str) -> Dict[str, Any]:
     """
     Post-process results to add asset rename preview if applicable.
@@ -617,8 +670,13 @@ def _post_process_asset_preview(result: Dict[str, Any], user_input: str, executi
                         if assets and len(assets) > 0:
                             logger.info(f"Generating asset rename preview for {len(assets)} assets")
 
-                            # Generate preview
-                            preview_data = generate_asset_rename_preview(assets)
+                            # Extract user constraints from input (e.g., "keep HDRI", "preserve brand names")
+                            user_constraints = _extract_user_constraints(user_input)
+                            if user_constraints:
+                                logger.info(f"Extracted user constraints: {user_constraints}")
+
+                            # Generate preview with user constraints
+                            preview_data = generate_asset_rename_preview(assets, user_constraints)
 
                             # Append preview text to explanation
                             result["explanation"] = result["explanation"] + "\n\n" + preview_data["preview_text"]
