@@ -78,11 +78,26 @@ uint32 FMCPServerRunnable::Run()
 								// Execute command
 								FString Response = Bridge->ExecuteCommand(CommandType, JsonObject->GetObjectField(TEXT("params")));
 
-								// Send response
+								// Convert to UTF-8 and get actual byte length (not character count!)
+								// This is critical for Chinese/Unicode characters: 1 char can be 3+ bytes in UTF-8
+								FTCHARToUTF8 UTF8Response(*Response);
+								int32 BytesToSend = UTF8Response.Length();
 								int32 BytesSent = 0;
-								if (!ClientSocket->Send((uint8*)TCHAR_TO_UTF8(*Response), Response.Len(), BytesSent))
+
+								UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Sending response (%d bytes)"), BytesToSend);
+
+								// Send response with correct byte count
+								if (!ClientSocket->Send((uint8*)UTF8Response.Get(), BytesToSend, BytesSent))
 								{
-									UE_LOG(LogTemp, Warning, TEXT("MCPServerRunnable: Failed to send response"));
+									UE_LOG(LogTemp, Error, TEXT("MCPServerRunnable: Failed to send response"));
+								}
+								else if (BytesSent != BytesToSend)
+								{
+									UE_LOG(LogTemp, Error, TEXT("MCPServerRunnable: Partial send! Expected %d bytes, sent %d bytes"), BytesToSend, BytesSent);
+								}
+								else
+								{
+									UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: Successfully sent %d bytes"), BytesSent);
 								}
 							}
 							else
@@ -177,10 +192,24 @@ void FMCPServerRunnable::ProcessMessage(TSharedPtr<FSocket> Client, const FStrin
 
 	// Send response with newline terminator
 	Response += TEXT("\n");
+
+	// Convert to UTF-8 and get actual byte length (not character count!)
+	FTCHARToUTF8 UTF8Response(*Response);
+	int32 BytesToSend = UTF8Response.Length();
 	int32 BytesSent = 0;
 
-	if (!Client->Send((uint8*)TCHAR_TO_UTF8(*Response), Response.Len(), BytesSent))
+	UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: ProcessMessage sending response (%d bytes)"), BytesToSend);
+
+	if (!Client->Send((uint8*)UTF8Response.Get(), BytesToSend, BytesSent))
 	{
 		UE_LOG(LogTemp, Error, TEXT("MCPServerRunnable: Failed to send response"));
+	}
+	else if (BytesSent != BytesToSend)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MCPServerRunnable: ProcessMessage partial send! Expected %d bytes, sent %d bytes"), BytesToSend, BytesSent);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Display, TEXT("MCPServerRunnable: ProcessMessage successfully sent %d bytes"), BytesSent);
 	}
 }

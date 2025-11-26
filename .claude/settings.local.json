@@ -4,7 +4,8 @@
       "Bash(python:*)",
       "Bash(./INSTALL_AND_BUILD.bat)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

@@ -6,6 +6,7 @@ according to Unreal Engine naming conventions.
 """
 
 import logging
+import re
 from typing import Dict, Any, List, Tuple, Optional
 
 logger = logging.getLogger("UnrealMCP")
@@ -78,13 +79,231 @@ ASSET_PREFIXES = {
 }
 
 
+def _contains_cjk_characters(text: str) -> bool:
+    """
+    Check if text contains Chinese, Japanese, or Korean characters.
+
+    Args:
+        text: Text to check
+
+    Returns:
+        True if text contains CJK characters
+    """
+    # CJK Unicode ranges:
+    # - Chinese: \u4e00-\u9fff
+    # - Japanese Hiragana: \u3040-\u309f
+    # - Japanese Katakana: \u30a0-\u30ff
+    # - Korean Hangul: \uac00-\ud7af
+    cjk_pattern = re.compile(r'[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]')
+    return bool(cjk_pattern.search(text))
+
+
+def _to_pascal_case(text: str) -> str:
+    """
+    Convert text to PascalCase.
+
+    Args:
+        text: Text to convert
+
+    Returns:
+        PascalCase formatted text
+    """
+    # Split by underscore, space, or hyphen
+    words = re.split(r'[_\s\-]+', text)
+    # Capitalize first letter of each word, remove empty strings
+    return ''.join(word.capitalize() for word in words if word)
+
+
+def rename_assets_batch_with_llm(assets: List[Dict[str, Any]]) -> Dict[str, str]:
+    """
+    Rename all assets in one LLM call following Unreal Engine standards.
+
+    Rules applied:
+    1. English only (translate CJK)
+    2. Correct UE prefix based on asset type
+    3. PascalCase
+
+    Args:
+        assets: List of asset dicts with 'name' and 'type' fields
+
+    Returns:
+        Dict mapping current name to new name
+    """
+    if not assets or not LLM_AVAILABLE:
+        return {asset['name']: asset['name'] for asset in assets}
+
+    try:
+        # Build ultra-compact list: name,type
+        prompt_lines = ["Fix UE naming:"]
+        for i, asset in enumerate(assets, 1):
+            name = asset.get('name', '')
+            asset_type = asset.get('type', '')
+            prompt_lines.append(f"{i}.{name},{asset_type}")
+        prompt_lines.append("Output:")
+        prompt = "\n".join(prompt_lines)
+
+        # Get model provider
+        from tools.ai.model_providers import get_model_provider, get_default_model
+        model = get_default_model()
+        provider = get_model_provider(model)
+
+        if not provider:
+            logger.warning("Could not get model provider for batch rename")
+            return {asset['name']: asset['name'] for asset in assets}
+
+        logger.info(f"Batch renaming {len(assets)} assets with LLM")
+        logger.info(f"Prompt:\n{prompt}")
+
+        # Call LLM with system prompt for rules
+        system_prompt = "Fix: English+UEprefix+PascalCase"
+        response = provider.generate_response(
+            messages=[{"role": "user", "content": prompt}],
+            system_prompt=system_prompt,
+            max_tokens=4096,  # Increased
+            temperature=0.0
+        )
+
+        logger.info(f"LLM response:\n{response}")
+
+        # Parse numbered response
+        result = {}
+        lines = response.strip().split("\n")
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # Match "1. T_Weapon" or "1.T_Weapon,Texture2D" or "1. T_Weapon,Texture2D"
+            match = re.match(r'^(\d+)\.?\s*(.+)$', line)
+            if match:
+                index = int(match.group(1)) - 1
+                name_part = match.group(2).strip()
+                # Remove asset type if present (e.g., "T_Weapon,Texture2D" → "T_Weapon")
+                if ',' in name_part:
+                    new_name = name_part.split(',')[0].strip()
+                else:
+                    new_name = name_part
+                if 0 <= index < len(assets):
+                    current_name = assets[index]['name']
+                    result[current_name] = new_name
+
+        logger.info(f"Batch rename complete: {len(result)} names processed")
+        logger.info(f"Rename mapping: {result}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Batch rename failed: {e}, using original names")
+        return {asset['name']: asset['name'] for asset in assets}
+
+
+def translate_cjk_names_batch(names: List[str]) -> Dict[str, str]:
+    """
+    Translate multiple CJK names to English in a single API call (batch processing).
+
+    Args:
+        names: List of CJK names to translate
+
+    Returns:
+        Dict mapping original name to translated name
+    """
+    if not names or not LLM_AVAILABLE:
+        return {name: name for name in names}
+
+    try:
+        # OPTIMIZATION: Remove duplicates (e.g., "体", "体_outline" → only "体")
+        unique_cjk = {}  # Maps clean CJK → original names with that CJK
+        for name in names:
+            # Extract CJK part (remove suffixes like "_outline", "+", numbers)
+            clean_cjk = name.replace("_outline", "").replace("+", "")
+            clean_cjk = re.sub(r'^face_', '', clean_cjk)  # Remove "face_" prefix
+            clean_cjk = re.sub(r'\d+$', '', clean_cjk)  # Remove trailing numbers
+
+            if clean_cjk not in unique_cjk:
+                unique_cjk[clean_cjk] = []
+            unique_cjk[clean_cjk].append(name)
+
+        unique_names = list(unique_cjk.keys())
+        logger.info(f"Deduplicated {len(names)} names → {len(unique_names)} unique CJK parts")
+
+        # Build compact CSV prompt with example
+        names_csv = ",".join(unique_names)
+        prompt = f"Translate: {names_csv}\nOutput CSV only:"
+
+        # Get model provider
+        from tools.ai.model_providers import get_model_provider, get_default_model
+        model = get_default_model()
+        provider = get_model_provider(model)
+
+        if not provider:
+            logger.warning("Could not get model provider for batch translation")
+            return {name: name for name in names}
+
+        logger.info(f"Batch translating {len(unique_names)} unique CJK parts in single API call")
+        logger.info(f"Batch prompt: {prompt}")
+
+        # Call LLM once for all unique names
+        response = provider.generate_response(
+            messages=[{"role": "user", "content": prompt}],
+            system_prompt="",  # Empty to save tokens
+            max_tokens=2048,  # Maximum for Gemini
+            temperature=0.0
+        )
+
+        logger.info(f"Batch response: {response}")
+
+        # Parse CSV response (e.g., "Body,Weapon,Headwear,...")
+        # Split by comma and clean up each entry
+        translated_raw = response.split(",")
+        translated = []
+        for entry in translated_raw:
+            # Remove newlines, extra spaces
+            cleaned = entry.strip().replace("\n", " ").replace("\r", "")
+            if cleaned:
+                translated.append(cleaned)
+
+        # Create translation mapping for unique CJK parts
+        cjk_to_english = {}
+        for i, unique_cjk in enumerate(unique_names):
+            if i < len(translated):
+                # Convert to PascalCase (handles spaces, hyphens, etc.)
+                english = _to_pascal_case(translated[i])
+                cjk_to_english[unique_cjk] = english
+
+        # Map back to original names (including variants with _outline, +, etc.)
+        result = {}
+        for name in names:
+            # Extract CJK part
+            clean_cjk = name.replace("_outline", "").replace("+", "")
+            clean_cjk = re.sub(r'^face_', '', clean_cjk)
+            clean_cjk = re.sub(r'\d+$', '', clean_cjk)
+
+            # Get translation
+            if clean_cjk in cjk_to_english:
+                result[name] = cjk_to_english[clean_cjk]
+            else:
+                result[name] = name  # Fallback
+
+        logger.info(f"Batch translation complete: {len(unique_names)} unique → {len(result)} total names")
+        logger.info(f"Translation mapping: {cjk_to_english}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Batch translation failed: {e}, using original names")
+        return {name: name for name in names}
+
+
 def generate_asset_rename_preview(assets: List[Dict[str, Any]], user_constraints: Optional[str] = None) -> Dict[str, Any]:
     """
     Generate preview of asset rename operations.
 
+    Uses LLM to rename ALL assets in one batch call following UE standards:
+    1. English only (translate CJK)
+    2. Correct UE prefix based on asset type
+    3. PascalCase
+
     Args:
         assets: List of asset dicts with 'name', 'type', 'path' fields
-        user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
+        user_constraints: User preferences/constraints (optional, not used in unified approach)
 
     Returns:
         Dict with:
@@ -97,26 +316,22 @@ def generate_asset_rename_preview(assets: List[Dict[str, Any]], user_constraints
     preview_items = []
     operations = []
 
-    # Log constraints if provided
-    if user_constraints:
-        logger.info(f"Generating preview with user constraints: {user_constraints}")
+    # UNIFIED APPROACH: Send all assets to LLM in one call
+    logger.info(f"Generating preview for {len(assets)} assets using unified LLM batch rename")
+    rename_map = rename_assets_batch_with_llm(assets)
 
+    # Process each asset with rename results
     for asset in assets:
         current_name = asset.get("name", "")
         asset_type = asset.get("type", "")
         asset_path = asset.get("path", "")
         package_path = asset.get("package_path", "")
 
-        logger.info(f"Processing asset for preview:")
-        logger.info(f"  - name: {current_name}")
-        logger.info(f"  - type: {asset_type}")
-        logger.info(f"  - path (ObjectPath): {asset_path}")
-        logger.info(f"  - package_path (PackagePath): {package_path}")
-        logger.info(f"  - Full asset dict: {asset}")
-
-        # Generate proposed name with user constraints
-        proposed_name = apply_naming_convention(current_name, asset_type, user_constraints)
+        # Get proposed name from LLM result
+        proposed_name = rename_map.get(current_name, current_name)
         needs_rename = current_name != proposed_name
+
+        logger.info(f"Asset: {current_name} → {proposed_name} (needs_rename: {needs_rename})")
 
         preview_items.append({
             "current_name": current_name,
@@ -133,7 +348,6 @@ def generate_asset_rename_preview(assets: List[Dict[str, Any]], user_constraints
                 continue
 
             # Use the full ObjectPath format for Unreal Asset Library
-            # UEditorAssetLibrary expects: "/Game/Path/AssetName.AssetName"
             operations.append({
                 "old_path": asset_path,
                 "new_name": proposed_name
@@ -152,7 +366,7 @@ def generate_asset_rename_preview(assets: List[Dict[str, Any]], user_constraints
     }
 
 
-def apply_naming_convention(current_name: str, asset_type: str, user_constraints: Optional[str] = None) -> str:
+def apply_naming_convention(current_name: str, asset_type: str, user_constraints: Optional[str] = None, translation_map: Optional[Dict[str, str]] = None) -> str:
     """
     Apply Unreal Engine naming convention to asset name.
 
@@ -160,6 +374,7 @@ def apply_naming_convention(current_name: str, asset_type: str, user_constraints
         current_name: Current asset name
         asset_type: Asset type (e.g., "Texture2D", "Material")
         user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
+        translation_map: Pre-translated CJK names mapping (for batch processing)
 
     Returns:
         Properly prefixed name
@@ -171,18 +386,30 @@ def apply_naming_convention(current_name: str, asset_type: str, user_constraints
         # No prefix needed for this type
         return current_name
 
-    # Check if already has correct prefix
-    if current_name.startswith(expected_prefix):
-        return current_name
-
-    # Remove any existing incorrect prefix
+    # Remove any existing prefix (even if correct) to check the name part
     clean_name = remove_existing_prefix(current_name)
 
-    # Use LLM to intelligently remove redundant suffixes with user constraints
-    clean_name = clean_name_with_llm(clean_name, expected_prefix, asset_type, user_constraints)
+    # Check if translation is needed (CJK characters present)
+    needs_translation = _contains_cjk_characters(clean_name)
 
-    # Apply correct prefix
-    return expected_prefix + clean_name
+    # Use batch translation if available
+    if translation_map and clean_name in translation_map:
+        clean_name = translation_map[clean_name]
+        logger.info(f"Using batch translation for: {current_name} → {expected_prefix + clean_name}")
+    elif needs_translation:
+        # Fallback: Use LLM for individual translation (old method)
+        clean_name = clean_name_with_llm(clean_name, expected_prefix, asset_type, user_constraints)
+
+    # Always apply PascalCase to ensure consistent formatting
+    clean_name_pascal = _to_pascal_case(clean_name)
+
+    # Check if any change is needed
+    proposed_name = expected_prefix + clean_name_pascal
+    if current_name == proposed_name:
+        return current_name  # No change needed
+
+    logger.info(f"Applying naming convention: {current_name} → {proposed_name}")
+    return proposed_name
 
 
 def remove_existing_prefix(name: str) -> str:
@@ -202,7 +429,7 @@ def remove_existing_prefix(name: str) -> str:
     return name
 
 
-def _build_name_cleanup_prompt(current_name: str, expected_prefix: str, asset_type: str, user_constraints: Optional[str] = None) -> str:
+def _build_name_cleanup_prompt(current_name: str, expected_prefix: str, asset_type: str, user_constraints: Optional[str] = None, has_cjk: bool = False) -> str:
     """
     Build prompt for LLM to intelligently clean up asset name.
 
@@ -211,62 +438,27 @@ def _build_name_cleanup_prompt(current_name: str, expected_prefix: str, asset_ty
         expected_prefix: Expected prefix for this asset type
         asset_type: Asset type (e.g., "MaterialInstanceConstant")
         user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
+        has_cjk: Whether the name contains Chinese/Japanese/Korean characters
 
     Returns:
         Formatted prompt string for LLM
     """
-    # Build constraints section
-    constraints_text = ""
-    if user_constraints:
-        constraints_text = f"""
+    # Use ultra-compact prompt for CJK translation
+    if has_cjk:
+        # Examples: 体→Body, 前髪→FrontHair, 武器→Weapon, 头饰→Headwear
+        return f"""Translate CJK to English, PascalCase, no explanation:
+"{current_name}" →"""
 
-**IMPORTANT USER CONSTRAINTS:**
-{user_constraints}
-
-- If user said "keep HDRI" or "HDRI 유지" → preserve HDRI in the name
-  Example: "HDRI_Attributes" → return "HDRI_Attributes" (keep HDRI)
-- If user said "keep [word]" → preserve that word in the name
-- User constraints take HIGHEST PRIORITY over standard cleanup rules
-"""
-
-    return f"""You are an Unreal Engine asset naming expert.
-
-Task: Clean up the asset name by removing ONLY redundant suffixes that duplicate the prefix meaning.
-
-Context:
-- Current name: "{current_name}"
-- Asset type: {asset_type}
-- New prefix to be added: "{expected_prefix}"
-{constraints_text}
-Rules:
-1. Remove suffixes that are redundant with the prefix meaning
-   - Example: "Cakes2_MI" with prefix "MI_" → return "Cakes2" (remove _MI, it's redundant)
-   - Example: "UV_Exterior_Inst" with prefix "MI_" → return "UV_Exterior" (remove Inst, MI already means Instance)
-   - Example: "WoodTexture_T" with prefix "T_" → return "WoodTexture" (remove _T)
-
-2. Keep suffixes that provide additional meaningful information
-   - Example: "Wood_Floor_Rough" with prefix "M_" → return "Wood_Floor_Rough" (keep Rough, it describes material property)
-   - Example: "Brick_Wall_02" with prefix "M_" → return "Brick_Wall_02" (keep 02, it's a variant number)
-   - Example: "Metal_Rusted" with prefix "M_" → return "Metal_Rusted" (keep Rusted, meaningful descriptor)
-
-3. Common redundant patterns to remove:
-   - "_MI", "_Mat", "_Material" when prefix is "M_" or "MI_"
-   - "_Tex", "_Texture" when prefix is "T_"
-   - "_Mesh" when prefix is "SM_" or "SK_"
-   - "_Inst", "_Instance" when prefix is "MI_"
-   - "_BP" when prefix is "BP_"
-
-4. Return ONLY the cleaned name without any prefix
-5. Do not add any explanation, just the cleaned name
-6. Preserve PascalCase and underscores in the cleaned name
-
-Current name: {current_name}
-Cleaned name:"""
+    # Compact prompt for suffix cleanup
+    constraint_note = f" Keep: {user_constraints}." if user_constraints else ""
+    return f"""Clean asset name, remove redundant suffix only:{constraint_note}
+Prefix={expected_prefix}, Name="{current_name}" → Output:"""
 
 
 def clean_name_with_llm(name: str, expected_prefix: str, asset_type: str, user_constraints: Optional[str] = None) -> str:
     """
     Use LLM to intelligently clean up asset name by removing redundant suffixes.
+    If the name contains Chinese/Japanese/Korean characters, translates them to English first.
 
     Args:
         name: Current asset name (after prefix removal)
@@ -275,7 +467,7 @@ def clean_name_with_llm(name: str, expected_prefix: str, asset_type: str, user_c
         user_constraints: User preferences/constraints (e.g., "keep HDRI", "preserve brand names")
 
     Returns:
-        Cleaned name with redundant suffixes removed
+        Cleaned name with redundant suffixes removed and CJK characters translated
     """
     # If LLM not available, return name as-is
     if not LLM_AVAILABLE:
@@ -283,8 +475,14 @@ def clean_name_with_llm(name: str, expected_prefix: str, asset_type: str, user_c
         return name
 
     try:
-        # Build prompt with user constraints
-        prompt = _build_name_cleanup_prompt(name, expected_prefix, asset_type, user_constraints)
+        # Check if name contains CJK characters
+        has_cjk = _contains_cjk_characters(name)
+
+        if has_cjk:
+            logger.info(f"Detected CJK characters in asset name: '{name}', will translate to English")
+
+        # Build prompt with user constraints and CJK translation if needed
+        prompt = _build_name_cleanup_prompt(name, expected_prefix, asset_type, user_constraints, has_cjk)
 
         # Get model provider
         model = get_default_model()
@@ -296,12 +494,13 @@ def clean_name_with_llm(name: str, expected_prefix: str, asset_type: str, user_c
 
         # Call LLM with minimal tokens
         constraints_log = f" with constraints: {user_constraints}" if user_constraints else ""
-        logger.info(f"Calling LLM to clean up name: '{name}' (prefix: {expected_prefix}, type: {asset_type}){constraints_log}")
+        translation_log = " [CJK→EN]" if has_cjk else ""
+        logger.info(f"Calling LLM to clean up name{translation_log}: '{name}' (prefix: {expected_prefix}, type: {asset_type}){constraints_log}")
 
         response = provider.generate_response(
             messages=[{"role": "user", "content": prompt}],
-            system_prompt="You are an Unreal Engine naming expert. Return only the cleaned asset name without prefix or explanation.",
-            max_tokens=50,  # Small, we just need the cleaned name
+            system_prompt="Clean name only.",  # Ultra-compact system prompt
+            max_tokens=200,  # Sufficient for translation
             temperature=0.0  # Deterministic
         )
 
@@ -309,7 +508,9 @@ def clean_name_with_llm(name: str, expected_prefix: str, asset_type: str, user_c
         cleaned_name = response.strip().strip('"').strip("'")
 
         # Validation: ensure we got a reasonable result
-        if not cleaned_name or len(cleaned_name) > len(name) * 2:
+        # For CJK translation, length can increase significantly (e.g., "体" → "Body")
+        max_length = len(name) * 5 if has_cjk else len(name) * 2
+        if not cleaned_name or len(cleaned_name) > max_length:
             logger.warning(f"LLM returned unexpected result: '{cleaned_name}', falling back to original: '{name}'")
             return name
 

@@ -138,10 +138,13 @@ class UnrealConnection:
             command_json = json.dumps(command_obj)
             logger.info(f"Sending command: {command_json}")
 
-            # Set longer timeout for import operations (they can take 30+ seconds)
+            # Set longer timeout for operations that can take 30+ seconds
             if command in ["import_object3d_by_uid", "import_fbx", "import_asset"]:
                 logger.info(f"Setting extended timeout for import operation: {command}")
                 self.socket.settimeout(120)  # 2 minutes for imports
+            elif command in ["get_selected_assets", "rename_assets_batch"]:
+                logger.info(f"Setting extended timeout for asset operation: {command}")
+                self.socket.settimeout(60)  # 1 minute for large asset lists
             else:
                 self.socket.settimeout(30)  # 30 seconds for regular commands
 
