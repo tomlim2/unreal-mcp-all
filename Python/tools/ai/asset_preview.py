@@ -183,6 +183,8 @@ def rename_assets_batch_with_llm(assets: List[Dict[str, Any]]) -> Dict[str, str]
                     new_name = name_part.split(',')[0].strip()
                 else:
                     new_name = name_part
+                # Remove markdown backticks if present
+                new_name = new_name.strip('`')
                 if 0 <= index < len(assets):
                     current_name = assets[index]['name']
                     result[current_name] = new_name
