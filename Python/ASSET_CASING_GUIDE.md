@@ -222,7 +222,6 @@ git mv Content/t_wall.uasset Content/T_Wall_RC.uasset
 - ✅ Web UI (modals with preview)
 - ✅ MCP Clients (Claude Desktop, etc.)
 - ✅ Direct API calls
-- ✅ CLI (future: `mm asset fix-casing`)
 
 ### Supported Platforms:
 - ✅ Windows (case-insensitive)
