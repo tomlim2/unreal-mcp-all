@@ -1,6 +1,6 @@
 [project]
 name = "unreal-http-bridge"
-version = "0.1.0"
+version = "2.0.0"
 description = "Unreal HTTP Bridge: A web server for Unreal Engine integration via HTTP API."
 requires-python = ">=3.10"
 dependencies = [
